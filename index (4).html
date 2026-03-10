@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Exercices de français — Sec. 3</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f0e17;
+    --card: #1a1828;
+    --accent1: #ff6b35;
+    --accent2: #7c6af7;
+    --accent3: #2ec4b6;
+    --red: #e63946;
+    --gold: #f4a261;
+    --text: #fffffe;
+    --muted: #a7a9be;
+    --border: #2a2840;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    padding: 3rem 1.5rem 4rem;
+    background-image:
+      radial-gradient(ellipse at 15% 20%, rgba(124,106,247,0.1) 0%, transparent 55%),
+      radial-gradient(ellipse at 85% 80%, rgba(255,107,53,0.08) 0%, transparent 55%);
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 3rem;
+  }
+
+  .school-badge {
+    display: inline-block;
+    font-family: 'Syne', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 50px;
+    padding: 0.3rem 1rem;
+    margin-bottom: 1.2rem;
+  }
+
+  header h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(2rem, 6vw, 3.5rem);
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--accent1), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1.1;
+    margin-bottom: 0.8rem;
+  }
+
+  header p {
+    color: var(--muted);
+    font-size: 1rem;
+    max-width: 480px;
+    margin: 0 auto;
+    line-height: 1.6;
+  }
+
+  .divider {
+    width: 60px;
+    height: 3px;
+    background: linear-gradient(90deg, var(--accent2), var(--accent1));
+    border-radius: 2px;
+    margin: 1.5rem auto 0;
+  }
+
+  /* GRID */
+  .exercises-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  /* CARD */
+  .exercise-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 2rem;
+    text-decoration: none;
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.25s cubic-bezier(.22,1,.36,1), box-shadow 0.25s, border-color 0.25s;
+    cursor: pointer;
+  }
+
+  .exercise-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    transition: opacity 0.2s;
+  }
+
+  .exercise-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 16px 40px rgba(0,0,0,0.4);
+  }
+
+  /* Card 1 — Base */
+  .card-base::before { background: linear-gradient(90deg, var(--accent2), var(--accent3)); }
+  .card-base:hover   { border-color: var(--accent2); box-shadow: 0 16px 40px rgba(124,106,247,0.15); }
+
+  /* Card 2 — Goggins */
+  .card-goggins::before { background: linear-gradient(90deg, var(--red), var(--gold)); }
+  .card-goggins:hover   { border-color: var(--red); box-shadow: 0 16px 40px rgba(230,57,70,0.15); }
+
+  /* Card 3 — Théorie */
+  .card-theory::before { background: linear-gradient(90deg, var(--accent3), var(--accent2)); }
+  .card-theory:hover   { border-color: var(--accent3); box-shadow: 0 16px 40px rgba(46,196,182,0.15); }
+
+  .card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .card-icon {
+    font-size: 2.4rem;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+
+  .card-badge {
+    font-family: 'Syne', sans-serif;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    padding: 0.25rem 0.7rem;
+    border-radius: 4px;
+    flex-shrink: 0;
+  }
+
+  .badge-base    { background: rgba(124,106,247,0.15); color: var(--accent2); border: 1px solid rgba(124,106,247,0.3); }
+  .badge-goggins { background: rgba(230,57,70,0.15);   color: var(--red);     border: 1px solid rgba(230,57,70,0.3);   }
+  .badge-theory  { background: rgba(46,196,182,0.15);  color: var(--accent3); border: 1px solid rgba(46,196,182,0.3);  }
+
+  .card-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.3rem;
+    font-weight: 800;
+    line-height: 1.2;
+    margin-bottom: 0.3rem;
+  }
+
+  .card-subtitle {
+    font-size: 0.85rem;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  /* TAGS */
+  .card-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  .tag {
+    font-size: 0.72rem;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    padding: 0.2rem 0.6rem;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border);
+    color: var(--muted);
+  }
+
+  /* STATS ROW */
+  .card-stats {
+    display: flex;
+    gap: 1.2rem;
+    border-top: 1px solid var(--border);
+    padding-top: 1rem;
+  }
+
+  .stat {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+  }
+
+  .stat .sv {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 800;
+  }
+
+  .stat .sl {
+    font-size: 0.68rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+  }
+
+  .card-base    .stat .sv { color: var(--accent2); }
+  .card-goggins .stat .sv { color: var(--red); }
+  .card-theory  .stat .sv { color: var(--accent3); }
+
+  /* CTA */
+  .card-cta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: auto;
+  }
+
+  .cta-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: 'Syne', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 700;
+    padding: 0.65rem 1.2rem;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.2s;
+    text-decoration: none;
+  }
+
+  .cta-btn:hover { opacity: 0.9; transform: translateX(2px); }
+
+  .btn-base    { background: linear-gradient(135deg, var(--accent2), var(--accent3)); color: #fff; }
+  .btn-goggins { background: linear-gradient(135deg, var(--red), var(--gold));        color: #fff; }
+  .btn-theory  { background: linear-gradient(135deg, var(--accent3), var(--accent2)); color: #fff; }
+
+  /* DIFFICULTY PIPS */
+  .diff-pips {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+  }
+
+  .pip {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--border);
+  }
+
+  .card-base    .pip.on { background: var(--accent2); }
+  .card-goggins .pip.on { background: var(--red); }
+  .card-theory  .pip.on { background: var(--accent3); }
+
+  /* FOOTER */
+  footer {
+    text-align: center;
+    margin-top: 3rem;
+    color: var(--muted);
+    font-size: 0.8rem;
+    font-family: 'Syne', sans-serif;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="school-badge">📚 Français — Secondaire 3</div>
+  <h1>Exercices interactifs</h1>
+  <p>Choisis l'exercice que tu veux faire. Tes résultats seront envoyés automatiquement à ton enseignant·e.</p>
+  <div class="divider"></div>
+</header>
+
+<div class="exercises-grid">
+
+  <!-- EXERCICE 1 — BASE -->
+  <a class="exercise-card card-base" href="exercice1.html">
+    <div class="card-header">
+      <div class="card-icon">📝</div>
+      <span class="card-badge badge-base">Exercice 1</span>
+    </div>
+
+    <div>
+      <div class="card-title">Types &amp; Formes<br>de phrases</div>
+      <div class="card-subtitle">Identifie le type et les 4 formes pour chaque phrase. Questions progressives avec explications détaillées.</div>
+    </div>
+
+    <div class="card-tags">
+      <span class="tag">Type</span>
+      <span class="tag">Pos / Nég</span>
+      <span class="tag">Active / Passive</span>
+      <span class="tag">Pers / Impers</span>
+      <span class="tag">Neutre / Emph</span>
+    </div>
+
+    <div class="card-stats">
+      <div class="stat"><span class="sv">8</span><span class="sl">Phrases</span></div>
+      <div class="stat"><span class="sv">~10 min</span><span class="sl">Durée</span></div>
+      <div class="stat">
+        <span class="sv">
+          <span class="diff-pips">
+            <span class="pip on"></span><span class="pip on"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span>
+          </span>
+        </span>
+        <span class="sl">Difficulté</span>
+      </div>
+    </div>
+
+    <div class="card-cta">
+      <span style="font-size:0.8rem;color:var(--muted);font-family:'Syne',sans-serif;font-weight:700;">Recommandé pour débuter</span>
+      <span class="cta-btn btn-base">Commencer →</span>
+    </div>
+  </a>
+
+  <!-- EXERCICE 2 — GOGGINS -->
+  <a class="exercise-card card-goggins" href="exercice2.html">
+    <div class="card-header">
+      <div class="card-icon">☠️</div>
+      <span class="card-badge badge-goggins">Exercice 2 — Avancé</span>
+    </div>
+
+    <div>
+      <div class="card-title">Types &amp; Formes<br>— Niveau Avancé</div>
+      <div class="card-subtitle">Phrases plus complexes et pièges grammaticaux. 5 niveaux progressifs : Recrue → Goggins. Pour les plus motivé·e·s !</div>
+    </div>
+
+    <div class="card-tags">
+      <span class="tag">Type</span>
+      <span class="tag">Pos / Nég</span>
+      <span class="tag">Active / Passive</span>
+      <span class="tag">Pers / Impers</span>
+      <span class="tag">Neutre / Emph</span>
+      <span class="tag">⚠️ Pièges</span>
+    </div>
+
+    <div class="card-stats">
+      <div class="stat"><span class="sv">20</span><span class="sl">Phrases</span></div>
+      <div class="stat"><span class="sv">~20 min</span><span class="sl">Durée</span></div>
+      <div class="stat">
+        <span class="sv">
+          <span class="diff-pips">
+            <span class="pip on"></span><span class="pip on"></span><span class="pip on"></span><span class="pip on"></span><span class="pip on"></span>
+          </span>
+        </span>
+        <span class="sl">Difficulté</span>
+      </div>
+    </div>
+
+    <div class="card-cta">
+      <span style="font-size:0.8rem;color:var(--muted);font-family:'Syne',sans-serif;font-weight:700;">💀 Stay hard</span>
+      <span class="cta-btn btn-goggins">Relever le défi →</span>
+    </div>
+  </a>
+
+  <!-- EXERCICE 3 — THÉORIE + IDENTIFICATION -->
+  <a class="exercise-card card-theory" href="exercice3.html">
+    <div class="card-header">
+      <div class="card-icon">🧠</div>
+      <span class="card-badge badge-theory">Exercice 3</span>
+    </div>
+
+    <div>
+      <div class="card-title">Types, Formes<br>&amp; Théorie</div>
+      <div class="card-subtitle">Identification de phrases <em>et</em> questions théoriques à choix de réponses. Explications après chaque réponse.</div>
+    </div>
+
+    <div class="card-tags">
+      <span class="tag">Type</span>
+      <span class="tag">Pos / Nég</span>
+      <span class="tag">Active / Passive</span>
+      <span class="tag">Pers / Impers</span>
+      <span class="tag">Neutre / Emph</span>
+      <span class="tag">📖 Théorie</span>
+    </div>
+
+    <div class="card-stats">
+      <div class="stat"><span class="sv">10</span><span class="sl">Phrases</span></div>
+      <div class="stat"><span class="sv">10</span><span class="sl">Questions th.</span></div>
+      <div class="stat">
+        <span class="sv">
+          <span class="diff-pips">
+            <span class="pip on"></span><span class="pip on"></span><span class="pip on"></span><span class="pip"></span><span class="pip"></span>
+          </span>
+        </span>
+        <span class="sl">Difficulté</span>
+      </div>
+    </div>
+
+    <div class="card-cta">
+      <span style="font-size:0.8rem;color:var(--muted);font-family:'Syne',sans-serif;font-weight:700;">~20 min</span>
+      <span class="cta-btn btn-theory">Commencer →</span>
+    </div>
+  </a>
+
+</div>
+
+<footer>
+  Les résultats sont transmis automatiquement à ton enseignant·e après chaque exercice.
+</footer>
+
+</body>
+</html>
