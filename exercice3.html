@@ -186,7 +186,7 @@ header p{color:var(--muted);margin-top:.5rem;font-size:.95rem}
 </div>
 
 <script>
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz4hmq5LZvspDdvS9myff8iKh8s2xh-9jcZChyu2q7aZ9LjrW9pxBTOcgduENqOitAw/exec";
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyBtPFdoNA6udshPhdMkKIdrB4pZdtbujyrsz1-3sp0GQBfl51Y0Dyi3b6nwPVzFQ/exec";
 
 // ── DATA ─────────────────────────────────────────────────────────
 
@@ -372,6 +372,7 @@ let submitted = false;
 let allResults = [];   // {type, correct, details} per question
 let studentData = {};
 let sessionId = '';    // généré côté client, sert à retrouver la ligne dans Sheets
+let rowNum = null;
 const TOTAL = PHRASES.length + MCQ.length; // 20
 
 // Category tracking for phrases
@@ -675,13 +676,13 @@ function showResults() {
 
 // ── ENVOI APPS SCRIPT (temps réel via sessionId) ──────────────────
 
-function apiFetch(payload) {
-  fetch(APPS_SCRIPT_URL, {
+async function apiFetch(payload) {
+  const resp = await fetch(APPS_SCRIPT_URL, {
     method:  'POST',
-    mode:    'no-cors',
-    headers: {'Content-Type': 'text/plain'},
+    headers: {'Content-Type': 'text/plain;charset=utf-8'},
     body:    JSON.stringify(payload)
-  }).catch(e => console.error('apiFetch:', e));
+  });
+  return resp.json();
 }
 
 function computeRunningPct() {
@@ -690,26 +691,40 @@ function computeRunningPct() {
   return Math.round((pPts + mPts) / (PHRASES.length*5 + MCQ.length) * 100);
 }
 
-function sendInit() {
-  apiFetch({
-    action:    'init',
-    feuille:   'exercice3',
-    sessionId,
-    prenom:    studentData.prenom,
-    nom:       studentData.nom,
-    groupe:    studentData.groupe
-  });
+async function sendInit() {
+  try {
+    const data = await apiFetch({
+      action:    'init',
+      feuille:   'exercice3',
+      sessionId,
+      prenom:    studentData.prenom,
+      nom:       studentData.nom,
+      groupe:    studentData.groupe
+    });
+    if (data && data.rowNum) rowNum = data.rowNum;
+  } catch (e) {
+    console.error('sendInit:', e);
+  }
 }
 
-function sendQuestion(qNum, result) {
-  apiFetch({
-    action:     'question',
-    feuille:    'exercice3',
-    sessionId,
-    questionNum: qNum,
-    result,
-    score_pct:  computeRunningPct()
-  });
+async function sendQuestion(qNum, result) {
+  if (!rowNum) {
+    await sendInit();
+    if (!rowNum) return;
+  }
+  try {
+    await apiFetch({
+      action:      'question',
+      feuille:     'exercice3',
+      rowNum,
+      sessionId,
+      questionNum: qNum,
+      result,
+      score_pct:   computeRunningPct()
+    });
+  } catch (e) {
+    console.error('sendQuestion:', e);
+  }
 }
 
 async function sendFinal(pct, p1pts, p2pts) {
@@ -726,25 +741,40 @@ async function sendFinal(pct, p1pts, p2pts) {
     catPcts[k] = catTotals[k] > 0 ? Math.round(catScores[k]/catTotals[k]*100) + '%' : '0%';
   }
 
-  apiFetch({
-    action:          'final',
-    feuille:         'exercice3',
-    sessionId,
-    score_pct:       pct,
-    score_p1:        p1pts + '/' + (PHRASES.length*5),
-    score_p2:        p2pts + '/' + MCQ.length,
-    type_pct:        catPcts.type,
-    posneg_pct:      catPcts.posNeg,
-    actpass_pct:     catPcts.actPass,
-    neuemph_pct:     catPcts.neuEmph,
-    persimpers_pct:  catPcts.persImpers,
-    phrases:         phraseResults.map(r => r.result).join(', '),
-    mcq:             mcqResults.map(r => r.result).join(', ')
-  });
+  if (!rowNum) {
+    await sendInit();
+  }
 
-  if (statusEl) {
-    statusEl.style.cssText = 'display:block;margin-top:1rem;padding:.8rem 1rem;border-radius:8px;font-size:.9rem;font-weight:600;background:rgba(42,157,143,.12);border:1px solid rgba(42,157,143,.3);color:#7ee8a2;';
-    statusEl.textContent = '✅ Résultats envoyés à ton enseignant·e !';
+  try {
+    const res = await apiFetch({
+      action:          'final',
+      feuille:         'exercice3',
+      rowNum,
+      sessionId,
+      score_pct:       pct,
+      score_p1:        p1pts + '/' + (PHRASES.length*5),
+      score_p2:        p2pts + '/' + MCQ.length,
+      type_pct:        catPcts.type,
+      posneg_pct:      catPcts.posNeg,
+      actpass_pct:     catPcts.actPass,
+      neuemph_pct:     catPcts.neuEmph,
+      persimpers_pct:  catPcts.persImpers,
+      phrases:         phraseResults.map(r => r.result).join(', '),
+      mcq:             mcqResults.map(r => r.result).join(', ')
+    });
+
+    if (!res || res.status !== 'ok') throw new Error((res && res.message) || 'Réponse invalide');
+
+    if (statusEl) {
+      statusEl.style.cssText = 'display:block;margin-top:1rem;padding:.8rem 1rem;border-radius:8px;font-size:.9rem;font-weight:600;background:rgba(42,157,143,.12);border:1px solid rgba(42,157,143,.3);color:#7ee8a2;';
+      statusEl.textContent = '✅ Résultats envoyés à ton enseignant·e !';
+    }
+  } catch (e) {
+    console.error('sendFinal:', e);
+    if (statusEl) {
+      statusEl.style.cssText = 'display:block;margin-top:1rem;padding:.8rem 1rem;border-radius:8px;font-size:.9rem;font-weight:600;background:rgba(230,57,70,.12);border:1px solid rgba(230,57,70,.35);color:#ffb4ba;';
+      statusEl.textContent = "❌ Échec de l'envoi. Vérifie le déploiement Apps Script.";
+    }
   }
 }
 </script>

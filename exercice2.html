@@ -670,19 +670,24 @@ async function sendInit() {
 }
 
 async function sendQuestion(qNum, result) {
-  // Si l'élève répond avant que sendInit() ait fini, rowNum n'est pas encore défini.
-  // On force alors l'init, puis on envoie la mise à jour.
   if (!rowNum) {
     await sendInit();
     if (!rowNum) return;
   }
   try {
+    const answeredCount = allAnswers.length;
+    const livePct = maxPts > 0 ? Math.round((totalPts / maxPts) * 100) : 0;
     await apiFetch({
       action: "question",
       feuille: "exercice2",
       rowNum,
+      sessionId,
       questionNum: qNum,
-      result
+      result,
+      score_pct: livePct,
+      total_pts: totalPts,
+      max_pts: maxPts,
+      meilleure_serie: bestStreak
     });
   } catch (e) {
     console.error("sendQuestion:", e);
