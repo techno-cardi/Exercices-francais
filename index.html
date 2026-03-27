@@ -14,6 +14,7 @@
     --accent3: #2ec4b6;
     --red: #e63946;
     --gold: #f4a261;
+    --lime: #06d6a0;
     --text: #fffffe;
     --muted: #a7a9be;
     --border: #2a2840;
@@ -130,6 +131,10 @@
   .card-theory::before { background: linear-gradient(90deg, var(--accent3), var(--accent2)); }
   .card-theory:hover   { border-color: var(--accent3); box-shadow: 0 16px 40px rgba(46,196,182,0.15); }
 
+  /* Card 4 — Examen */
+  .card-exam::before { background: linear-gradient(90deg, var(--gold), var(--lime)); }
+  .card-exam:hover   { border-color: var(--gold); box-shadow: 0 16px 40px rgba(244,162,97,0.18); }
+
   .card-header {
     display: flex;
     align-items: flex-start;
@@ -157,6 +162,7 @@
   .badge-base    { background: rgba(124,106,247,0.15); color: var(--accent2); border: 1px solid rgba(124,106,247,0.3); }
   .badge-goggins { background: rgba(230,57,70,0.15);   color: var(--red);     border: 1px solid rgba(230,57,70,0.3);   }
   .badge-theory  { background: rgba(46,196,182,0.15);  color: var(--accent3); border: 1px solid rgba(46,196,182,0.3);  }
+  .badge-exam    { background: rgba(244,162,97,0.15);  color: var(--gold);    border: 1px solid rgba(244,162,97,0.3);  }
 
   .card-title {
     font-family: 'Syne', sans-serif;
@@ -222,6 +228,7 @@
   .card-base    .stat .sv { color: var(--accent2); }
   .card-goggins .stat .sv { color: var(--red); }
   .card-theory  .stat .sv { color: var(--accent3); }
+  .card-exam    .stat .sv { color: var(--gold); }
 
   /* CTA */
   .card-cta {
@@ -251,6 +258,7 @@
   .btn-base    { background: linear-gradient(135deg, var(--accent2), var(--accent3)); color: #fff; }
   .btn-goggins { background: linear-gradient(135deg, var(--red), var(--gold));        color: #fff; }
   .btn-theory  { background: linear-gradient(135deg, var(--accent3), var(--accent2)); color: #fff; }
+  .btn-exam    { background: linear-gradient(135deg, var(--gold), var(--lime));        color: #0f0e17; }
 
   /* DIFFICULTY PIPS */
   .diff-pips {
@@ -269,6 +277,7 @@
   .card-base    .pip.on { background: var(--accent2); }
   .card-goggins .pip.on { background: var(--red); }
   .card-theory  .pip.on { background: var(--accent3); }
+  .card-exam    .pip.on { background: var(--gold); }
 
   /* FOOTER */
   footer {
@@ -407,6 +416,46 @@
     <div class="card-cta">
       <span style="font-size:0.8rem;color:var(--muted);font-family:'Syne',sans-serif;font-weight:700;">~20 min</span>
       <span class="cta-btn btn-theory">Commencer →</span>
+    </div>
+  </a>
+
+  <!-- EXERCICE 4 — COORDINATION & JUXTAPOSITION -->
+  <a class="exercise-card card-exam" href="exercice4.html">
+    <div class="card-header">
+      <div class="card-icon">⚡</div>
+      <span class="card-badge badge-exam">Exercice 4 — Examen</span>
+    </div>
+
+    <div>
+      <div class="card-title">Coordination<br>&amp; Juxtaposition</div>
+      <div class="card-subtitle">Prépare-toi à l'examen ! Coordination, juxtaposition, valeurs des coordonnants, erreurs, types et formes de phrases.</div>
+    </div>
+
+    <div class="card-tags">
+      <span class="tag">Coordination</span>
+      <span class="tag">Juxtaposition</span>
+      <span class="tag">Valeur</span>
+      <span class="tag">Ponctuation</span>
+      <span class="tag">Types</span>
+      <span class="tag">🎯 Examen</span>
+    </div>
+
+    <div class="card-stats">
+      <div class="stat"><span class="sv">20</span><span class="sl">Questions</span></div>
+      <div class="stat"><span class="sv">~15 min</span><span class="sl">Durée</span></div>
+      <div class="stat">
+        <span class="sv">
+          <span class="diff-pips">
+            <span class="pip on"></span><span class="pip on"></span><span class="pip on"></span><span class="pip"></span><span class="pip"></span>
+          </span>
+        </span>
+        <span class="sl">Difficulté</span>
+      </div>
+    </div>
+
+    <div class="card-cta">
+      <span style="font-size:0.8rem;color:var(--muted);font-family:'Syne',sans-serif;font-weight:700;">📋 Préparation examen</span>
+      <span class="cta-btn btn-exam">Commencer →</span>
     </div>
   </a>
 
