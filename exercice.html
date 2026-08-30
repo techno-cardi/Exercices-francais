@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#17243c">
+    <title>Mon activité | Atelier de français</title>
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="assets/portal.css">
+    <link rel="stylesheet" href="assets/exercice.css">
+    <script src="config.js"></script>
+    <script type="module" src="assets/exercice.js"></script>
+  </head>
+  <body class="portal-body exercise-body">
+    <a class="skip-link" href="#main">Aller au contenu</a>
+    <header class="topbar portal-topbar">
+      <a class="brand" href="eleve.html" aria-label="Retour à mes activités">
+        <span class="brand-mark" aria-hidden="true">fr</span>
+        <span><strong>Atelier de français</strong><small>Mon activité</small></span>
+      </a>
+      <a class="button button-secondary button-small" href="eleve.html">← Mes activités</a>
+    </header>
+
+    <main id="main" class="exercise-layout">
+      <div id="preview-banner" class="preview-banner" hidden>Mode aperçu : essaie les activités librement.</div>
+      <section class="exercise-heading">
+        <div>
+          <p id="assignment-mode" class="eyebrow">Activité</p>
+          <h1 id="assignment-title">Chargement…</h1>
+          <p id="matrix-title"></p>
+        </div>
+        <div class="exercise-progress" aria-live="polite">
+          <span id="progress-copy">Préparation</span>
+          <div class="progress-track"><span id="progress-bar"></span></div>
+        </div>
+      </section>
+
+      <section id="exercise-card" class="exercise-card" hidden>
+        <div class="exercise-number" id="exercise-number">Exercice 1</div>
+        <div class="instruction" id="instruction"></div>
+        <div class="canvas-viewport" id="canvas-viewport">
+          <div class="exercise-canvas" id="exercise-canvas"></div>
+        </div>
+        <div id="feedback" class="exercise-feedback" hidden role="status" aria-live="polite"></div>
+        <div class="exercise-actions">
+          <button id="previous" class="button button-secondary" type="button">← Précédent</button>
+          <button id="submit" class="button button-primary" type="button">Vérifier mes réponses</button>
+          <button id="next" class="button button-primary" type="button" hidden>Suivant →</button>
+        </div>
+      </section>
+
+      <div id="loading" class="empty-state">Ton activité se prépare…</div>
+    </main>
+  </body>
+</html>

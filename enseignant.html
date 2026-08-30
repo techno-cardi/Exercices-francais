@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#17243c">
+    <title>Espace enseignant | Atelier de français</title>
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="assets/portal.css">
+    <script src="config.js"></script>
+    <script type="module" src="assets/enseignant.js"></script>
+  </head>
+  <body class="portal-body">
+    <a class="skip-link" href="#main">Aller au contenu</a>
+    <header class="topbar portal-topbar">
+      <a class="brand" href="enseignant.html" aria-label="Tableau de bord enseignant">
+        <span class="brand-mark" aria-hidden="true">fr</span>
+        <span><strong>Atelier de français</strong><small>Espace enseignant</small></span>
+      </a>
+      <div class="account-menu">
+        <div class="account-copy"><strong id="user-name">Enseignant</strong><span>Administration</span></div>
+        <span class="avatar" id="user-avatar" aria-hidden="true">E</span>
+        <button class="icon-button" id="logout" type="button" title="Fermer la session" aria-label="Fermer la session">↗</button>
+      </div>
+    </header>
+
+    <main id="main" class="portal-layout">
+      <div id="preview-banner" class="preview-banner" hidden>
+        Mode aperçu : tu peux explorer l’espace enseignant sans enregistrer de changements.
+      </div>
+      <div class="page-heading">
+        <div><p class="eyebrow">Tableau de bord</p><h1>Planifier et suivre.</h1></div>
+        <p>Crée tes groupes, importe les courriels et assigne une sélection précise d’exercices.</p>
+      </div>
+
+      <nav class="teacher-tabs" aria-label="Sections de l’espace enseignant">
+        <button class="active" type="button" data-tab="overview">Vue d’ensemble</button>
+        <button type="button" data-tab="assignments">Affectations</button>
+        <button type="button" data-tab="groups">Groupes et courriels</button>
+        <button type="button" data-tab="catalog">Banque d’activités</button>
+      </nav>
+
+      <div id="teacher-content" aria-live="polite"></div>
+    </main>
+    <div id="toast" class="toast" hidden role="status"></div>
+  </body>
+</html>

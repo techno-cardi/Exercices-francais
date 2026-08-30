@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#17243c">
+    <title>Mes exercices | Atelier de français</title>
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="assets/portal.css">
+    <script src="config.js"></script>
+    <script type="module" src="assets/eleve.js"></script>
+  </head>
+  <body class="portal-body">
+    <a class="skip-link" href="#main">Aller au contenu</a>
+    <header class="topbar portal-topbar">
+      <a class="brand" href="eleve.html" aria-label="Mes exercices">
+        <span class="brand-mark" aria-hidden="true">fr</span>
+        <span><strong>Atelier de français</strong><small>Espace élève</small></span>
+      </a>
+      <div class="account-menu">
+        <div class="account-copy"><strong id="user-name">Élève</strong><span id="user-group">Groupe</span></div>
+        <span class="avatar" id="user-avatar" aria-hidden="true">É</span>
+        <button class="icon-button" id="logout" type="button" title="Fermer la session" aria-label="Fermer la session">↗</button>
+      </div>
+    </header>
+
+    <main id="main" class="portal-layout">
+      <div id="preview-banner" class="preview-banner" hidden>
+        Mode aperçu : tu peux découvrir les activités sans te connecter.
+      </div>
+      <div class="page-heading">
+        <div><p class="eyebrow">Mon travail</p><h1 id="greeting">Bonjour!</h1></div>
+        <p>Choisis une activité assignée à ton groupe. Ta progression s’enregistre après chaque exercice.</p>
+      </div>
+      <section aria-labelledby="assignments-title">
+        <h2 id="assignments-title" class="visually-hidden">Exercices assignés</h2>
+        <div id="assignment-grid" class="assignment-grid" aria-live="polite"></div>
+      </section>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,8 @@
+# Réponses et configuration réservées à l’enseignant
+private/
+config.local.js
+
+# Fichiers de travail
+.codex-tmp/
+node_modules/
+*.log

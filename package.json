@@ -1,0 +1,11 @@
+{
+  "name": "atelier-francais-cardinal-roy",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "import": "node tools/import-exercises.mjs",
+    "serve": "node tools/serve.mjs",
+    "check": "node tools/check-data.mjs"
+  }
+}
