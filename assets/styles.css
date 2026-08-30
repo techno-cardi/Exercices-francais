@@ -299,6 +299,31 @@ select { -webkit-tap-highlight-color: transparent; }
   box-shadow: 0 0 0 4px rgba(47, 113, 106, 0.14);
 }
 
+.setup-fields {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.setup-fields[hidden] { display: none; }
+.setup-fields label { margin-bottom: 7px; }
+
+.setup-fields input {
+  width: 100%;
+  padding: 14px 15px;
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid #bcb4a6;
+  border-radius: 12px;
+  outline: 0;
+}
+
+.setup-fields input:focus {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 4px rgba(47, 113, 106, 0.14);
+}
+
 .button {
   min-height: 52px;
   padding: 0 18px;
@@ -449,6 +474,7 @@ footer {
   .welcome-copy,
   .panel-heading h2 { overflow-wrap: anywhere; }
   .input-row { flex-direction: column; }
+  .setup-fields { grid-template-columns: 1fr; }
   .button { width: 100%; }
   .preview-actions div { flex-direction: column; }
   input,

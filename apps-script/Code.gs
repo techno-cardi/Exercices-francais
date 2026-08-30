@@ -18,14 +18,29 @@ function doPost(event) {
 function loginWithEmail_(request) {
   const email=normalizeEmail_(request.email); if(!email)throw appError_('Entre une adresse courriel valide.','BAD_EMAIL');
   const user=findUser_(email); if(!user||!isTrue_(user.actif))throw appError_('Cette adresse ne fait pas partie des groupes autorisés.','FORBIDDEN');
-  if(user.role==='enseignant')return {needsPassword:true};
+  if(user.role==='enseignant')return {needsPassword:true,setupRequired:!PropertiesService.getScriptProperties().getProperty('TEACHER_PASSWORD_HASH')};
   const session={email,name:user.nom||email,role:'eleve',groups:splitList_(user.groupes),exp:Date.now()+8*60*60*1000};
   return {token:signToken_(session),user:session};
 }
 
 function verifyTeacherPassword_(request) {
-  const email=normalizeEmail_(request.email),user=findUser_(email),saved=PropertiesService.getScriptProperties().getProperty('TEACHER_PASSWORD_HASH')||'';
-  if(!user||!isTrue_(user.actif)||user.role!=='enseignant'||!saved||digest_(String(request.password||''))!==saved)throw appError_('Le courriel ou le mot de passe est incorrect.','FORBIDDEN');
+  const email=normalizeEmail_(request.email),user=findUser_(email),password=String(request.password||'');
+  if(!user||!isTrue_(user.actif)||user.role!=='enseignant')throw appError_('Le courriel ou le mot de passe est incorrect.','FORBIDDEN');
+  const properties=PropertiesService.getScriptProperties();
+  let saved=properties.getProperty('TEACHER_PASSWORD_HASH')||'';
+  if(!saved){
+    const lock=LockService.getScriptLock();lock.waitLock(10000);
+    try{
+      saved=properties.getProperty('TEACHER_PASSWORD_HASH')||'';
+      if(!saved){
+        const setupCode=properties.getProperty('TEACHER_SETUP_CODE')||'';
+        if(!setupCode||String(request.setupCode||'')!==setupCode)throw appError_('Le code temporaire est invalide.','FORBIDDEN');
+        if(password.length<10)throw appError_('Choisis un mot de passe d’au moins 10 caractères.','BAD_PASSWORD');
+        saved=digest_(password);properties.setProperty('TEACHER_PASSWORD_HASH',saved);properties.deleteProperty('TEACHER_SETUP_CODE');
+      }
+    }finally{lock.releaseLock();}
+  }
+  if(digest_(password)!==saved)throw appError_('Le courriel ou le mot de passe est incorrect.','FORBIDDEN');
   const session={email,name:user.nom||email,role:'enseignant',groups:splitList_(user.groupes),exp:Date.now()+8*60*60*1000};return {token:signToken_(session),user:session};
 }
 

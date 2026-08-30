@@ -71,12 +71,22 @@
 
         <form id="code-form" class="login-form" hidden novalidate>
           <label id="code-label" for="code">Mot de passe enseignant</label>
-          <div class="input-row">
+          <div class="input-row password-row">
             <input id="code" name="code" type="password" autocomplete="current-password" placeholder="Mot de passe" required>
             <button class="button button-primary" type="submit">
-              Ouvrir mon espace
+              <span id="code-submit-label">Ouvrir mon espace</span>
               <span aria-hidden="true">→</span>
             </button>
+          </div>
+          <div id="setup-fields" class="setup-fields" hidden>
+            <div>
+              <label for="confirm-code">Confirme ton mot de passe</label>
+              <input id="confirm-code" name="confirm-code" type="password" autocomplete="new-password" placeholder="Répète le mot de passe">
+            </div>
+            <div>
+              <label for="setup-code">Code temporaire</label>
+              <input id="setup-code" name="setup-code" type="text" autocomplete="one-time-code" spellcheck="false" placeholder="Code de première connexion">
+            </div>
           </div>
           <button class="text-button" id="change-email" type="button">Changer de courriel</button>
         </form>

@@ -4,12 +4,33 @@ const emailForm = document.querySelector('#email-form');
 const codeForm = document.querySelector('#code-form');
 const emailInput = document.querySelector('#email');
 const codeInput = document.querySelector('#code');
+const setupFields = document.querySelector('#setup-fields');
+const setupCodeInput = document.querySelector('#setup-code');
+const confirmCodeInput = document.querySelector('#confirm-code');
+const codeLabel = document.querySelector('#code-label');
+const codeSubmitLabel = document.querySelector('#code-submit-label');
 const message = document.querySelector('#form-message');
 const changeEmailButton = document.querySelector('#change-email');
 const connectionLabel = document.querySelector('#connection-label');
 const previewActions = document.querySelector('#preview-actions');
 
 let pendingEmail = '';
+let pendingSetup = false;
+
+function showTeacherAccess(setupRequired) {
+  pendingSetup = setupRequired;
+  emailForm.hidden = true;
+  codeForm.hidden = false;
+  setupFields.hidden = !setupRequired;
+  setupCodeInput.required = setupRequired;
+  confirmCodeInput.required = setupRequired;
+  codeLabel.textContent = setupRequired ? 'Choisis ton mot de passe' : 'Mot de passe enseignant';
+  codeInput.autocomplete = setupRequired ? 'new-password' : 'current-password';
+  codeInput.placeholder = setupRequired ? 'Au moins 10 caractères' : 'Mot de passe';
+  codeSubmitLabel.textContent = setupRequired ? 'Créer mon accès' : 'Ouvrir mon espace';
+  codeInput.focus();
+  setMessage(setupRequired ? 'Première connexion : utilise ton code temporaire, puis crée ton mot de passe.' : 'Entre ton mot de passe enseignant.', 'success');
+}
 
 function setMessage(text = '', type = '') {
   message.textContent = text;
@@ -45,10 +66,7 @@ emailForm.addEventListener('submit', async event => {
   try {
     const data = await callApi('loginWithEmail', { email: pendingEmail });
     if (data.needsPassword) {
-      emailForm.hidden = true;
-      codeForm.hidden = false;
-      codeInput.focus();
-      setMessage('Entre ton mot de passe enseignant.', 'success');
+      showTeacherAccess(Boolean(data.setupRequired));
     } else {
       sessionStorage.setItem('atelier_session', data.token);
       location.href = 'eleve.html';
@@ -63,11 +81,20 @@ emailForm.addEventListener('submit', async event => {
 codeForm.addEventListener('submit', async event => {
   event.preventDefault();
   if (!codeForm.reportValidity()) return;
+  if (pendingSetup && codeInput.value !== confirmCodeInput.value) {
+    setMessage('Les deux mots de passe ne sont pas identiques.', 'error');
+    confirmCodeInput.focus();
+    return;
+  }
   setBusy(codeForm, true);
-  setMessage('Vérification du code…');
+  setMessage(pendingSetup ? 'Création de ton accès…' : 'Vérification…');
 
   try {
-    const data = await callApi('verifyTeacherPassword', { email: pendingEmail, password: codeInput.value });
+    const data = await callApi('verifyTeacherPassword', {
+      email: pendingEmail,
+      password: codeInput.value,
+      setupCode: pendingSetup ? setupCodeInput.value.trim() : '',
+    });
     sessionStorage.setItem('atelier_session', data.token);
     location.href = data.user.role === 'enseignant' ? 'enseignant.html' : 'eleve.html';
   } catch (error) {
@@ -81,6 +108,9 @@ changeEmailButton.addEventListener('click', () => {
   codeForm.hidden = true;
   emailForm.hidden = false;
   codeInput.value = '';
+  setupCodeInput.value = '';
+  confirmCodeInput.value = '';
+  pendingSetup = false;
   setMessage();
   emailInput.focus();
 });

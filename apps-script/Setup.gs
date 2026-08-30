@@ -30,7 +30,3 @@ function importerCorriges() {
   const bank=JSON.parse(DriveApp.getFileById(fileId).getBlob().getDataAsString('UTF-8')); const rows=Object.keys(bank.exercises).map(id=>[id,bank.exercises[id].matrixId,JSON.stringify(bank.exercises[id].answers)]);
   const sheet=spreadsheet_().getSheetByName(TABS.answers);sheet.getRange(2,1,Math.max(sheet.getMaxRows()-1,1),3).clearContent();if(rows.length)sheet.getRange(2,1,rows.length,3).setValues(rows);sheet.hideSheet();
 }
-
-function onOpen(){SpreadsheetApp.getUi().createMenu('Atelier de français').addItem('Préparer le tableau','configurerAtelier').addItem('Définir le mot de passe enseignant','definirMotDePasseEnseignant').addItem('Importer les corrigés','importerCorriges').addToUi();}
-
-function definirMotDePasseEnseignant(){const ui=SpreadsheetApp.getUi(),answer=ui.prompt('Mot de passe enseignant','Choisis un mot de passe long et unique.',ui.ButtonSet.OK_CANCEL);if(answer.getSelectedButton()!==ui.Button.OK)return;const password=answer.getResponseText();if(password.length<10)throw new Error('Le mot de passe doit contenir au moins 10 caractères.');PropertiesService.getScriptProperties().setProperty('TEACHER_PASSWORD_HASH',digest_(password));ui.alert('Le mot de passe enseignant est enregistré.');}
