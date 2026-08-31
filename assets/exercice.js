@@ -250,17 +250,11 @@ function layoutCanvas(){
       targets.map(target=>({target,rect:target.getBoundingClientRect()})).sort((a,b)=>a.rect.top-b.rect.top||a.rect.left-b.rect.left).forEach((item,index)=>{const field=related[index];field.dataset.anchorAligned='1';field.dataset.dynamicLeft=String((Number(label.dataset.baseLeft)||0)+(item.rect.left-labelRect.left)/scale);field.dataset.dynamicTop=String((Number(label.dataset.baseTop)||0)+(item.rect.top-labelRect.top)/scale);field.dataset.dynamicWidth=String(Math.max(Number(field.dataset.baseWidth)||40,Math.min(220,item.rect.width/scale+18)));});
     }
   }
-  for(const field of fields){
-    const fieldLeft=Math.max(Number(field.dataset.baseLeft)||0,Number(field.dataset.dynamicLeft)||0),fieldTop=Math.max(Number(field.dataset.baseTop)||0,Number(field.dataset.dynamicTop)||0),fieldWidth=Number(field.dataset.dynamicWidth)||Number(field.dataset.baseWidth)||40,fieldHeight=Number(field.dataset.baseHeight)||32;
-    for(const label of nodes.filter(node=>node.classList.contains('canvas-label')&&!node.dataset.placeholderSplit)){
-      const labelLeft=Number(label.dataset.baseLeft)||0,labelTop=Number(label.dataset.baseTop)||0,labelWidth=Number(label.dataset.baseWidth)||40,labelHeight=Number(label.dataset.baseHeight)||32;
-      const overlap=Math.min(fieldLeft+fieldWidth,labelLeft+labelWidth)-Math.max(fieldLeft,labelLeft),row=Math.min(fieldTop+fieldHeight,labelTop+labelHeight)-Math.max(fieldTop,labelTop)>Math.min(fieldHeight,labelHeight)*.35;
-      const raw=label.textContent||'',match=raw.match(/[\s\u00a0]{2,}/u);
-      if(overlap>0&&row&&match&&!label.querySelector('br')){
-        splitPlaceholderLabel(label,match[0],raw.slice(0,match.index).trim(),raw.slice((match.index||0)+match[0].length).trim(),field);
-        break;
-      }
-    }
+  for(const label of nodes.filter(node=>node.classList.contains('canvas-label')&&!node.dataset.placeholderSplit&&!node.querySelector('br'))){
+    const raw=label.textContent||'',matches=[...raw.matchAll(/[\s\u00a0]{2,}/gu)];
+    const labelLeft=Number(label.dataset.baseLeft)||0,labelTop=Number(label.dataset.baseTop)||0,labelWidth=Number(label.dataset.baseWidth)||40,labelHeight=Number(label.dataset.baseHeight)||32;
+    const related=fields.filter(field=>{const left=Number(field.dataset.baseLeft)||0,top=Number(field.dataset.baseTop)||0,width=Number(field.dataset.baseWidth)||40,height=Number(field.dataset.baseHeight)||32;return Math.min(left+width,labelLeft+labelWidth)-Math.max(left,labelLeft)>0&&Math.min(top+height,labelTop+labelHeight)-Math.max(top,labelTop)>Math.min(height,labelHeight)*.35;}).sort((a,b)=>{const dy=(Number(a.dataset.baseTop)||0)-(Number(b.dataset.baseTop)||0);return Math.abs(dy)<12?(Number(a.dataset.baseLeft)||0)-(Number(b.dataset.baseLeft)||0):dy;});
+    if(matches.length&&matches.length===related.length)splitPlaceholderLabel(label,raw,matches,related);
   }
   fields.forEach(field=>{
     const anchored=field.dataset.anchorAligned==='1';
@@ -271,11 +265,7 @@ function layoutCanvas(){
     field.style.top=`${top}px`;
     field.style.width=`${width}px`;
   });
-  for(const label of nodes.filter(node=>node.dataset.placeholderSplit)){
-    const field=nodes.find(node=>node.dataset.widgetId===label.dataset.placeholderField);
-    const suffix=label.querySelector('.canvas-label-suffix');
-    if(field&&suffix){const labelLeft=Number(label.dataset.baseLeft)||0,fieldLeft=parseFloat(field.style.left)||0,fieldWidth=parseFloat(field.style.width)||40;suffix.style.left=`${Math.max(8,fieldLeft-labelLeft+fieldWidth+8)}px`;}
-  }
+  for(const label of nodes.filter(node=>node.dataset.placeholderSplit))reflowPlaceholderLabel(label,nodes);
   for(const field of fields){
     const left=field.dataset.anchorAligned==='1'?Number(field.dataset.dynamicLeft)||0:Math.max(Number(field.dataset.baseLeft)||0,Number(field.dataset.dynamicLeft)||0);
     const baseWidth=Number(field.dataset.baseWidth)||40;
@@ -292,18 +282,16 @@ function layoutCanvas(){
     }
   }
 }
-function splitPlaceholderLabel(label,spaces,prefixText,suffixText,field){
-  const labelLeft=Number(label.dataset.baseLeft)||0;
-  label.dataset.placeholderSplit='1';
-  label.dataset.placeholderField=field.dataset.widgetId||'';
-  label.innerHTML='';
-  const prefix=document.createElement('span');prefix.className='canvas-label-prefix';prefix.textContent=prefixText;
-  const suffix=document.createElement('span');suffix.className='canvas-label-suffix';suffix.textContent=suffixText;
-  label.append(prefix,suffix);label.style.width='max-content';label.style.whiteSpace='nowrap';
-  const prefixWidth=Math.max(prefix.offsetWidth,prefix.getBoundingClientRect().width);
-  const baseFieldLeft=Number(field.dataset.baseLeft)||0,fieldWidth=Number(field.dataset.dynamicWidth)||Number(field.dataset.baseWidth)||40;
-  field.dataset.dynamicLeft=String(Math.max(baseFieldLeft,labelLeft+prefixWidth+8));
-  suffix.style.position='absolute';suffix.style.left=`${Math.max(prefixWidth+8,Math.max(baseFieldLeft,labelLeft+prefixWidth+8)-labelLeft+fieldWidth+8)}px`;suffix.style.top='0';
+function splitPlaceholderLabel(label,raw,matches,fields){
+  const labelLeft=Number(label.dataset.baseLeft)||0,labelTop=Number(label.dataset.baseTop)||0,labelHeight=Number(label.dataset.baseHeight)||32;
+  label.dataset.placeholderSplit='1';label.dataset.placeholderFields=fields.map(field=>field.dataset.widgetId||'').join('|');label.innerHTML='';label.style.width='max-content';label.style.whiteSpace='nowrap';
+  const parts=raw.split(/[\s\u00a0]{2,}/gu);for(const part of parts){const span=document.createElement('span');span.className='canvas-label-part';span.textContent=part.trim();span.style.position='absolute';span.style.top='0';label.append(span);}
+  reflowPlaceholderLabel(label,[...label.parentElement.querySelectorAll('.canvas-element')]);
+  const fieldNodes=fields;fieldNodes.forEach(field=>{field.dataset.dynamicTop=String(labelTop+(labelHeight-(Number(field.dataset.baseHeight)||32))/2);});
+}
+function reflowPlaceholderLabel(label,nodes){
+  const ids=(label.dataset.placeholderFields||'').split('|').filter(Boolean),fields=ids.map(id=>nodes.find(node=>node.dataset.widgetId===id)).filter(Boolean),parts=[...label.querySelectorAll('.canvas-label-part')],labelLeft=Number(label.dataset.baseLeft)||0,labelTop=Number(label.dataset.baseTop)||0;let cursor=0;
+  parts.forEach((part,index)=>{part.style.left=`${cursor}px`;cursor+=part.offsetWidth;if(index<fields.length){const field=fields[index],width=Number(field.dataset.dynamicWidth)||Number(field.dataset.baseWidth)||40;field.dataset.dynamicLeft=String(labelLeft+cursor+8);field.dataset.dynamicTop=String(labelTop+(Number(label.dataset.baseHeight)||32-(Number(field.dataset.baseHeight)||32))/2);cursor+=width+8;}});label.style.width=`${Math.max(Number(label.dataset.baseWidth)||40,cursor)}px`;
 }
 function dynamicBounds(exercise,root){
   const base=contentBounds(exercise),nodes=[...root.querySelectorAll('.canvas-element')];
