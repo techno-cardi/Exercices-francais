@@ -5,6 +5,7 @@ const email=params.get('email');
 const assignmentId=params.get('assignment');
 const list=document.querySelector('#copy-list');
 const loading=document.querySelector('#loading');
+if(loading) loading.innerHTML='<span class="loading-spinner" aria-hidden="true"></span><span>Chargement en cours…</span>';
 let refreshTimer;
 
 try{

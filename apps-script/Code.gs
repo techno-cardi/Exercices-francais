@@ -173,12 +173,3 @@ function upsert_(name,key,value,obj){const sheet=spreadsheet_().getSheetByName(n
 function touchLastLogin_(email){const sheet=spreadsheet_().getSheetByName(TABS.users),data=sheet.getDataRange().getValues(),headers=data[0],emailCol=headers.indexOf('courriel'),loginCol=headers.indexOf('derniereConnexion');if(loginCol<0)return;const row=data.findIndex((values,index)=>index>0&&normalizeEmail_(values[emailCol])===email);if(row>0)sheet.getRange(row+1,loginCol+1).setValue(new Date());}
 function findUser_(email){return readObjects_(TABS.users).find(user=>normalizeEmail_(user.courriel)===email);}
 function countStudents_(code){return readObjects_(TABS.users).filter(user=>user.role==='eleve'&&isTrue_(user.actif)&&splitList_(user.groupes).includes(String(code))).length;}
-
-function creerCompteEnseignantTest(){
-  const email='enseignant.test@exemple.ca',password='AtelierTest-2026!';
-  const sheet=spreadsheet_().getSheetByName(TABS.users),headers=sheet.getRange(1,1,1,sheet.getLastColumn()).getValues()[0];
-  if(!headers.includes('motDePasseHash'))sheet.getRange(1,headers.length+1).setValue('motDePasseHash');
-  upsert_(TABS.users,'courriel',email,{courriel:email,nom:'Enseignant test',role:'enseignant',groupes:'TEST',actif:true,creeLe:new Date(),derniereConnexion:'',motDePasseHash:digest_(password)});
-  upsert_(TABS.groups,'code','TEST',{code:'TEST',nom:'Groupe de démonstration',actif:true});
-  return email+' | '+password;
-}
