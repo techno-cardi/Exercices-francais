@@ -14,33 +14,34 @@ export function isPreview() {
   return localPreview;
 }
 
-export async function api(action, payload = {}) {
+export async function api(action, payload = {}, options = {}) {
   if (localPreview) return previewApi(action, payload);
   if (!config.backendUrl) {
     throw new Error('Le portail de connexion n’est pas encore ouvert.');
   }
 
-  const show = action !== 'dashboard';
+  const show = options.silent !== true && action !== 'dashboard';
   if (show) setGlobalLoading(true);
-  let response;
   try {
-    response = await fetch(config.backendUrl, {
+    const response = await fetch(config.backendUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ action, token: getToken(), ...payload }),
     });
-  } finally { if (show) setGlobalLoading(false); }
-  let data;
-  try {
-    data = await response.json();
-  } catch {
-    throw new Error('Le portail ne répond pas pour le moment. Réessaie bientôt.');
+    let data;
+    try {
+      data = await response.json();
+    } catch {
+      throw new Error('Le portail ne répond pas pour le moment. Réessaie bientôt.');
+    }
+    if (!data.ok) {
+      if (data.code === 'AUTH_REQUIRED') clearSession();
+      throw new Error(data.message || 'La demande a échoué.');
+    }
+    return data;
+  } finally {
+    if (show) setGlobalLoading(false);
   }
-  if (!data.ok) {
-    if (data.code === 'AUTH_REQUIRED') clearSession();
-    throw new Error(data.message || 'La demande a échoué.');
-  }
-  return data;
 }
 
 function setGlobalLoading(visible) {

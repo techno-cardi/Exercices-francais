@@ -1,4 +1,4 @@
-import { api, escapeHtml, formatDate, requireBootstrap } from './api.js';
+import { api, escapeHtml, formatDate, requireBootstrap } from './api.js?v=20260831-2';
 
 const params=new URLSearchParams(location.search);
 const email=params.get('email');
@@ -7,6 +7,9 @@ const list=document.querySelector('#copy-list');
 const loading=document.querySelector('#loading');
 if(loading) loading.innerHTML='<span class="loading-spinner" aria-hidden="true"></span><span>Chargement en cours…</span>';
 let refreshTimer;
+let copyLoading = false;
+let lastSignature = '';
+const matrixCache = new Map();
 
 try{
   await requireBootstrap('enseignant');
@@ -15,29 +18,47 @@ try{
 }catch(error){loading.textContent=error.message;}
 
 async function loadCopy(silent=false){
+  if(copyLoading) return;
+  copyLoading = true;
   try{
-    const copy=await api('studentCopy',{email,assignmentId});
+    const copy=await api('studentCopy',{email,assignmentId},{silent});
     document.querySelector('#student-name').textContent=copy.student.name;
     document.querySelector('#copy-title').textContent=`${copy.assignment.title} · Groupe ${(copy.student.groups||[]).join(', ')}`;
     const completed=copy.remises.filter(item=>item.status!=='en_cours');
     const earned=completed.reduce((sum,item)=>sum+item.score,0),total=completed.reduce((sum,item)=>sum+item.total,0),working=copy.remises.filter(item=>item.status==='en_cours').length;
     document.querySelector('#copy-summary').innerHTML=`<div class="copy-live-summary"><span class="live-kicker"><i></i> Actualisation automatique</span>${total?`<span class="result-pill ${earned/total>=.6?'result-ok':'result-help'}">${earned}/${total} · ${Math.round(earned/total*100)} %</span>`:''}${working?`<span class="status-pill status-working"><i></i> ${working} en cours</span>`:''}</div>`;
+    const signature=JSON.stringify(copy.remises||[]);
+    if(silent && signature===lastSignature) return;
+    lastSignature=signature;
     list.innerHTML='';
-    for(const remise of copy.remises)await renderRemise(remise);
+    await Promise.all((copy.remises||[]).map(remise=>loadMatrix(remise.matrixId)));
+    for(const remise of copy.remises||[])await renderRemise(remise);
     loading.hidden=copy.remises.length>0;
     if(!copy.remises.length){loading.hidden=false;loading.textContent='Cet élève n’a pas encore ouvert d’exercice pour cette affectation.';}
   }catch(error){if(!silent)throw error;}
+  finally{copyLoading=false;}
 }
 
 async function renderRemise(remise){
-  const matrix=await fetch(`data/matrices/${encodeURIComponent(remise.matrixId)}.json`).then(response=>response.json());
+  const matrix=await loadMatrix(remise.matrixId);
   const exercise=matrix.exercises.find(item=>String(item.id)===String(remise.exerciseId));if(!exercise)return;
+  const answers=remise.answers||{},details=remise.details||{};
   const draft=remise.status==='en_cours',card=document.createElement('article');card.className=`exercise-card copy-card ${draft?'copy-live-card':''}`;
   card.innerHTML=`<div class="copy-card-heading"><div><span class="exercise-number">${escapeHtml(exercise.displayLabel||remise.exerciseLabel||'Activité')}</span><div class="instruction">${cleanHtml(exercise.title||'')}</div></div><div>${draft?`<span class="status-pill status-working"><i></i> En cours · ${remise.answered||0}/${remise.total||0}</span>`:`<span class="result-pill ${remise.percentage>=60?'result-ok':'result-help'}">${remise.score}/${remise.total} · ${remise.percentage} %</span>`}<small>${escapeHtml(formatDate(remise.timestamp))}</small></div></div><div class="canvas-viewport"><div class="exercise-canvas"></div></div>`;
   list.append(card);
   const canvas=card.querySelector('.exercise-canvas'),viewport=card.querySelector('.canvas-viewport');canvas.style.width=`${exercise.canvas.width||650}px`;canvas.style.height=`${exercise.canvas.height||400}px`;
-  for(const element of [...(exercise.canvas.elements||[])].sort((a,b)=>Number(a.metrics?.zindex||0)-Number(b.metrics?.zindex||0))){const node=renderElement(element,remise.answers[element.id]);if(!node)continue;if(Object.hasOwn(remise.details,element.id))node.classList.add(remise.details[element.id]?'correct':'incorrect');canvas.append(node);}
+  for(const element of [...(exercise.canvas.elements||[])].sort((a,b)=>Number(a.metrics?.zindex||0)-Number(b.metrics?.zindex||0))){const node=renderElement(element,answers[element.id]);if(!node)continue;if(Object.hasOwn(details,element.id))node.classList.add(details[element.id]?'correct':'incorrect');canvas.append(node);}
   layoutCanvas(canvas);const fit=()=>{const bounds=dynamicBounds(exercise,canvas),available=Math.max(viewport.clientWidth-24,240),wideTable=window.matchMedia?.('(max-width: 700px)').matches&&(exercise.canvas.elements||[]).some(element=>element.type==='table'),scale=wideTable?Math.min(1,Math.max(.78,available/bounds.width)):Math.min(1,available/bounds.width),left=Math.max(12,(viewport.clientWidth-bounds.width*scale)/2);canvas.style.width=`${bounds.width}px`;canvas.style.height=`${bounds.height}px`;canvas.style.transform=`translate(${left}px,12px) scale(${scale}) translate(${-bounds.x}px,${-bounds.y}px)`;viewport.classList.toggle('canvas-wide',wideTable&&bounds.width*scale>available);viewport.style.height=`${bounds.height*scale+24}px`;};fit();new ResizeObserver(fit).observe(viewport);
+}
+
+async function loadMatrix(id){
+  const key=String(id||'');
+  if(matrixCache.has(key)) return matrixCache.get(key);
+  const response=await fetch(`data/matrices/${encodeURIComponent(key)}.json`);
+  if(!response.ok) throw new Error('Cette activité est introuvable.');
+  const matrix=await response.json();
+  matrixCache.set(key,matrix);
+  return matrix;
 }
 
 function contentBounds(exercise){const rendered=(exercise.canvas.elements||[]).filter(element=>element.type!=='association_draggable'&&!(element.type==='linkable'&&element.linkable_type!=='source'));if(!rendered.length)return{x:0,y:0,width:Number(exercise.canvas.width)||650,height:Number(exercise.canvas.height)||400};const xs=rendered.map(element=>Number(element.metrics?.x)||0),ys=rendered.map(element=>Number(element.metrics?.y)||0),rights=rendered.map(element=>(Number(element.metrics?.x)||0)+(Number(element.metrics?.width)||40)),bottoms=rendered.map(element=>(Number(element.metrics?.y)||0)+(Number(element.metrics?.height)||32)),pad=12,x=Math.max(0,Math.min(...xs)-pad),y=Math.max(0,Math.min(...ys)-pad);return{x,y,width:Math.max(120,Math.max(...rights)-x+pad),height:Math.max(80,Math.max(...bottoms)-y+pad)};}

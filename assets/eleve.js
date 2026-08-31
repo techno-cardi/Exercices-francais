@@ -1,4 +1,4 @@
-import { clearSession, escapeHtml, formatDate, requireBootstrap } from './api.js';
+import { clearSession, escapeHtml, formatDate, requireBootstrap } from './api.js?v=20260831-2';
 
 const grid = document.querySelector('#assignment-grid');
 const logout = document.querySelector('#logout');

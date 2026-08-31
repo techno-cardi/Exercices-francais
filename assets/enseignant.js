@@ -1,8 +1,9 @@
-import { api, clearSession, escapeHtml, formatDate, requireBootstrap } from './api.js';
+import { api, clearSession, escapeHtml, formatDate, requireBootstrap } from './api.js?v=20260831-2';
 
 const content = document.querySelector('#teacher-content');
 const toast = document.querySelector('#toast');
 const matrixCache = new Map();
+const matrixRequests = new Map();
 const activitySelection = new Set();
 const expandedMatrices = new Set();
 let state;
@@ -55,7 +56,7 @@ function renderOverview() {
       <div><span class="live-kicker"><i></i> Suivi actif</span><h2>Ta classe, en un coup d’œil.</h2><p>Les réponses apparaissent ici pendant que les élèves travaillent.</p></div>
       <button class="button button-primary" id="new-assignment" type="button">+ Nouvelle affectation</button>
     </section>
-    <div class="stats-grid stats-grid-four">
+    <div id="overview-stats" class="stats-grid stats-grid-four">
       ${statCard('Élèves actifs maintenant', results.activeNow || 0, 'live')}
       ${statCard('Exercices en cours', results.inProgress || 0)}
       ${statCard('Exercices remis', results.remises || 0)}
@@ -123,7 +124,14 @@ function startLiveUpdates() {
   clearInterval(liveTimer);
   if (state?.preview || activeTab !== 'overview') return;
   const generation=liveGeneration;
-  liveTimer=setInterval(async()=>{if(document.hidden||activeTab!=='overview')return;try{const fresh=await api('dashboard');if(generation!==liveGeneration||activeTab!=='overview'||document.querySelector('[data-tab].active')?.dataset.tab!=='overview')return;state.results=fresh.results;state.progress=fresh.progress;state.updatedAt=fresh.updatedAt;renderOverview();}catch{}},3000);
+  liveTimer=setInterval(async()=>{if(document.hidden||activeTab!=='overview')return;try{const fresh=await api('dashboard');if(generation!==liveGeneration||activeTab!=='overview'||document.querySelector('[data-tab].active')?.dataset.tab!=='overview')return;state.results=fresh.results;state.progress=fresh.progress;state.updatedAt=fresh.updatedAt;updateLiveOverview();}catch{}},3000);
+}
+
+function updateLiveOverview(){
+  const stats=document.querySelector('#overview-stats');
+  if(stats){const results=state.results||{};stats.innerHTML=`${statCard('Élèves actifs maintenant',results.activeNow||0,'live')}${statCard('Exercices en cours',results.inProgress||0)}${statCard('Exercices remis',results.remises||0)}${statCard('Moyenne des remises',`${results.average||0} %`)}`;}
+  const table=document.querySelector('#progress-results');if(table)table.innerHTML=progressTable(filteredProgress());
+  const status=document.querySelector('#live-status');if(status)status.textContent=`Actualisé à ${formatDate(state.updatedAt)||'l’instant'}`;
 }
 
 function renderAssignments() {
@@ -166,7 +174,7 @@ function drawAssignmentPicker() {
   const matches=state.catalog.matrices.filter(matrix=>!query||`${matrix.number||''} ${matrix.label} ${matrix.themeLabel||''} ${matrix.hierarchy}`.toLocaleLowerCase('fr').includes(query)),matrices=matches.slice(0,assignmentVisibleCount);
   picker.innerHTML=matrices.map(matrix=>{
     const questions=(matrix.exerciseIds||[]).length,selected=activitySelection.has(String(matrix.id)),expanded=expandedMatrices.has(String(matrix.id)),loaded=matrixCache.get(String(matrix.id));
-    return `<article class="matrix-select-card ${selected?'has-selection':''}"><div class="matrix-select-head"><label class="matrix-check"><input type="checkbox" data-matrix-check="${escapeHtml(matrix.id)}" ${selected?'checked':''}><span><strong>${escapeHtml(matrix.displayLabel||matrix.label)}</strong><small>Activité complète · ${questions} question${questions>1?'s':''} · Thème ${escapeHtml(matrix.themeNumber||'')}</small></span></label><span class="matrix-selected">${selected?'Sélectionnée':'Disponible'}</span><button class="text-button" data-expand-matrix="${escapeHtml(matrix.id)}" type="button">${expanded?'Refermer':'Voir les questions'}</button></div>${expanded?`<div class="exercise-picker-list">${loaded?exercisePickerRows(loaded):'<div class="picker-loading">Chargement des questions…</div>'}</div>`:''}</article>`;
+    return `<article class="matrix-select-card ${selected?'has-selection':''}"><div class="matrix-select-head"><label class="matrix-check"><input type="checkbox" data-matrix-check="${escapeHtml(matrix.id)}" ${selected?'checked':''}><span><strong>${escapeHtml(matrix.displayLabel||matrix.label)}</strong><small>Activité complète · ${questions} question${questions>1?'s':''} · Thème ${escapeHtml(matrix.themeNumber||'')}</small></span></label><span class="matrix-selected">${selected?'Sélectionnée':'Disponible'}</span><button class="text-button" data-expand-matrix="${escapeHtml(matrix.id)}" type="button">${expanded?'Refermer':'Voir les questions'}</button></div>${expanded?`<div class="exercise-picker-list">${loaded?exercisePickerRows(loaded):'<div class="picker-loading"><span class="loading-spinner" aria-hidden="true"></span><span>Chargement des questions…</span></div>'}</div>`:''}</article>`;
   }).join('')+(matches.length>matrices.length?`<button class="button button-secondary load-more" data-load-more type="button">Afficher ${Math.min(12,matches.length-matrices.length)} notions de plus</button>`:'')||'<div class="empty-state compact-empty">Aucune notion trouvée.</div>';
   picker.querySelectorAll('[data-matrix-check]').forEach(input=>{input.indeterminate=false;});
   updateSelectionCounter();
@@ -178,7 +186,7 @@ function exercisePickerRows(matrix) {
 
 async function handlePickerClick(event) {
   const more=event.target.closest('[data-load-more]');if(more){assignmentVisibleCount+=12;drawAssignmentPicker();return;}
-  const expand=event.target.closest('[data-expand-matrix]');if(expand){const id=expand.dataset.expandMatrix;if(expandedMatrices.has(id))expandedMatrices.delete(id);else{expandedMatrices.add(id);drawAssignmentPicker();await loadMatrix(id);}drawAssignmentPicker();return;}
+  const expand=event.target.closest('[data-expand-matrix]');if(expand){const id=expand.dataset.expandMatrix;if(expandedMatrices.has(id)){expandedMatrices.delete(id);drawAssignmentPicker();return;}expandedMatrices.add(id);drawAssignmentPicker();try{await loadMatrix(id);}catch(error){expandedMatrices.delete(id);showToast(error.message);}drawAssignmentPicker();return;}
   const preview=event.target.closest('[data-preview-exercise]');if(preview)openPreview(preview.dataset.matrixId,preview.dataset.previewExercise,'formatif','Aperçu de la banque');
 }
 
@@ -209,7 +217,7 @@ function renderCatalog() {
   content.innerHTML=`<section class="catalog-hero"><div><p class="eyebrow">Banque d’activités</p><h2>Explore les activités avant de les assigner.</h2><p>Ouvre chaque activité pour voir ses questions et l’écran exact des élèves.</p></div><input id="catalog-search" class="search-input" type="search" placeholder="Chercher une activité, un type ou un mot-clé"></section><div class="category-pills">${categories.map(category=>`<button class="${catalogCategory===category?'active':''}" data-category="${escapeHtml(category)}" type="button">${escapeHtml(category)}</button>`).join('')}</div><div id="catalog-detail"></div><div id="catalog-list" class="catalog-card-grid"></div>`;
   document.querySelector('#catalog-search').addEventListener('input',()=>{catalogVisibleCount=18;drawCatalogCards();});
   document.querySelector('.category-pills').addEventListener('click',event=>{const button=event.target.closest('[data-category]');if(!button)return;catalogCategory=button.dataset.category;catalogOpenId='';catalogVisibleCount=18;renderCatalog();});
-  document.querySelector('#catalog-list').addEventListener('click',async event=>{const more=event.target.closest('[data-catalog-more]');if(more){catalogVisibleCount+=18;drawCatalogCards();return;}const button=event.target.closest('[data-open-catalog]');if(!button)return;catalogOpenId=button.dataset.openCatalog;await loadMatrix(catalogOpenId);drawCatalogDetail();});
+  document.querySelector('#catalog-list').addEventListener('click',async event=>{const more=event.target.closest('[data-catalog-more]');if(more){catalogVisibleCount+=18;drawCatalogCards();return;}const button=event.target.closest('[data-open-catalog]');if(!button)return;catalogOpenId=button.dataset.openCatalog;button.disabled=true;button.setAttribute('aria-busy','true');const original=button.textContent;button.textContent='Chargement…';try{await loadMatrix(catalogOpenId);drawCatalogDetail();}catch(error){showToast(error.message);}finally{button.disabled=false;button.removeAttribute('aria-busy');button.textContent=original;}});
   document.querySelector('#catalog-detail').addEventListener('click',handleCatalogDetail);
   drawCatalogCards();drawCatalogDetail();
 }
@@ -220,7 +228,7 @@ function drawCatalogDetail(){const host=document.querySelector('#catalog-detail'
 
 function handleCatalogDetail(event){const preview=event.target.closest('[data-catalog-preview]');if(preview){openPreview(preview.dataset.matrixId,preview.dataset.catalogPreview,'formatif','Aperçu de la banque');return;}const all=event.target.closest('[data-assign-all]');if(all){activitySelection.add(String(all.dataset.assignAll));switchTab('assignments');}}
 
-async function loadMatrix(id){id=String(id);if(matrixCache.has(id))return matrixCache.get(id);const response=await fetch(`data/matrices/${encodeURIComponent(id)}.json`);if(!response.ok)throw new Error('Cette notion est introuvable.');const matrix=await response.json();matrixCache.set(id,matrix);return matrix;}
+async function loadMatrix(id){id=String(id);if(matrixCache.has(id))return matrixCache.get(id);if(matrixRequests.has(id))return matrixRequests.get(id);const request=fetch(`data/matrices/${encodeURIComponent(id)}.json`).then(response=>{if(!response.ok)throw new Error('Cette notion est introuvable.');return response.json();}).then(matrix=>{matrixCache.set(id,matrix);return matrix;}).finally(()=>matrixRequests.delete(id));matrixRequests.set(id,request);return request;}
 function plainText(html){const doc=new DOMParser().parseFromString(String(html||''),'text/html');return doc.body.textContent.replace(/\s+/g,' ').trim();}
 function openPreview(matrixId,exerciseId='',mode='formatif',title='Aperçu enseignant'){if(!matrixId)return showToast('Aucun exercice à prévisualiser.');const local=['127.0.0.1','localhost'].includes(location.hostname)?'&apercu=1&role=enseignant':'';location.href=`exercice.html?apercu-enseignant=1&matrix=${encodeURIComponent(matrixId)}&mode=${encodeURIComponent(mode)}&title=${encodeURIComponent(title)}${exerciseId?`&exercise=${encodeURIComponent(exerciseId)}`:''}${local}`;}
 

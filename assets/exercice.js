@@ -1,4 +1,4 @@
-import { api, escapeHtml, requireBootstrap } from './api.js';
+import { api, escapeHtml, requireBootstrap } from './api.js?v=20260831-2';
 
 const params = new URLSearchParams(location.search);
 const assignmentId = params.get('assignment');
@@ -217,7 +217,7 @@ function setAnswer(id,value){answers[id]=value;scheduleDraftSave();}
 function scheduleDraftSave(delay=650){if(!syncEnabled)return;clearTimeout(saveTimer);document.querySelector('#save-status').textContent='Enregistrement…';saveTimer=setTimeout(saveDraft,delay);}
 async function saveDraft(){
   if(!syncEnabled)return;const exercise=exercises[current],snapshot=JSON.parse(JSON.stringify(answers));
-  try{await api('saveDraft',{assignmentId:assignment.id,matrixId:matrix.id,exerciseId:exercise.id,exerciseLabel:exercise.displayLabel||`Activité ${exercise.number||current+1} — ${matrix.label}`,answers:snapshot,total:answerableCount(exercise)});document.querySelector('#save-status').textContent='Réponses enregistrées';}
+  try{await api('saveDraft',{assignmentId:assignment.id,matrixId:matrix.id,exerciseId:exercise.id,exerciseLabel:exercise.displayLabel||`Activité ${exercise.number||current+1} — ${matrix.label}`,answers:snapshot,total:answerableCount(exercise)},{silent:true});document.querySelector('#save-status').textContent='Réponses enregistrées';}
   catch{document.querySelector('#save-status').textContent='Sauvegarde en attente';}
 }
 function answerableCount(exercise){const types=new Set(['input','word_inputs','dropdown_menu','checkbox','association_droppable','linkable','words_highlight','sorted_items']);return (exercise.canvas.elements||[]).filter(element=>types.has(element.type)&&(element.type!=='linkable'||element.linkable_type==='source')).length;}
