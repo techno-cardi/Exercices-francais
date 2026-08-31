@@ -120,7 +120,7 @@ function assignmentCards(assignments) {
 function startLiveUpdates() {
   clearInterval(liveTimer);
   if (state?.preview || activeTab !== 'overview') return;
-  liveTimer=setInterval(async()=>{if(document.hidden||activeTab!=='overview')return;try{const fresh=await api('dashboard');state.results=fresh.results;state.progress=fresh.progress;state.updatedAt=fresh.updatedAt;renderOverview();}catch{}},3000);
+  liveTimer=setInterval(async()=>{if(document.hidden||activeTab!=='overview')return;try{const fresh=await api('dashboard');if(activeTab!=='overview')return;state.results=fresh.results;state.progress=fresh.progress;state.updatedAt=fresh.updatedAt;renderOverview();}catch{}},3000);
 }
 
 function renderAssignments() {
