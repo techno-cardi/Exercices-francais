@@ -8,6 +8,7 @@ const expandedMatrices = new Set();
 let state;
 let activeTab = 'overview';
 let liveTimer;
+let liveGeneration = 0;
 let catalogOpenId = '';
 let catalogCategory = 'Toutes';
 let overviewFilters = { search:'', group:'', assignment:'', status:'' };
@@ -33,6 +34,7 @@ try {
 }
 
 function switchTab(tab) {
+  liveGeneration += 1;
   activeTab = tab;
   document.querySelectorAll('[data-tab]').forEach(item => item.classList.toggle('active', item.dataset.tab === tab));
   render();
@@ -120,7 +122,8 @@ function assignmentCards(assignments) {
 function startLiveUpdates() {
   clearInterval(liveTimer);
   if (state?.preview || activeTab !== 'overview') return;
-  liveTimer=setInterval(async()=>{if(document.hidden||activeTab!=='overview')return;try{const fresh=await api('dashboard');if(activeTab!=='overview')return;state.results=fresh.results;state.progress=fresh.progress;state.updatedAt=fresh.updatedAt;renderOverview();}catch{}},3000);
+  const generation=liveGeneration;
+  liveTimer=setInterval(async()=>{if(document.hidden||activeTab!=='overview')return;try{const fresh=await api('dashboard');if(generation!==liveGeneration||activeTab!=='overview'||document.querySelector('[data-tab].active')?.dataset.tab!=='overview')return;state.results=fresh.results;state.progress=fresh.progress;state.updatedAt=fresh.updatedAt;renderOverview();}catch{}},3000);
 }
 
 function renderAssignments() {
