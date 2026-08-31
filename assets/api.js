@@ -84,16 +84,25 @@ async function previewApi(action, payload) {
       catalog,
       assignments,
       groups: [
-        { code: '301', name: 'Français 301', students: 28 },
-        { code: '302', name: 'Français 302', students: 27 },
-        { code: '303', name: 'Français 303', students: 29 },
+        { code: '301', name: 'Français 301', students: 3, members: [
+          { name:'Camille Roy', email:'camille.roy@ecole.ca', lastLogin:new Date().toISOString() },
+          { name:'Malik Gagné', email:'malik.gagne@ecole.ca', lastLogin:new Date(Date.now()-86400000).toISOString() },
+          { name:'Noémie Tremblay', email:'noemie.tremblay@ecole.ca', lastLogin:'' },
+        ] },
+        { code: '302', name: 'Français 302', students: 2, members: [
+          { name:'Nora Tremblay', email:'nora.tremblay@ecole.ca', lastLogin:new Date(Date.now()-3600000).toISOString() },
+          { name:'Thomas Bérubé', email:'thomas.berube@ecole.ca', lastLogin:'' },
+        ] },
+        { code: '303', name: 'Français 303', students: 1, members: [
+          { name:'Émile Gagnon', email:'emile.gagnon@ecole.ca', lastLogin:new Date(Date.now()-172800000).toISOString() },
+        ] },
       ],
       users: [],
-      results: { remises: 148, average: 76, activeStudents: 72 },
+      results: { remises: 148, average: 76, activeStudents: 72, activeNow: 3, inProgress: 4 },
       progress: [
-        { timestamp: new Date().toISOString(), email: 'camille.roy@ecole.ca', name: 'Camille Roy', groups: ['301'], assignmentId:'apercu-formatif', assignmentTitle: 'Récit narratif · notions', exerciseLabel: 'Exercice 3 · Le nom', score: 4, total: 5, percentage: 80 },
-        { timestamp: new Date(Date.now() - 90000).toISOString(), email: 'malik.gagne@ecole.ca', name: 'Malik Gagné', groups: ['301'], assignmentId:'apercu-formatif', assignmentTitle: 'Récit narratif · notions', exerciseLabel: 'Exercice 4 · Le nom', score: 5, total: 5, percentage: 100 },
-        { timestamp: new Date(Date.now() - 180000).toISOString(), email: 'nora.tremblay@ecole.ca', name: 'Nora Tremblay', groups: ['302'], assignmentId:'apercu-evaluation', assignmentTitle: 'La phrase · vérification', exerciseLabel: 'Exercice 2 · La phrase', score: 3, total: 6, percentage: 50 },
+        { timestamp: new Date().toISOString(), email: 'camille.roy@ecole.ca', name: 'Camille Roy', groups: ['301'], assignmentId:'apercu-formatif', assignmentTitle: 'Récit narratif · notions', exerciseLabel: 'Exercice 3 · Le nom', score: 0, total: 5, answered: 3, percentage: 0, status:'en_cours' },
+        { timestamp: new Date(Date.now() - 90000).toISOString(), email: 'malik.gagne@ecole.ca', name: 'Malik Gagné', groups: ['301'], assignmentId:'apercu-formatif', assignmentTitle: 'Récit narratif · notions', exerciseLabel: 'Exercice 4 · Le nom', score: 5, total: 5, answered: 5, percentage: 100, status:'corrige' },
+        { timestamp: new Date(Date.now() - 180000).toISOString(), email: 'nora.tremblay@ecole.ca', name: 'Nora Tremblay', groups: ['302'], assignmentId:'apercu-evaluation', assignmentTitle: 'La phrase · vérification', exerciseLabel: 'Exercice 2 · La phrase', score: 3, total: 6, answered: 6, percentage: 50, status:'corrige' },
       ],
       sheetUrl: '',
     };
@@ -112,7 +121,7 @@ async function previewApi(action, payload) {
   }
 
   if (action === 'studentCopy') {
-    return { ok:true, preview:true, student:{email:payload.email||'camille.roy@ecole.ca',name:'Camille Roy',groups:['301']}, assignment:{id:payload.assignmentId,title:'Récit narratif · notions',mode:'formatif'}, remises:[{timestamp:new Date().toISOString(),matrixId:'10102',exerciseId:'110317',exerciseLabel:'Exercice 1 · Les classes de mots',score:7,total:10,percentage:70,attempt:1,answers:{},details:{}}] };
+    return { ok:true, preview:true, student:{email:payload.email||'camille.roy@ecole.ca',name:'Camille Roy',groups:['301']}, assignment:{id:payload.assignmentId,title:'Récit narratif · notions',mode:'formatif'}, remises:[{timestamp:new Date().toISOString(),matrixId:'10102',exerciseId:'110317',exerciseLabel:'Exercice 1 · Les classes de mots',score:0,total:10,answered:4,percentage:0,attempt:0,status:'en_cours',answers:{},details:{}}] };
   }
 
   return { ok: true, preview: true, message: 'Modification simulée dans l’aperçu local.' };

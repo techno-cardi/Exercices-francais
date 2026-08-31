@@ -5,3 +5,5 @@
 .canvas-viewport{overflow:auto;-webkit-overflow-scrolling:touch}
 @media(max-width:700px){.exercise-heading h1{overflow-wrap:anywhere}.exercise-actions .button{min-width:calc(50% - 6px)}.copy-card-heading{flex-direction:column}.copy-card-heading>div:last-child{justify-items:start}.canvas-input,.canvas-select{font-size:16px}}
 @media(max-width:700px){.canvas-input,.canvas-select{min-height:56px}.canvas-check{transform:scale(2)}.sort-item button{min-width:44px;min-height:44px}.highlight-word{min-height:40px}}
+.save-status{min-height:1.1em;display:block;margin-top:2px;color:#667085;font-size:.72rem;text-align:right}
+@media(max-width:700px){.save-status{text-align:left}}

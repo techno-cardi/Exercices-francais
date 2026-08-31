@@ -14,11 +14,11 @@
   <body class="portal-body exercise-body">
     <a class="skip-link" href="#main">Aller au contenu</a>
     <header class="topbar portal-topbar">
-      <a class="brand" href="eleve.html" aria-label="Retour à mes activités">
+      <a class="brand" id="brand-link" href="eleve.html" aria-label="Retour à mes activités">
         <span class="brand-mark" aria-hidden="true">fr</span>
         <span><strong>Atelier de français</strong><small>Mon activité</small></span>
       </a>
-      <a class="button button-secondary button-small" href="eleve.html">← Mes activités</a>
+      <a class="button button-secondary button-small" id="back-link" href="eleve.html">← Mes activités</a>
     </header>
 
     <main id="main" class="exercise-layout">
@@ -32,6 +32,7 @@
         <div class="exercise-progress" aria-live="polite">
           <span id="progress-copy">Préparation</span>
           <div class="progress-track"><span id="progress-bar"></span></div>
+          <small id="save-status" class="save-status"></small>
         </div>
       </section>
 

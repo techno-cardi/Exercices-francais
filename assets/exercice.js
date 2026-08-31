@@ -2,6 +2,7 @@ import { api, escapeHtml, requireBootstrap } from './api.js';
 
 const params = new URLSearchParams(location.search);
 const assignmentId = params.get('assignment');
+const teacherPreview = params.get('apercu-enseignant') === '1';
 let matrixId = params.get('matrix');
 const card = document.querySelector('#exercise-card');
 const canvas = document.querySelector('#exercise-canvas');
@@ -13,6 +14,8 @@ let matrix;
 let exercises = [];
 let current = 0;
 let answers = {};
+let saveTimer;
+let syncEnabled = false;
 
 document.querySelector('#previous').addEventListener('click', () => { if (current > 0) { current -= 1; renderExercise(); } });
 document.querySelector('#next').addEventListener('click', goNext);
@@ -20,10 +23,20 @@ document.querySelector('#submit').addEventListener('click', submitExercise);
 window.addEventListener('resize', fitCanvas);
 
 try {
-  const data = await requireBootstrap('eleve');
-  assignment = (data.assignments || []).find(item => String(item.id) === String(assignmentId));
-  if (!assignment) throw new Error('Cette activité ne t’est pas assignée.');
-  matrixId ||= assignment.matrixIds?.[0];
+  const data = await requireBootstrap(teacherPreview ? 'enseignant' : 'eleve');
+  if (teacherPreview) {
+    if (!matrixId) throw new Error('Choisis un exercice à prévisualiser.');
+    const exerciseId = params.get('exercise');
+    assignment = { id:'apercu-enseignant', title:params.get('title') || 'Aperçu enseignant', mode:params.get('mode') === 'evaluation' ? 'evaluation' : 'formatif', matrixIds:[matrixId], exerciseIds:exerciseId ? [exerciseId] : [] };
+    document.querySelector('#brand-link').href = 'enseignant.html';
+    document.querySelector('#back-link').href = 'enseignant.html';
+    document.querySelector('#back-link').textContent = '← Espace enseignant';
+    document.querySelector('#submit').textContent = 'Continuer l’aperçu';
+  } else {
+    assignment = (data.assignments || []).find(item => String(item.id) === String(assignmentId));
+    if (!assignment) throw new Error('Cette activité ne t’est pas assignée.');
+    matrixId ||= assignment.matrixIds?.[0];
+  }
   if (!assignment.matrixIds?.map(String).includes(String(matrixId))) throw new Error('Cette partie ne fait pas partie de ton activité.');
   matrix = await fetch(`data/matrices/${encodeURIComponent(matrixId)}.json`).then(response => {
     if (!response.ok) throw new Error('Cette activité est introuvable.');
@@ -32,12 +45,14 @@ try {
   const allowed = new Set((assignment.exerciseIds || []).map(String));
   exercises = matrix.exercises.filter(item => !allowed.size || allowed.has(String(item.id)));
   if (!exercises.length) throw new Error('Aucun exercice n’est disponible ici.');
-  document.querySelector('#preview-banner').hidden = !data.preview;
+  document.querySelector('#preview-banner').hidden = !data.preview && !teacherPreview;
+  if (teacherPreview) document.querySelector('#preview-banner').textContent = 'Aperçu enseignant : tu vois exactement l’écran présenté aux élèves. Rien n’est enregistré.';
   document.querySelector('#assignment-title').textContent = assignment.title;
   document.querySelector('#assignment-mode').textContent = assignment.mode === 'evaluation' ? 'Évaluation' : 'Activité formative';
   document.querySelector('#matrix-title').textContent = matrix.label;
   loading.hidden = true;
   card.hidden = false;
+  syncEnabled = !data.preview && !teacherPreview;
   renderExercise();
 } catch (error) {
   loading.textContent = error.message;
@@ -64,6 +79,7 @@ function renderExercise() {
     if (node) canvas.append(node);
   }
   fitCanvas();
+  scheduleDraftSave(250);
 }
 
 function renderElement(element) {
@@ -102,7 +118,7 @@ function addInput(node, element) {
   input.className = 'canvas-input';
   input.type = 'text';
   input.setAttribute('aria-label', 'Ta réponse');
-  input.addEventListener('input', () => { answers[element.id] = input.value; });
+  input.addEventListener('input', () => setAnswer(element.id, input.value));
   node.append(input);
 }
 
@@ -115,7 +131,7 @@ function addSelect(node, element, choices, multiple = false) {
     select.multiple = true;
     select.size = Math.min(Number(element.droppable_count), choices.length, 4);
   }
-  select.addEventListener('change', () => { answers[element.id] = select.multiple ? [...select.selectedOptions].map(option => option.value) : select.value; });
+  select.addEventListener('change', () => setAnswer(element.id, select.multiple ? [...select.selectedOptions].map(option => option.value) : select.value));
   node.append(select);
 }
 
@@ -132,7 +148,7 @@ function addCheckbox(node, element) {
         if (otherId) answers[otherId] = false;
       });
     }
-    answers[element.id] = input.checked;
+    setAnswer(element.id, input.checked);
   });
   node.append(input);
 }
@@ -140,7 +156,7 @@ function addCheckbox(node, element) {
 function addLinkable(node, element) {
   const label = document.createElement('div'); label.className = 'association-choice'; label.textContent = element.text || '';
   const select = document.createElement('select'); select.className = 'canvas-select'; select.innerHTML = `<option value="">Relier à…</option>${(element.choices || []).map(choice => `<option value="${escapeHtml(choice.id)}">${escapeHtml(choice.text)}</option>`).join('')}`;
-  select.addEventListener('change', () => { answers[element.id] = select.value; });
+  select.addEventListener('change', () => setAnswer(element.id, select.value));
   node.style.height = 'auto'; node.append(label, select);
 }
 
@@ -149,16 +165,16 @@ function addHighlights(node, element) {
   (element.words_list || []).forEach((word, index) => {
     if (!String(word.text).trim()) { node.append(document.createTextNode(word.text)); return; }
     const button = document.createElement('button'); button.type = 'button'; button.className = 'highlight-word'; button.textContent = word.text;
-    button.addEventListener('click', () => { selected[index] = !selected[index]; button.classList.toggle('selected', selected[index]); answers[element.id] = selected.map((active, wordIndex) => active ? String(wordIndex) : null).filter(value => value !== null); });
+    button.addEventListener('click', () => { selected[index] = !selected[index]; button.classList.toggle('selected', selected[index]); setAnswer(element.id, selected.map((active, wordIndex) => active ? String(wordIndex) : null).filter(value => value !== null)); });
     node.append(button);
   });
 }
 
 function addSorter(node, element) {
   const list = document.createElement('ol'); list.className = 'sort-list'; let items = [...(element.items || [])];
-  const draw = () => { answers[element.id] = items; list.innerHTML = items.map((text,index) => `<li class="sort-item"><span>${escapeHtml(text)}</span><button type="button" data-up="${index}" aria-label="Monter">↑</button><button type="button" data-down="${index}" aria-label="Descendre">↓</button></li>`).join(''); };
-  list.addEventListener('click', event => { const up=event.target.dataset.up, down=event.target.dataset.down; const index=Number(up ?? down); if (!Number.isInteger(index)) return; const target=up!==undefined?index-1:index+1; if(target<0||target>=items.length)return; [items[index],items[target]]=[items[target],items[index]]; draw(); });
-  node.append(list); draw();
+  const draw = changed => { answers[element.id] = items; list.innerHTML = items.map((text,index) => `<li class="sort-item"><span>${escapeHtml(text)}</span><button type="button" data-up="${index}" aria-label="Monter">↑</button><button type="button" data-down="${index}" aria-label="Descendre">↓</button></li>`).join(''); if(changed)scheduleDraftSave(); };
+  list.addEventListener('click', event => { const up=event.target.dataset.up, down=event.target.dataset.down; const index=Number(up ?? down); if (!Number.isInteger(index)) return; const target=up!==undefined?index-1:index+1; if(target<0||target>=items.length)return; [items[index],items[target]]=[items[target],items[index]]; draw(true); });
+  node.append(list); draw(false);
 }
 
 function addTable(node, element) {
@@ -170,12 +186,23 @@ function addImage(node, element) { const src=element.image?.src; if(!src)return;
 
 async function submitExercise() {
   const button=document.querySelector('#submit'); button.disabled=true; feedback.hidden=false; feedback.className='exercise-feedback'; feedback.textContent='Vérification en cours…';
+  if(teacherPreview){feedback.textContent='Aperçu seulement : aucune réponse n’a été enregistrée.';button.hidden=true;document.querySelector('#next').hidden=false;button.disabled=false;return;}
+  clearTimeout(saveTimer);
   try { const result=await api('grade',{assignmentId:assignment.id,matrixId:matrix.id,exerciseId:exercises[current].id,exerciseLabel:`Exercice ${current+1} · ${matrix.label}`,answers}); feedback.textContent=result.message || (assignment.mode==='evaluation'?'Tes réponses sont enregistrées.':`${result.score} réponse${result.score>1?'s':''} réussie${result.score>1?'s':''} sur ${result.total}.`); for(const detail of result.details||[]){const node=canvas.querySelector(`[data-widget-id="${CSS.escape(detail.id)}"]`);node?.classList.add(detail.correct?'correct':'incorrect')} document.querySelector('#submit').hidden=true;document.querySelector('#next').hidden=false;document.querySelector('#progress-bar').style.width=`${Math.round((current+1)/exercises.length*100)}%`; }
   catch(error){feedback.className='exercise-feedback error';feedback.textContent=error.message}
   finally{button.disabled=false}
 }
 
-function goNext(){ if(current<exercises.length-1){current+=1;renderExercise();return} const matrices=assignment.matrixIds||[];const index=matrices.map(String).indexOf(String(matrix.id));if(index>=0&&index<matrices.length-1){location.href=`exercice.html?assignment=${encodeURIComponent(assignment.id)}&matrix=${encodeURIComponent(matrices[index+1])}`;return}location.href='eleve.html'; }
+function goNext(){ if(current<exercises.length-1){current+=1;renderExercise();return} if(teacherPreview){location.href='enseignant.html';return} const matrices=assignment.matrixIds||[];const index=matrices.map(String).indexOf(String(matrix.id));if(index>=0&&index<matrices.length-1){location.href=`exercice.html?assignment=${encodeURIComponent(assignment.id)}&matrix=${encodeURIComponent(matrices[index+1])}`;return}location.href='eleve.html'; }
+
+function setAnswer(id,value){answers[id]=value;scheduleDraftSave();}
+function scheduleDraftSave(delay=650){if(!syncEnabled)return;clearTimeout(saveTimer);document.querySelector('#save-status').textContent='Enregistrement…';saveTimer=setTimeout(saveDraft,delay);}
+async function saveDraft(){
+  if(!syncEnabled)return;const exercise=exercises[current],snapshot=JSON.parse(JSON.stringify(answers));
+  try{await api('saveDraft',{assignmentId:assignment.id,matrixId:matrix.id,exerciseId:exercise.id,exerciseLabel:`Exercice ${current+1} · ${matrix.label}`,answers:snapshot,total:answerableCount(exercise)});document.querySelector('#save-status').textContent='Réponses enregistrées';}
+  catch{document.querySelector('#save-status').textContent='Sauvegarde en attente';}
+}
+function answerableCount(exercise){const types=new Set(['input','word_inputs','dropdown_menu','checkbox','association_droppable','linkable','words_highlight','sorted_items']);return (exercise.canvas.elements||[]).filter(element=>types.has(element.type)&&(element.type!=='linkable'||element.linkable_type==='source')).length;}
 
 function fitCanvas(){const exercise=exercises[current];if(!exercise)return;const width=Number(exercise.canvas.width)||650,height=Number(exercise.canvas.height)||400,scale=Math.min(1,viewport.clientWidth/width);canvas.style.transform=`scale(${scale})`;viewport.style.height=`${height*scale}px`;}
 
