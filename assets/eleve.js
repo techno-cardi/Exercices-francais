@@ -23,7 +23,7 @@ try {
 
 function renderAssignments(assignments, catalog) {
   if (!assignments.length) {
-    grid.innerHTML = '<div class="empty-state">Ton enseignant ne t’a pas encore assigné d’exercice.</div>';
+    grid.innerHTML = '<div class="empty-state">Ton enseignant ne t’a pas encore assigné d’activité.</div>';
     return;
   }
 
@@ -39,7 +39,7 @@ function renderAssignments(assignments, catalog) {
       <article class="assignment-card">
         <div class="assignment-card-top">
           <span class="mode-badge mode-${escapeHtml(assignment.mode)}">${modeLabel}</span>
-          <small>${total} exercice${total > 1 ? 's' : ''}</small>
+          <small>${assignment.matrixIds?.length || 1} activité${(assignment.matrixIds?.length || 1) > 1 ? 's' : ''} · ${total} question${total > 1 ? 's' : ''}</small>
         </div>
         <div>
           <h2>${escapeHtml(assignment.title)}</h2>

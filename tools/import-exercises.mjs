@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { applyNumbering } from './numbering.mjs';
 
 const sourcePath = process.argv[2] || 'C:/Users/kevin/Downloads/exercices-source.json';
 const root = path.resolve(import.meta.dirname, '..');
@@ -384,6 +385,7 @@ for (const collection of source.collections || []) {
 }
 
 catalog.matrices.sort((a, b) => a.hierarchy.localeCompare(b.hierarchy, 'fr'));
+applyNumbering(catalog, matricesDir);
 fs.writeFileSync(path.join(publicDataDir, 'catalog.json'), `${JSON.stringify(catalog)}\n`, 'utf8');
 fs.writeFileSync(path.join(privateDir, 'answer-bank.json'), `${JSON.stringify(answerBank)}\n`, 'utf8');
 

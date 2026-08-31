@@ -49,7 +49,7 @@ try {
   if (teacherPreview) document.querySelector('#preview-banner').textContent = 'Aperçu enseignant : tu vois exactement l’écran présenté aux élèves. Rien n’est enregistré.';
   document.querySelector('#assignment-title').textContent = assignment.title;
   document.querySelector('#assignment-mode').textContent = assignment.mode === 'evaluation' ? 'Évaluation' : 'Activité formative';
-  document.querySelector('#matrix-title').textContent = matrix.label;
+  document.querySelector('#matrix-title').textContent = matrix.displayLabel || matrix.label;
   loading.hidden = true;
   card.hidden = false;
   syncEnabled = !data.preview && !teacherPreview;
@@ -63,10 +63,10 @@ function renderExercise() {
   answers = {};
   feedback.hidden = true;
   feedback.className = 'exercise-feedback';
-  document.querySelector('#exercise-number').textContent = `Exercice ${current + 1}`;
+  document.querySelector('#exercise-number').textContent = `Question ${exercise.number || `${matrix.number || ''}.${current + 1}`}`;
   document.querySelector('#instruction').innerHTML = cleanHtml(exercise.title || '<p>Complète l’exercice.</p>');
   const percentage = Math.round((current / exercises.length) * 100);
-  document.querySelector('#progress-copy').textContent = `${current + 1} sur ${exercises.length}`;
+  document.querySelector('#progress-copy').textContent = `Question ${current + 1} sur ${exercises.length}`;
   document.querySelector('#progress-bar').style.width = `${percentage}%`;
   document.querySelector('#previous').disabled = current === 0;
   document.querySelector('#submit').hidden = false;
@@ -188,7 +188,7 @@ async function submitExercise() {
   const button=document.querySelector('#submit'); button.disabled=true; feedback.hidden=false; feedback.className='exercise-feedback'; feedback.textContent='Vérification en cours…';
   if(teacherPreview){feedback.textContent='Aperçu seulement : aucune réponse n’a été enregistrée.';button.hidden=true;document.querySelector('#next').hidden=false;button.disabled=false;return;}
   clearTimeout(saveTimer);
-  try { const result=await api('grade',{assignmentId:assignment.id,matrixId:matrix.id,exerciseId:exercises[current].id,exerciseLabel:`Exercice ${current+1} · ${matrix.label}`,answers}); feedback.textContent=result.message || (assignment.mode==='evaluation'?'Tes réponses sont enregistrées.':`${result.score} réponse${result.score>1?'s':''} réussie${result.score>1?'s':''} sur ${result.total}.`); for(const detail of result.details||[]){const node=canvas.querySelector(`[data-widget-id="${CSS.escape(detail.id)}"]`);node?.classList.add(detail.correct?'correct':'incorrect')} document.querySelector('#submit').hidden=true;document.querySelector('#next').hidden=false;document.querySelector('#progress-bar').style.width=`${Math.round((current+1)/exercises.length*100)}%`; }
+  try { const exercise=exercises[current],result=await api('grade',{assignmentId:assignment.id,matrixId:matrix.id,exerciseId:exercise.id,exerciseLabel:exercise.displayLabel||`Activité ${exercise.number||current+1} — ${matrix.label}`,answers}); feedback.textContent=result.message || (assignment.mode==='evaluation'?'Tes réponses sont enregistrées.':`${result.score} réponse${result.score>1?'s':''} réussie${result.score>1?'s':''} sur ${result.total}.`); for(const detail of result.details||[]){const node=canvas.querySelector(`[data-widget-id="${CSS.escape(detail.id)}"]`);node?.classList.add(detail.correct?'correct':'incorrect')} document.querySelector('#submit').hidden=true;document.querySelector('#next').hidden=false;document.querySelector('#progress-bar').style.width=`${Math.round((current+1)/exercises.length*100)}%`; }
   catch(error){feedback.className='exercise-feedback error';feedback.textContent=error.message}
   finally{button.disabled=false}
 }
@@ -199,11 +199,12 @@ function setAnswer(id,value){answers[id]=value;scheduleDraftSave();}
 function scheduleDraftSave(delay=650){if(!syncEnabled)return;clearTimeout(saveTimer);document.querySelector('#save-status').textContent='Enregistrement…';saveTimer=setTimeout(saveDraft,delay);}
 async function saveDraft(){
   if(!syncEnabled)return;const exercise=exercises[current],snapshot=JSON.parse(JSON.stringify(answers));
-  try{await api('saveDraft',{assignmentId:assignment.id,matrixId:matrix.id,exerciseId:exercise.id,exerciseLabel:`Exercice ${current+1} · ${matrix.label}`,answers:snapshot,total:answerableCount(exercise)});document.querySelector('#save-status').textContent='Réponses enregistrées';}
+  try{await api('saveDraft',{assignmentId:assignment.id,matrixId:matrix.id,exerciseId:exercise.id,exerciseLabel:exercise.displayLabel||`Activité ${exercise.number||current+1} — ${matrix.label}`,answers:snapshot,total:answerableCount(exercise)});document.querySelector('#save-status').textContent='Réponses enregistrées';}
   catch{document.querySelector('#save-status').textContent='Sauvegarde en attente';}
 }
 function answerableCount(exercise){const types=new Set(['input','word_inputs','dropdown_menu','checkbox','association_droppable','linkable','words_highlight','sorted_items']);return (exercise.canvas.elements||[]).filter(element=>types.has(element.type)&&(element.type!=='linkable'||element.linkable_type==='source')).length;}
 
-function fitCanvas(){const exercise=exercises[current];if(!exercise)return;const width=Number(exercise.canvas.width)||650,height=Number(exercise.canvas.height)||400,scale=Math.min(1,viewport.clientWidth/width);canvas.style.transform=`scale(${scale})`;viewport.style.height=`${height*scale}px`;}
+function fitCanvas(){const exercise=exercises[current];if(!exercise)return;const bounds=contentBounds(exercise),available=Math.max(viewport.clientWidth-24,240),scale=Math.min(1,available/bounds.width),left=Math.max(12,(viewport.clientWidth-bounds.width*scale)/2);canvas.style.width=`${bounds.width}px`;canvas.style.height=`${bounds.height}px`;canvas.style.transform=`translate(${left}px,12px) scale(${scale}) translate(${-bounds.x}px,${-bounds.y}px)`;viewport.style.height=`${bounds.height*scale+24}px`;}
+function contentBounds(exercise){const rendered=(exercise.canvas.elements||[]).filter(element=>element.type!=='association_draggable'&&!(element.type==='linkable'&&element.linkable_type!=='source'));if(!rendered.length)return{x:0,y:0,width:Number(exercise.canvas.width)||650,height:Number(exercise.canvas.height)||400};const xs=rendered.map(element=>Number(element.metrics?.x)||0),ys=rendered.map(element=>Number(element.metrics?.y)||0),rights=rendered.map(element=>(Number(element.metrics?.x)||0)+(Number(element.metrics?.width)||40)),bottoms=rendered.map(element=>(Number(element.metrics?.y)||0)+(Number(element.metrics?.height)||32)),pad=12,x=Math.max(0,Math.min(...xs)-pad),y=Math.max(0,Math.min(...ys)-pad);return{x,y,width:Math.max(120,Math.max(...rights)-x+pad),height:Math.max(80,Math.max(...bottoms)-y+pad)};}
 
 function cleanHtml(value){const doc=new DOMParser().parseFromString(String(value),'text/html');for(const element of [...doc.body.querySelectorAll('*')]){if(!['P','BR','B','STRONG','I','EM','U','SPAN','FONT','SUB','SUP','UL','OL','LI'].includes(element.tagName))element.replaceWith(...element.childNodes);else [...element.attributes].forEach(attribute=>element.removeAttribute(attribute.name));}return doc.body.innerHTML;}

@@ -3,7 +3,7 @@ import { api, clearSession, escapeHtml, formatDate, requireBootstrap } from './a
 const content = document.querySelector('#teacher-content');
 const toast = document.querySelector('#toast');
 const matrixCache = new Map();
-const assignmentSelection = new Set();
+const activitySelection = new Set();
 const expandedMatrices = new Set();
 let state;
 let activeTab = 'overview';
@@ -17,7 +17,7 @@ let catalogVisibleCount = 18;
 document.querySelector('#logout').addEventListener('click', () => { clearSession(); location.href = './'; });
 document.querySelector('.teacher-tabs').addEventListener('click', event => {
   const button = event.target.closest('[data-tab]');
-  if (button) switchTab(button.dataset.tab);
+  if (button) { event.preventDefault(); switchTab(button.dataset.tab); }
 });
 
 try {
@@ -84,8 +84,7 @@ function renderOverview() {
     if(item){
       const matrixId=item.matrixIds?.[0];
       const matrix=state.catalog.matrices.find(entry=>String(entry.id)===String(matrixId));
-      const exerciseId=(item.exerciseIds||[]).find(id=>(matrix?.exerciseIds||[]).map(String).includes(String(id))) || '';
-      openPreview(matrixId,exerciseId,item.mode,item.title);
+      openPreview(matrixId,'',item.mode,item.title);
     }
   }));
 }
@@ -113,8 +112,8 @@ function statCard(label, value, accent='') { return `<div class="surface stat-ca
 function assignmentCards(assignments) {
   if(!assignments.length)return '<div class="empty-state compact-empty">Aucune affectation active. Crée-en une pour commencer.</div>';
   return `<div class="teacher-assignment-grid">${assignments.map(item=>{
-    const count=item.exerciseIds?.length||item.matrixIds?.reduce((sum,id)=>sum+(state.catalog.matrices.find(matrix=>String(matrix.id)===String(id))?.exerciseCount||0),0)||0;
-    return `<article class="teacher-assignment-card"><div class="assignment-card-top"><span class="mode-badge mode-${item.mode}">${item.mode==='evaluation'?'Évaluation':'Formatif'}</span><span class="assignment-count">${count} exercice${count>1?'s':''}</span></div><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml((item.groupCodes||[]).join(' · '))}${item.dueAt?` · jusqu’au ${escapeHtml(formatDate(item.dueAt))}`:''}</p><div class="assignment-card-actions"><button class="button button-secondary button-small" data-preview-assignment="${escapeHtml(item.id)}" type="button">Voir comme un élève</button></div></article>`;
+    const activities=item.matrixIds?.length||0,questions=item.exerciseIds?.length||item.matrixIds?.reduce((sum,id)=>sum+(state.catalog.matrices.find(matrix=>String(matrix.id)===String(id))?.exerciseCount||0),0)||0;
+    return `<article class="teacher-assignment-card"><div class="assignment-card-top"><span class="mode-badge mode-${item.mode}">${item.mode==='evaluation'?'Évaluation':'Formatif'}</span><span class="assignment-count">${activities} activité${activities>1?'s':''} · ${questions} question${questions>1?'s':''}</span></div><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml((item.groupCodes||[]).join(' · '))}${item.dueAt?` · jusqu’au ${escapeHtml(formatDate(item.dueAt))}`:''}</p><div class="assignment-card-actions"><button class="button button-secondary button-small" data-preview-assignment="${escapeHtml(item.id)}" type="button">Voir comme un élève</button></div></article>`;
   }).join('')}</div>`;
 }
 
@@ -128,7 +127,7 @@ function renderAssignments() {
   const groups=state.groups||[];
   content.innerHTML=`
     <section class="assignment-builder">
-      <div class="builder-intro"><div><p class="eyebrow">Nouvelle affectation</p><h2>Choisis exactement ce que les élèves feront.</h2><p>Prévisualise chaque exercice, sélectionne les groupes, puis décide du type de correction.</p></div><div id="selection-count" class="selection-counter">${assignmentSelection.size}<small>exercice${assignmentSelection.size>1?'s':''}</small></div></div>
+      <div class="builder-intro"><div><p class="eyebrow">Nouvelle affectation</p><h2>Choisis exactement ce que les élèves feront.</h2><p>Chaque activité peut contenir plusieurs questions. Sélectionne les activités, puis décide du type de correction.</p></div><div id="selection-count" class="selection-counter">${activitySelection.size}<small>activité${activitySelection.size>1?'s':''}</small></div></div>
       <form id="assignment-form">
         <section class="surface builder-settings">
           <div class="surface-heading"><h3>1. Paramètres</h3><span>Nom, groupes et mode</span></div>
@@ -143,10 +142,10 @@ function renderAssignments() {
           </div>
         </section>
         <section class="surface builder-content">
-          <div class="surface-heading"><div><h3>2. Exercices</h3><p>Ouvre une notion pour choisir des exercices précis.</p></div><input id="matrix-search" class="search-input" type="search" placeholder="Chercher une notion"></div>
+          <div class="surface-heading"><div><h3>2. Activités</h3><p>Chaque carte correspond à une activité complète et à toutes ses questions.</p></div><input id="matrix-search" class="search-input" type="search" placeholder="Chercher une activité"></div>
           <div id="matrix-picker" class="matrix-picker"></div>
         </section>
-        <div class="builder-submit"><div><strong id="submit-summary">${assignmentSelection.size} exercice sélectionné</strong><small>Tu pourras suivre les réponses dès l’ouverture.</small></div><button class="button button-primary" type="submit">Assigner aux groupes →</button></div>
+        <div class="builder-submit"><div><strong id="submit-summary">${activitySelection.size} activité sélectionnée</strong><small>Tu pourras suivre les réponses dès l’ouverture.</small></div><button class="button button-primary" type="submit">Assigner aux groupes →</button></div>
       </form>
     </section>`;
 
@@ -161,17 +160,17 @@ function renderAssignments() {
 function drawAssignmentPicker() {
   const picker=document.querySelector('#matrix-picker');if(!picker)return;
   const query=document.querySelector('#matrix-search').value.trim().toLocaleLowerCase('fr');
-  const matches=state.catalog.matrices.filter(matrix=>!query||`${matrix.label} ${matrix.hierarchy}`.toLocaleLowerCase('fr').includes(query)),matrices=matches.slice(0,assignmentVisibleCount);
+  const matches=state.catalog.matrices.filter(matrix=>!query||`${matrix.number||''} ${matrix.label} ${matrix.themeLabel||''} ${matrix.hierarchy}`.toLocaleLowerCase('fr').includes(query)),matrices=matches.slice(0,assignmentVisibleCount);
   picker.innerHTML=matrices.map(matrix=>{
-    const ids=(matrix.exerciseIds||[]).map(String),selected=ids.filter(id=>assignmentSelection.has(id)).length,expanded=expandedMatrices.has(String(matrix.id)),loaded=matrixCache.get(String(matrix.id));
-    return `<article class="matrix-select-card ${selected?'has-selection':''}"><div class="matrix-select-head"><label class="matrix-check"><input type="checkbox" data-matrix-check="${escapeHtml(matrix.id)}" ${selected===ids.length&&ids.length?'checked':''}><span><strong>${escapeHtml(matrix.label)}</strong><small>${escapeHtml(matrix.hierarchy)}</small></span></label><span class="matrix-selected">${selected}/${ids.length}</span><button class="text-button" data-expand-matrix="${escapeHtml(matrix.id)}" type="button">${expanded?'Refermer':'Voir les exercices'}</button></div>${expanded?`<div class="exercise-picker-list">${loaded?exercisePickerRows(loaded):'<div class="picker-loading">Chargement des exercices…</div>'}</div>`:''}</article>`;
+    const questions=(matrix.exerciseIds||[]).length,selected=activitySelection.has(String(matrix.id)),expanded=expandedMatrices.has(String(matrix.id)),loaded=matrixCache.get(String(matrix.id));
+    return `<article class="matrix-select-card ${selected?'has-selection':''}"><div class="matrix-select-head"><label class="matrix-check"><input type="checkbox" data-matrix-check="${escapeHtml(matrix.id)}" ${selected?'checked':''}><span><strong>${escapeHtml(matrix.displayLabel||matrix.label)}</strong><small>Activité complète · ${questions} question${questions>1?'s':''} · Thème ${escapeHtml(matrix.themeNumber||'')}</small></span></label><span class="matrix-selected">${selected?'Sélectionnée':'Disponible'}</span><button class="text-button" data-expand-matrix="${escapeHtml(matrix.id)}" type="button">${expanded?'Refermer':'Voir les questions'}</button></div>${expanded?`<div class="exercise-picker-list">${loaded?exercisePickerRows(loaded):'<div class="picker-loading">Chargement des questions…</div>'}</div>`:''}</article>`;
   }).join('')+(matches.length>matrices.length?`<button class="button button-secondary load-more" data-load-more type="button">Afficher ${Math.min(12,matches.length-matrices.length)} notions de plus</button>`:'')||'<div class="empty-state compact-empty">Aucune notion trouvée.</div>';
-  picker.querySelectorAll('[data-matrix-check]').forEach(input=>{const matrix=state.catalog.matrices.find(item=>String(item.id)===input.dataset.matrixCheck),count=(matrix.exerciseIds||[]).filter(id=>assignmentSelection.has(String(id))).length;input.indeterminate=count>0&&count<(matrix.exerciseIds||[]).length;});
+  picker.querySelectorAll('[data-matrix-check]').forEach(input=>{input.indeterminate=false;});
   updateSelectionCounter();
 }
 
 function exercisePickerRows(matrix) {
-  return matrix.exercises.map((exercise,index)=>`<div class="exercise-pick-row"><label><input type="checkbox" data-exercise-check="${escapeHtml(exercise.id)}" data-matrix-id="${escapeHtml(matrix.id)}" ${assignmentSelection.has(String(exercise.id))?'checked':''}><span><strong>Exercice ${index+1}</strong><small>${escapeHtml(plainText(exercise.title)||matrix.label)} · ${escapeHtml((exercise.types||[]).join(' · '))}</small></span></label><button class="button button-secondary button-small" data-preview-exercise="${escapeHtml(exercise.id)}" data-matrix-id="${escapeHtml(matrix.id)}" type="button">Aperçu</button></div>`).join('');
+  return matrix.exercises.map((exercise,index)=>`<div class="exercise-pick-row"><span><strong>Question ${escapeHtml(exercise.number||`${matrix.number||''}.${index+1}`)}</strong><small>${escapeHtml(plainText(exercise.title)||matrix.label)} · ${escapeHtml((exercise.types||[]).join(' · '))}</small></span><button class="button button-secondary button-small" data-preview-exercise="${escapeHtml(exercise.id)}" data-matrix-id="${escapeHtml(matrix.id)}" type="button">Voir la question</button></div>`).join('');
 }
 
 async function handlePickerClick(event) {
@@ -181,18 +180,17 @@ async function handlePickerClick(event) {
 }
 
 function handlePickerChange(event) {
-  const matrixId=event.target.dataset.matrixCheck;if(matrixId){const matrix=state.catalog.matrices.find(item=>String(item.id)===matrixId);for(const id of matrix.exerciseIds||[]){if(event.target.checked)assignmentSelection.add(String(id));else assignmentSelection.delete(String(id));}drawAssignmentPicker();return;}
-  const exerciseId=event.target.dataset.exerciseCheck;if(exerciseId){if(event.target.checked)assignmentSelection.add(String(exerciseId));else assignmentSelection.delete(String(exerciseId));drawAssignmentPicker();}
+  const matrixId=event.target.dataset.matrixCheck;if(matrixId){if(event.target.checked)activitySelection.add(String(matrixId));else activitySelection.delete(String(matrixId));drawAssignmentPicker();}
 }
 
-function updateSelectionCounter(){const count=assignmentSelection.size,node=document.querySelector('#selection-count'),summary=document.querySelector('#submit-summary');if(node)node.innerHTML=`${count}<small>exercice${count>1?'s':''}</small>`;if(summary)summary.textContent=`${count} exercice${count>1?'s':''} sélectionné${count>1?'s':''}`;}
+function updateSelectionCounter(){const count=activitySelection.size,node=document.querySelector('#selection-count'),summary=document.querySelector('#submit-summary');if(node)node.innerHTML=`${count}<small>activité${count>1?'s':''}</small>`;if(summary)summary.textContent=`${count} activité${count>1?'s':''} sélectionnée${count>1?'s':''}`;}
 
 async function submitAssignment(event) {
   event.preventDefault();const form=event.currentTarget,values=Object.fromEntries(new FormData(form)),groupCodes=[...form.querySelectorAll('[name="groupCode"]:checked')].map(input=>input.value);
-  if(!groupCodes.length)return showToast('Choisis au moins un groupe.');if(!assignmentSelection.size)return showToast('Choisis au moins un exercice.');
-  const matrixIds=state.catalog.matrices.filter(matrix=>(matrix.exerciseIds||[]).some(id=>assignmentSelection.has(String(id)))).map(matrix=>String(matrix.id));
-  const response=await save('saveAssignment',{assignment:{...values,groupCodes,matrixIds,exerciseIds:[...assignmentSelection],attempts:Number(values.attempts),feedback:values.feedback==='true'}},'Affectation enregistrée.');
-  if(response){assignmentSelection.clear();showToast('Affectation prête pour les groupes choisis.');switchTab('overview');}
+  if(!groupCodes.length)return showToast('Choisis au moins un groupe.');if(!activitySelection.size)return showToast('Choisis au moins une activité.');
+  const matrixIds=[...activitySelection];
+  const response=await save('saveAssignment',{assignment:{...values,groupCodes,matrixIds,exerciseIds:[],attempts:Number(values.attempts),feedback:values.feedback==='true'}},'Affectation enregistrée.');
+  if(response){activitySelection.clear();showToast('Affectation prête pour les groupes choisis.');switchTab('overview');}
 }
 
 function renderGroups() {
@@ -205,7 +203,7 @@ function groupTable(){return `<div class="group-card-grid">${(state.groups||[]).
 
 function renderCatalog() {
   const categories=['Toutes',...new Set(state.catalog.matrices.map(matrix=>matrix.path?.[0]).filter(Boolean))];
-  content.innerHTML=`<section class="catalog-hero"><div><p class="eyebrow">Banque d’activités</p><h2>Explore les exercices avant de les assigner.</h2><p>Ouvre chaque notion pour voir les consignes et l’écran exact des élèves.</p></div><input id="catalog-search" class="search-input" type="search" placeholder="Chercher une notion, un type ou un mot-clé"></section><div class="category-pills">${categories.map(category=>`<button class="${catalogCategory===category?'active':''}" data-category="${escapeHtml(category)}" type="button">${escapeHtml(category)}</button>`).join('')}</div><div id="catalog-detail"></div><div id="catalog-list" class="catalog-card-grid"></div>`;
+  content.innerHTML=`<section class="catalog-hero"><div><p class="eyebrow">Banque d’activités</p><h2>Explore les activités avant de les assigner.</h2><p>Ouvre chaque activité pour voir ses questions et l’écran exact des élèves.</p></div><input id="catalog-search" class="search-input" type="search" placeholder="Chercher une activité, un type ou un mot-clé"></section><div class="category-pills">${categories.map(category=>`<button class="${catalogCategory===category?'active':''}" data-category="${escapeHtml(category)}" type="button">${escapeHtml(category)}</button>`).join('')}</div><div id="catalog-detail"></div><div id="catalog-list" class="catalog-card-grid"></div>`;
   document.querySelector('#catalog-search').addEventListener('input',()=>{catalogVisibleCount=18;drawCatalogCards();});
   document.querySelector('.category-pills').addEventListener('click',event=>{const button=event.target.closest('[data-category]');if(!button)return;catalogCategory=button.dataset.category;catalogOpenId='';catalogVisibleCount=18;renderCatalog();});
   document.querySelector('#catalog-list').addEventListener('click',async event=>{const more=event.target.closest('[data-catalog-more]');if(more){catalogVisibleCount+=18;drawCatalogCards();return;}const button=event.target.closest('[data-open-catalog]');if(!button)return;catalogOpenId=button.dataset.openCatalog;await loadMatrix(catalogOpenId);drawCatalogDetail();});
@@ -213,11 +211,11 @@ function renderCatalog() {
   drawCatalogCards();drawCatalogDetail();
 }
 
-function drawCatalogCards(){const list=document.querySelector('#catalog-list');if(!list)return;const query=document.querySelector('#catalog-search').value.trim().toLocaleLowerCase('fr'),matches=state.catalog.matrices.filter(matrix=>(catalogCategory==='Toutes'||matrix.path?.[0]===catalogCategory)&&(!query||`${matrix.label} ${matrix.hierarchy} ${(matrix.types||[]).join(' ')}`.toLocaleLowerCase('fr').includes(query))),matrices=matches.slice(0,catalogVisibleCount);list.innerHTML=(matrices.map(matrix=>`<article class="catalog-card"><div class="catalog-card-top"><span class="catalog-count">${matrix.exerciseCount}</span><span>${escapeHtml(matrix.path?.[0]||'Français')}</span></div><h3>${escapeHtml(matrix.label)}</h3><p>${escapeHtml(matrix.hierarchy)}</p><div class="catalog-types">${(matrix.types||[]).slice(0,3).map(type=>`<span>${escapeHtml(type)}</span>`).join('')}</div><button class="button button-secondary" data-open-catalog="${escapeHtml(matrix.id)}" type="button">Voir les exercices →</button></article>`).join('')+(matches.length>matrices.length?`<button class="button button-secondary catalog-more" data-catalog-more type="button">Afficher ${Math.min(18,matches.length-matrices.length)} notions de plus</button>`:''))||'<div class="empty-state">Aucune notion trouvée.</div>';}
+function drawCatalogCards(){const list=document.querySelector('#catalog-list');if(!list)return;const query=document.querySelector('#catalog-search').value.trim().toLocaleLowerCase('fr'),matches=state.catalog.matrices.filter(matrix=>(catalogCategory==='Toutes'||matrix.path?.[0]===catalogCategory)&&(!query||`${matrix.number||''} ${matrix.label} ${matrix.themeLabel||''} ${matrix.hierarchy} ${(matrix.types||[]).join(' ')}`.toLocaleLowerCase('fr').includes(query))),matrices=matches.slice(0,catalogVisibleCount);list.innerHTML=(matrices.map(matrix=>`<article class="catalog-card"><div class="catalog-card-top"><span class="catalog-count">${escapeHtml(matrix.number||matrix.exerciseCount)}</span><span>Thème ${escapeHtml(matrix.themeNumber||'')} · ${matrix.exerciseCount} question${matrix.exerciseCount>1?'s':''}</span></div><h3>${escapeHtml(matrix.label)}</h3><p>${escapeHtml(matrix.themeLabel||matrix.hierarchy)}</p><div class="catalog-types">${(matrix.types||[]).slice(0,3).map(type=>`<span>${escapeHtml(type)}</span>`).join('')}</div><button class="button button-secondary" data-open-catalog="${escapeHtml(matrix.id)}" type="button">Choisir cette activité →</button></article>`).join('')+(matches.length>matrices.length?`<button class="button button-secondary catalog-more" data-catalog-more type="button">Afficher ${Math.min(18,matches.length-matrices.length)} notions de plus</button>`:''))||'<div class="empty-state">Aucune activité trouvée.</div>';}
 
-function drawCatalogDetail(){const host=document.querySelector('#catalog-detail');if(!host)return;const matrix=matrixCache.get(String(catalogOpenId));if(!matrix){host.innerHTML='';return;}host.innerHTML=`<section class="surface catalog-detail"><div class="surface-heading"><div><p class="eyebrow">${escapeHtml(matrix.hierarchy)}</p><h2>${escapeHtml(matrix.label)}</h2></div><button class="button button-primary" data-assign-all="${escapeHtml(matrix.id)}" type="button">Assigner les ${matrix.exercises.length} exercices</button></div><div class="catalog-exercise-grid">${matrix.exercises.map((exercise,index)=>`<article><span>Exercice ${index+1}</span><h3>${escapeHtml(plainText(exercise.title)||matrix.label)}</h3><p>${escapeHtml((exercise.types||[]).join(' · '))}</p><div><button class="button button-secondary button-small" data-catalog-preview="${escapeHtml(exercise.id)}" data-matrix-id="${escapeHtml(matrix.id)}" type="button">Voir comme un élève</button><button class="text-button" data-assign-one="${escapeHtml(exercise.id)}" type="button">Assigner celui-ci</button></div></article>`).join('')}</div></section>`;host.scrollIntoView({behavior:'smooth',block:'start'});}
+function drawCatalogDetail(){const host=document.querySelector('#catalog-detail');if(!host)return;const matrix=matrixCache.get(String(catalogOpenId));if(!matrix){host.innerHTML='';return;}host.innerHTML=`<section class="surface catalog-detail"><div class="surface-heading"><div><p class="eyebrow">Thème ${escapeHtml(matrix.themeNumber||'')} · ${escapeHtml(matrix.themeLabel||matrix.hierarchy)}</p><h2>${escapeHtml(matrix.displayLabel||matrix.label)}</h2></div><button class="button button-primary" data-assign-all="${escapeHtml(matrix.id)}" type="button">Assigner cette activité</button></div><div class="catalog-exercise-grid">${matrix.exercises.map((exercise,index)=>`<article><span>Question ${escapeHtml(exercise.number||`${matrix.number||''}.${index+1}`)}</span><h3>${escapeHtml(plainText(exercise.title)||matrix.label)}</h3><p>${escapeHtml((exercise.types||[]).join(' · '))}</p><button class="button button-secondary button-small" data-catalog-preview="${escapeHtml(exercise.id)}" data-matrix-id="${escapeHtml(matrix.id)}" type="button">Voir cette question</button></article>`).join('')}</div></section>`;host.scrollIntoView({behavior:'smooth',block:'start'});}
 
-function handleCatalogDetail(event){const preview=event.target.closest('[data-catalog-preview]');if(preview){openPreview(preview.dataset.matrixId,preview.dataset.catalogPreview,'formatif','Aperçu de la banque');return;}const one=event.target.closest('[data-assign-one]');if(one){assignmentSelection.add(String(one.dataset.assignOne));switchTab('assignments');return;}const all=event.target.closest('[data-assign-all]');if(all){const matrix=matrixCache.get(String(all.dataset.assignAll));for(const exercise of matrix.exercises)assignmentSelection.add(String(exercise.id));switchTab('assignments');}}
+function handleCatalogDetail(event){const preview=event.target.closest('[data-catalog-preview]');if(preview){openPreview(preview.dataset.matrixId,preview.dataset.catalogPreview,'formatif','Aperçu de la banque');return;}const all=event.target.closest('[data-assign-all]');if(all){activitySelection.add(String(all.dataset.assignAll));switchTab('assignments');}}
 
 async function loadMatrix(id){id=String(id);if(matrixCache.has(id))return matrixCache.get(id);const response=await fetch(`data/matrices/${encodeURIComponent(id)}.json`);if(!response.ok)throw new Error('Cette notion est introuvable.');const matrix=await response.json();matrixCache.set(id,matrix);return matrix;}
 function plainText(html){const doc=new DOMParser().parseFromString(String(html||''),'text/html');return doc.body.textContent.replace(/\s+/g,' ').trim();}

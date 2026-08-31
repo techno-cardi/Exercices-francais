@@ -20,11 +20,16 @@ export async function api(action, payload = {}) {
     throw new Error('Le portail de connexion n’est pas encore ouvert.');
   }
 
-  const response = await fetch(config.backendUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ action, token: getToken(), ...payload }),
-  });
+  const show = action !== 'dashboard';
+  if (show) setGlobalLoading(true);
+  let response;
+  try {
+    response = await fetch(config.backendUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action, token: getToken(), ...payload }),
+    });
+  } finally { if (show) setGlobalLoading(false); }
   let data;
   try {
     data = await response.json();
@@ -36,6 +41,19 @@ export async function api(action, payload = {}) {
     throw new Error(data.message || 'La demande a échoué.');
   }
   return data;
+}
+
+function setGlobalLoading(visible) {
+  let node = document.querySelector('#global-loading');
+  if (!node) {
+    node = document.createElement('div');
+    node.id = 'global-loading';
+    node.className = 'global-loading';
+    node.setAttribute('role', 'status');
+    node.innerHTML = '<span class="loading-spinner" aria-hidden="true"></span><span>Chargement en cours…</span>';
+    document.body.append(node);
+  }
+  node.hidden = !visible;
 }
 
 async function previewApi(action, payload) {
