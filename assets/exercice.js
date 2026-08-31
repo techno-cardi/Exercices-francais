@@ -78,6 +78,7 @@ function renderExercise() {
     const node = renderElement(element);
     if (node) canvas.append(node);
   }
+  layoutCanvas();
   fitCanvas();
   scheduleDraftSave(250);
 }
@@ -92,7 +93,10 @@ function renderElement(element) {
   if (size) node.style.fontSize = `${size}px`;
   if (element.text_format?.align) node.style.textAlign = element.text_format.align;
 
-  if (element.type === 'label') node.innerHTML = cleanHtml(element.text || '');
+  if (element.type === 'label') {
+    node.innerHTML = cleanHtml(element.text || '');
+    if ((Number(element.metrics?.height) || 32) <= 32 && !node.querySelector('br')) node.style.whiteSpace = 'nowrap';
+  }
   else if (element.type === 'input' || element.type === 'word_inputs') addInput(node, element);
   else if (element.type === 'dropdown_menu') addSelect(node, element, (element.options || []).map(text => ({ id:text, text })));
   else if (element.type === 'checkbox') addCheckbox(node, element);
@@ -107,10 +111,19 @@ function renderElement(element) {
 }
 
 function position(node, metrics) {
-  node.style.left = `${Number(metrics.x) || 0}px`;
-  node.style.top = `${Number(metrics.y) || 0}px`;
-  node.style.width = `${Number(metrics.width) || 40}px`;
-  node.style.height = `${Number(metrics.height) || 32}px`;
+  const left = Number(metrics.x) || 0;
+  const top = Number(metrics.y) || 0;
+  const width = Number(metrics.width) || 40;
+  const height = Number(metrics.height) || 32;
+  const touchHeight = window.matchMedia?.('(max-width: 700px)').matches && /canvas-(input|word_inputs|dropdown_menu|checkbox)/.test(node.className) ? Math.max(height, 44) : height;
+  node.dataset.baseLeft = String(left);
+  node.dataset.baseTop = String(top);
+  node.dataset.baseWidth = String(width);
+  node.dataset.baseHeight = String(touchHeight);
+  node.style.left = `${left}px`;
+  node.style.top = `${top}px`;
+  node.style.width = `${width}px`;
+  node.style.height = `${touchHeight}px`;
 }
 
 function addInput(node, element) {
@@ -118,7 +131,12 @@ function addInput(node, element) {
   input.className = 'canvas-input';
   input.type = 'text';
   input.setAttribute('aria-label', 'Ta réponse');
-  input.addEventListener('input', () => setAnswer(element.id, input.value));
+  input.addEventListener('input', () => {
+    setAnswer(element.id, input.value);
+    resizeInputNode(node, input);
+    layoutCanvas();
+    fitCanvas();
+  });
   node.append(input);
 }
 
@@ -188,7 +206,7 @@ async function submitExercise() {
   const button=document.querySelector('#submit'); button.disabled=true; feedback.hidden=false; feedback.className='exercise-feedback'; feedback.textContent='Vérification en cours…';
   if(teacherPreview){feedback.textContent='Aperçu seulement : aucune réponse n’a été enregistrée.';button.hidden=true;document.querySelector('#next').hidden=false;button.disabled=false;return;}
   clearTimeout(saveTimer);
-  try { const exercise=exercises[current],result=await api('grade',{assignmentId:assignment.id,matrixId:matrix.id,exerciseId:exercise.id,exerciseLabel:exercise.displayLabel||`Activité ${exercise.number||current+1} — ${matrix.label}`,answers}); feedback.textContent=result.message || (assignment.mode==='evaluation'?'Tes réponses sont enregistrées.':`${result.score} réponse${result.score>1?'s':''} réussie${result.score>1?'s':''} sur ${result.total}.`); for(const detail of result.details||[]){const node=canvas.querySelector(`[data-widget-id="${CSS.escape(detail.id)}"]`);node?.classList.add(detail.correct?'correct':'incorrect')} document.querySelector('#submit').hidden=true;document.querySelector('#next').hidden=false;document.querySelector('#progress-bar').style.width=`${Math.round((current+1)/exercises.length*100)}%`; }
+  try { const exercise=exercises[current],result=await api('grade',{assignmentId:assignment.id,matrixId:matrix.id,exerciseId:exercise.id,exerciseLabel:exercise.displayLabel||`Activité ${exercise.number||current+1} — ${matrix.label}`,answers}); feedback.textContent=result.message || (assignment.mode==='evaluation'?'Tes réponses sont enregistrées.':`${result.score} réponse${result.score>1?'s':''} réussie${result.score>1?'s':''} sur ${result.total}.`); for(const detail of result.details||[]){const node=canvas.querySelector(`[data-widget-id="${CSS.escape(detail.id)}"]`);if(node){node.classList.remove('correct','incorrect');node.classList.add(detail.correct?'correct':'incorrect')}} document.querySelector('#submit').hidden=true;document.querySelector('#next').hidden=false;document.querySelector('#progress-bar').style.width=`${Math.round((current+1)/exercises.length*100)}%`; }
   catch(error){feedback.className='exercise-feedback error';feedback.textContent=error.message}
   finally{button.disabled=false}
 }
@@ -204,7 +222,96 @@ async function saveDraft(){
 }
 function answerableCount(exercise){const types=new Set(['input','word_inputs','dropdown_menu','checkbox','association_droppable','linkable','words_highlight','sorted_items']);return (exercise.canvas.elements||[]).filter(element=>types.has(element.type)&&(element.type!=='linkable'||element.linkable_type==='source')).length;}
 
-function fitCanvas(){const exercise=exercises[current];if(!exercise)return;const bounds=contentBounds(exercise),available=Math.max(viewport.clientWidth-24,240),scale=Math.min(1,available/bounds.width),left=Math.max(12,(viewport.clientWidth-bounds.width*scale)/2);canvas.style.width=`${bounds.width}px`;canvas.style.height=`${bounds.height}px`;canvas.style.transform=`translate(${left}px,12px) scale(${scale}) translate(${-bounds.x}px,${-bounds.y}px)`;viewport.style.height=`${bounds.height*scale+24}px`;}
+function fitCanvas(){const exercise=exercises[current];if(!exercise)return;const bounds=dynamicBounds(exercise,canvas),available=Math.max(viewport.clientWidth-24,240),wideTable=window.matchMedia?.('(max-width: 700px)').matches&&(exercise.canvas.elements||[]).some(element=>element.type==='table'),scale=wideTable?Math.min(1,Math.max(.78,available/bounds.width)):Math.min(1,available/bounds.width),left=Math.max(12,(viewport.clientWidth-bounds.width*scale)/2);canvas.style.width=`${bounds.width}px`;canvas.style.height=`${bounds.height}px`;canvas.style.transform=`translate(${left}px,12px) scale(${scale}) translate(${-bounds.x}px,${-bounds.y}px)`;viewport.classList.toggle('canvas-wide',wideTable&&bounds.width*scale>available);viewport.style.height=`${bounds.height*scale+24}px`;}
+function resizeInputNode(node,input){
+  const baseWidth=Number(node.dataset.baseWidth)||120;
+  const value=input.value||'';
+  const measure=document.createElement('span');
+  const style=getComputedStyle(input);
+  measure.className='input-measure';
+  measure.textContent=value||'Réponse';
+  measure.style.font=style.font;
+  measure.style.letterSpacing=style.letterSpacing;
+  document.body.append(measure);
+  const desired=Math.min(360,Math.max(baseWidth,measure.getBoundingClientRect().width+28));
+  measure.remove();
+  node.dataset.dynamicWidth=String(desired);
+  node.style.width=`${desired}px`;
+}
+function layoutCanvas(){
+  const nodes=[...canvas.querySelectorAll('.canvas-element')];
+  const fields=nodes.filter(node=>node.classList.contains('canvas-input')||node.classList.contains('canvas-word_inputs'));
+  for(const label of nodes.filter(node=>node.classList.contains('canvas-label')&&!node.dataset.placeholderSplit)){
+    const targets=[...label.querySelectorAll('font')].filter(target=>target.textContent.trim());
+    const labelTop=Number(label.dataset.baseTop)||0,labelHeight=Number(label.dataset.baseHeight)||32;
+    const related=fields.filter(field=>{const top=Number(field.dataset.baseTop)||0,height=Number(field.dataset.baseHeight)||32;return Math.min(top+height,labelTop+labelHeight)-Math.max(top,labelTop)>Math.min(height,labelHeight)*.35;}).sort((a,b)=>(Number(a.dataset.baseTop)||0)-(Number(b.dataset.baseTop)||0)||(Number(a.dataset.baseLeft)||0)-(Number(b.dataset.baseLeft)||0));
+    if(targets.length&&targets.length===related.length){
+      const labelRect=label.getBoundingClientRect(),scale=label.offsetWidth?labelRect.width/label.offsetWidth:1;
+      targets.map(target=>({target,rect:target.getBoundingClientRect()})).sort((a,b)=>a.rect.top-b.rect.top||a.rect.left-b.rect.left).forEach((item,index)=>{const field=related[index];field.dataset.anchorAligned='1';field.dataset.dynamicLeft=String((Number(label.dataset.baseLeft)||0)+(item.rect.left-labelRect.left)/scale);field.dataset.dynamicTop=String((Number(label.dataset.baseTop)||0)+(item.rect.top-labelRect.top)/scale);field.dataset.dynamicWidth=String(Math.max(Number(field.dataset.baseWidth)||40,Math.min(220,item.rect.width/scale+18)));});
+    }
+  }
+  for(const field of fields){
+    const fieldLeft=Math.max(Number(field.dataset.baseLeft)||0,Number(field.dataset.dynamicLeft)||0),fieldTop=Math.max(Number(field.dataset.baseTop)||0,Number(field.dataset.dynamicTop)||0),fieldWidth=Number(field.dataset.dynamicWidth)||Number(field.dataset.baseWidth)||40,fieldHeight=Number(field.dataset.baseHeight)||32;
+    for(const label of nodes.filter(node=>node.classList.contains('canvas-label')&&!node.dataset.placeholderSplit)){
+      const labelLeft=Number(label.dataset.baseLeft)||0,labelTop=Number(label.dataset.baseTop)||0,labelWidth=Number(label.dataset.baseWidth)||40,labelHeight=Number(label.dataset.baseHeight)||32;
+      const overlap=Math.min(fieldLeft+fieldWidth,labelLeft+labelWidth)-Math.max(fieldLeft,labelLeft),row=Math.min(fieldTop+fieldHeight,labelTop+labelHeight)-Math.max(fieldTop,labelTop)>Math.min(fieldHeight,labelHeight)*.35;
+      const raw=label.textContent||'',match=raw.match(/[\s\u00a0]{2,}/u);
+      if(overlap>0&&row&&match&&!label.querySelector('br')){
+        splitPlaceholderLabel(label,match[0],raw.slice(0,match.index).trim(),raw.slice((match.index||0)+match[0].length).trim(),field);
+        break;
+      }
+    }
+  }
+  fields.forEach(field=>{
+    const anchored=field.dataset.anchorAligned==='1';
+    const left=anchored?Number(field.dataset.dynamicLeft)||0:Math.max(Number(field.dataset.baseLeft)||0,Number(field.dataset.dynamicLeft)||0);
+    const top=anchored?Number(field.dataset.dynamicTop)||0:Math.max(Number(field.dataset.baseTop)||0,Number(field.dataset.dynamicTop)||0);
+    const width=Math.max(Number(field.dataset.baseWidth)||40,Number(field.dataset.dynamicWidth)||0);
+    field.style.left=`${left}px`;
+    field.style.top=`${top}px`;
+    field.style.width=`${width}px`;
+  });
+  for(const label of nodes.filter(node=>node.dataset.placeholderSplit)){
+    const field=nodes.find(node=>node.dataset.widgetId===label.dataset.placeholderField);
+    const suffix=label.querySelector('.canvas-label-suffix');
+    if(field&&suffix){const labelLeft=Number(label.dataset.baseLeft)||0,fieldLeft=parseFloat(field.style.left)||0,fieldWidth=parseFloat(field.style.width)||40;suffix.style.left=`${Math.max(8,fieldLeft-labelLeft+fieldWidth+8)}px`;}
+  }
+  for(const field of fields){
+    const left=field.dataset.anchorAligned==='1'?Number(field.dataset.dynamicLeft)||0:Math.max(Number(field.dataset.baseLeft)||0,Number(field.dataset.dynamicLeft)||0);
+    const baseWidth=Number(field.dataset.baseWidth)||40;
+    const right=left+(Number(field.dataset.dynamicWidth)||baseWidth);
+    const top=field.dataset.anchorAligned==='1'?Number(field.dataset.dynamicTop)||0:Math.max(Number(field.dataset.baseTop)||0,Number(field.dataset.dynamicTop)||0);
+    const height=Number(field.dataset.baseHeight)||32;
+    for(const other of nodes){
+      if(other===field||!other.classList.contains('canvas-label'))continue;
+      const otherLeft=Number(other.dataset.baseLeft)||0;
+      const otherTop=Number(other.dataset.baseTop)||0;
+      const otherHeight=Number(other.dataset.baseHeight)||32;
+      const sameRow=Math.min(top+height,otherTop+otherHeight)-Math.max(top,otherTop)>Math.min(height,otherHeight)*.35;
+      if(sameRow&&otherLeft>=left+baseWidth-4)other.style.left=`${Math.max(otherLeft,right+8)}px`;
+    }
+  }
+}
+function splitPlaceholderLabel(label,spaces,prefixText,suffixText,field){
+  const labelLeft=Number(label.dataset.baseLeft)||0;
+  label.dataset.placeholderSplit='1';
+  label.dataset.placeholderField=field.dataset.widgetId||'';
+  label.innerHTML='';
+  const prefix=document.createElement('span');prefix.className='canvas-label-prefix';prefix.textContent=prefixText;
+  const suffix=document.createElement('span');suffix.className='canvas-label-suffix';suffix.textContent=suffixText;
+  label.append(prefix,suffix);label.style.width='max-content';label.style.whiteSpace='nowrap';
+  const prefixWidth=Math.max(prefix.offsetWidth,prefix.getBoundingClientRect().width);
+  const baseFieldLeft=Number(field.dataset.baseLeft)||0,fieldWidth=Number(field.dataset.dynamicWidth)||Number(field.dataset.baseWidth)||40;
+  field.dataset.dynamicLeft=String(Math.max(baseFieldLeft,labelLeft+prefixWidth+8));
+  suffix.style.position='absolute';suffix.style.left=`${Math.max(prefixWidth+8,Math.max(baseFieldLeft,labelLeft+prefixWidth+8)-labelLeft+fieldWidth+8)}px`;suffix.style.top='0';
+}
+function dynamicBounds(exercise,root){
+  const base=contentBounds(exercise),nodes=[...root.querySelectorAll('.canvas-element')];
+  if(!nodes.length)return base;
+  const xs=nodes.map(node=>parseFloat(node.style.left)||0),ys=nodes.map(node=>parseFloat(node.style.top)||0),rights=nodes.map(node=>(parseFloat(node.style.left)||0)+Math.max(node.offsetWidth||0,node.scrollWidth||0,parseFloat(node.style.width)||40)),bottoms=nodes.map(node=>(parseFloat(node.style.top)||0)+(node.offsetHeight||parseFloat(node.style.height)||32)),pad=12;
+  const x=Math.max(0,Math.min(base.x,Math.min(...xs)-pad)),y=Math.max(0,Math.min(base.y,Math.min(...ys)-pad));
+  return{x,y,width:Math.max(base.width,Math.max(...rights)-x+pad),height:Math.max(base.height,Math.max(...bottoms)-y+pad)};
+}
 function contentBounds(exercise){const rendered=(exercise.canvas.elements||[]).filter(element=>element.type!=='association_draggable'&&!(element.type==='linkable'&&element.linkable_type!=='source'));if(!rendered.length)return{x:0,y:0,width:Number(exercise.canvas.width)||650,height:Number(exercise.canvas.height)||400};const xs=rendered.map(element=>Number(element.metrics?.x)||0),ys=rendered.map(element=>Number(element.metrics?.y)||0),rights=rendered.map(element=>(Number(element.metrics?.x)||0)+(Number(element.metrics?.width)||40)),bottoms=rendered.map(element=>(Number(element.metrics?.y)||0)+(Number(element.metrics?.height)||32)),pad=12,x=Math.max(0,Math.min(...xs)-pad),y=Math.max(0,Math.min(...ys)-pad);return{x,y,width:Math.max(120,Math.max(...rights)-x+pad),height:Math.max(80,Math.max(...bottoms)-y+pad)};}
 
 function cleanHtml(value){const doc=new DOMParser().parseFromString(String(value),'text/html');for(const element of [...doc.body.querySelectorAll('*')]){if(!['P','BR','B','STRONG','I','EM','U','SPAN','FONT','SUB','SUP','UL','OL','LI'].includes(element.tagName))element.replaceWith(...element.childNodes);else [...element.attributes].forEach(attribute=>element.removeAttribute(attribute.name));}return doc.body.innerHTML;}

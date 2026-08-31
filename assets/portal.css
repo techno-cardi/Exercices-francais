@@ -56,6 +56,8 @@ body.portal-body {
   cursor: pointer;
 }
 
+.session-button{display:inline-flex;align-items:center;gap:7px;padding:9px 12px;color:#516071;background:#fff;border:1px solid #d9dfdc;border-radius:11px;box-shadow:0 2px 8px rgba(23,36,60,.05);font:700 .76rem/1 inherit;cursor:pointer;transition:color 150ms ease,background 150ms ease,border-color 150ms ease,transform 150ms ease}.session-button>span:first-child{font-size:1.05rem;line-height:1}.session-button:hover{color:#8a432e;background:#fff8f3;border-color:#e7b7a6;transform:translateY(-1px)}.session-button:focus-visible{outline:3px solid rgba(47,113,106,.28);outline-offset:2px}
+
 .portal-layout {
   width: min(1240px, calc(100% - 40px));
   margin: 34px auto 70px;
@@ -364,6 +366,7 @@ body.portal-body {
   .portal-topbar .brand { min-width: 0; }
   .portal-topbar .brand strong { font-size: .92rem; }
   .account-copy { display: none; }
+  .session-button{width:40px;height:40px;padding:0;justify-content:center;border-radius:12px}.session-button>span:last-child{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
   .assignment-card { padding: 19px; }
   .assignment-footer { align-items: stretch; flex-direction: column; }
   .assignment-footer .button { width: 100%; }
