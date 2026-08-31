@@ -34,6 +34,7 @@ function renderAssignments(assignments, catalog) {
     const firstMatrix = assignment.matrixIds?.[0] || '';
     const due = formatDate(assignment.dueAt);
     const modeLabel = assignment.mode === 'evaluation' ? 'Évaluation' : 'Formatif';
+    const previewSuffix = ['127.0.0.1', 'localhost'].includes(location.hostname) && new URLSearchParams(location.search).get('apercu') === '1' ? '&apercu=1&role=eleve' : '';
 
     return `
       <article class="assignment-card">
@@ -51,7 +52,7 @@ function renderAssignments(assignments, catalog) {
         </div>
         <div class="assignment-footer">
           <small>${due ? `À remettre le ${escapeHtml(due)}` : 'Aucune date limite'}</small>
-          <a class="button button-primary button-small" href="exercice.html?assignment=${encodeURIComponent(assignment.id)}&matrix=${encodeURIComponent(firstMatrix)}">${completed ? 'Continuer' : 'Commencer'} →</a>
+          <a class="button button-primary button-small" href="exercice.html?assignment=${encodeURIComponent(assignment.id)}&matrix=${encodeURIComponent(firstMatrix)}${previewSuffix}">${completed ? 'Continuer' : 'Commencer'} →</a>
         </div>
       </article>`;
   }).join('');

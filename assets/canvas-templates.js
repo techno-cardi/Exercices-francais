@@ -11,6 +11,7 @@ export function classifyCanvasTemplate(nodes, fields) {
   const hasBreak = labels.some(label => label.querySelector('br'));
   const hasPlaceholder = labels.some(label => /[\s\u00a0]{2,}/u.test(label.textContent || ''));
   const hasChoice = nodes.some(node => /canvas-(dropdown_menu|association_droppable|checkbox)/u.test(node.className));
+  const hasDropdown = nodes.some(node => node.classList.contains('canvas-dropdown_menu'));
   const hasCheckbox = nodes.some(node => node.classList.contains('canvas-checkbox'));
   const hasFreeText = nodes.some(node => /canvas-(input|word_inputs)/u.test(node.className));
   const hasManyRows = labels.filter(label => {
@@ -23,6 +24,11 @@ export function classifyCanvasTemplate(nodes, fields) {
   // contient servent souvent à l'alignement original, pas à des réponses.
   if (hasBreak) return { name: 'bloc-multiligne', splitPlaceholders: false, alignTrailing: false, separateText: true };
   if (hasCheckbox) return { name: 'choix-et-reperage', splitPlaceholders: false, alignTrailing: true, separateText: true };
+  // Menus are positioned on the source line (often beside the bold target
+  // word). Moving them away from the label makes them drift into the next
+  // sentence, so keep their measured coordinates and only resolve menu/menu
+  // collisions below.
+  if (hasDropdown && !hasFreeText) return { name: 'menus-en-ligne', splitPlaceholders: false, alignTrailing: false, separateText: false };
   if (hasManyRows) return { name: 'bloc-multiligne', splitPlaceholders: false, alignTrailing: false, separateText: true };
   if (hasPlaceholder) return { name: 'texte-a-trous', splitPlaceholders: true, alignTrailing: true, separateText: true };
   if (hasChoice) return { name: 'choix-et-reperage', splitPlaceholders: false, alignTrailing: true, separateText: true };
