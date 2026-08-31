@@ -47,6 +47,7 @@ function preparerSuivi() {
 }
 
 function creerCompteEleveTest() {
+  const current=findUser_('eleve.test@exemple.ca');
   upsert_(TABS.groups,'code','TEST',{code:'TEST',nom:'Groupe de démonstration',actif:true});
   upsert_(TABS.users,'courriel','eleve.test@exemple.ca',{
     courriel:'eleve.test@exemple.ca',
@@ -54,8 +55,23 @@ function creerCompteEleveTest() {
     role:'eleve',
     groupes:'TEST',
     actif:true,
-    creeLe:new Date(),
-    derniereConnexion:''
+    creeLe:(current&&current.creeLe)||new Date(),
+    derniereConnexion:(current&&current.derniereConnexion)||''
+  });
+  upsert_(TABS.assignments,'id','DEMO-TEST',{
+    id:'DEMO-TEST',
+    titre:'Découverte — exercice test',
+    mode:'formatif',
+    groupes:'TEST',
+    matrices:'10102',
+    exercices:'110317',
+    debut:'',
+    echeance:'',
+    tentatives:3,
+    retroaction:true,
+    actif:true,
+    creePar:'système',
+    creeLe:new Date()
   });
   return 'Le compte élève test est prêt.';
 }
