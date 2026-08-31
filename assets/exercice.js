@@ -1,4 +1,5 @@
 import { api, escapeHtml, requireBootstrap } from './api.js?v=20260831-2';
+import { applyCanvasTemplate } from './canvas-templates.js?v=20260831-2';
 
 const params = new URLSearchParams(location.search);
 const assignmentId = params.get('assignment');
@@ -95,6 +96,10 @@ function renderElement(element) {
 
   if (element.type === 'label') {
     node.innerHTML = cleanHtml(element.text || '');
+    const fontSize = String(element.text || '').match(/<font[^>]*\bsize=["']?(\d+)/i);
+    if (fontSize) node.style.fontSize = `${fontSize[1]}px`;
+    const accentCount = (String(element.text || '').match(/<font[^>]*\bcolor=["']?#ff8c00/gi) || []).length;
+    if (accentCount) [...node.querySelectorAll('font')].filter(font => !font.querySelector('font')).slice(0, accentCount).forEach(font => font.dataset.accent = '1');
     if ((Number(element.metrics?.height) || 32) <= 32 && !node.querySelector('br')) node.style.whiteSpace = 'nowrap';
   }
   else if (element.type === 'input' || element.type === 'word_inputs') addInput(node, element);
@@ -203,7 +208,7 @@ function addTable(node, element) {
 function addImage(node, element) { const src=element.image?.src; if(!src)return; const img=document.createElement('img');img.src=src;img.alt=element.image.alt||'';img.style.cssText='width:100%;height:100%;object-fit:contain';node.append(img); }
 
 async function submitExercise() {
-  const button=document.querySelector('#submit'); button.disabled=true; feedback.hidden=false; feedback.className='exercise-feedback'; feedback.textContent='Vérification en cours…';
+  const button=document.querySelector('#submit'); button.disabled=true; feedback.hidden=false; feedback.className='exercise-feedback'; feedback.innerHTML='<span class="loading-indicator"><span class="loading-spinner" aria-hidden="true"></span><span>Vérification en cours…</span></span>';
   if(teacherPreview){feedback.textContent='Aperçu seulement : aucune réponse n’a été enregistrée.';button.hidden=true;document.querySelector('#next').hidden=false;button.disabled=false;return;}
   clearTimeout(saveTimer);
   try { const exercise=exercises[current],result=await api('grade',{assignmentId:assignment.id,matrixId:matrix.id,exerciseId:exercise.id,exerciseLabel:exercise.displayLabel||`Activité ${exercise.number||current+1} — ${matrix.label}`,answers}); feedback.textContent=result.message || (assignment.mode==='evaluation'?'Tes réponses sont enregistrées.':`${result.score} réponse${result.score>1?'s':''} réussie${result.score>1?'s':''} sur ${result.total}.`); for(const detail of result.details||[]){const node=canvas.querySelector(`[data-widget-id="${CSS.escape(detail.id)}"]`);if(node){node.classList.remove('correct','incorrect');node.classList.add(detail.correct?'correct':'incorrect')}} document.querySelector('#submit').hidden=true;document.querySelector('#next').hidden=false;document.querySelector('#progress-bar').style.width=`${Math.round((current+1)/exercises.length*100)}%`; }
@@ -240,24 +245,18 @@ function resizeInputNode(node,input){
 }
 function layoutCanvas(){
   const nodes=[...canvas.querySelectorAll('.canvas-element')];
-  const fields=nodes.filter(node=>node.classList.contains('canvas-input')||node.classList.contains('canvas-word_inputs'));
-  for(const label of nodes.filter(node=>node.classList.contains('canvas-label')&&!node.dataset.placeholderSplit)){
-    const targets=[...label.querySelectorAll('font')].filter(target=>target.textContent.trim());
-    const labelTop=Number(label.dataset.baseTop)||0,labelHeight=Number(label.dataset.baseHeight)||32;
-    const related=fields.filter(field=>{const top=Number(field.dataset.baseTop)||0,height=Number(field.dataset.baseHeight)||32;return Math.min(top+height,labelTop+labelHeight)-Math.max(top,labelTop)>Math.min(height,labelHeight)*.35;}).sort((a,b)=>(Number(a.dataset.baseTop)||0)-(Number(b.dataset.baseTop)||0)||(Number(a.dataset.baseLeft)||0)-(Number(b.dataset.baseLeft)||0));
-    if(targets.length&&targets.length===related.length){
-      const labelRect=label.getBoundingClientRect(),scale=label.offsetWidth?labelRect.width/label.offsetWidth:1;
-      targets.map(target=>({target,rect:target.getBoundingClientRect()})).sort((a,b)=>a.rect.top-b.rect.top||a.rect.left-b.rect.left).forEach((item,index)=>{const field=related[index];field.dataset.anchorAligned='1';field.dataset.dynamicLeft=String((Number(label.dataset.baseLeft)||0)+(item.rect.left-labelRect.left)/scale);field.dataset.dynamicTop=String((Number(label.dataset.baseTop)||0)+(item.rect.top-labelRect.top)/scale);field.dataset.dynamicWidth=String(Math.max(Number(field.dataset.baseWidth)||40,Math.min(220,item.rect.width/scale+18)));});
-    }
-  }
-  for(const label of nodes.filter(node=>node.classList.contains('canvas-label')&&!node.dataset.placeholderSplit&&!node.querySelector('br'))){
+  const fields=nodes.filter(node=>node.classList.contains('canvas-input')||node.classList.contains('canvas-word_inputs')||node.classList.contains('canvas-dropdown_menu')||node.classList.contains('canvas-association_droppable')||node.classList.contains('canvas-checkbox'));
+  const template=applyCanvasTemplate(canvas,nodes,fields);
+  for(const label of nodes.filter(node=>template.name==='bloc-multiligne'&&node.classList.contains('canvas-label')&&node.querySelector('br'))){label.style.height='auto';label.style.whiteSpace='nowrap';}
+  if(template.splitPlaceholders) for(const label of nodes.filter(node=>node.classList.contains('canvas-label')&&!node.dataset.placeholderSplit&&!node.querySelector('br'))){
     const raw=label.textContent||'',matches=[...raw.matchAll(/[\s\u00a0]{2,}/gu)];
     const labelLeft=Number(label.dataset.baseLeft)||0,labelTop=Number(label.dataset.baseTop)||0,labelWidth=Number(label.dataset.baseWidth)||40,labelHeight=Number(label.dataset.baseHeight)||32;
     const related=fields.filter(field=>{const left=Number(field.dataset.baseLeft)||0,top=Number(field.dataset.baseTop)||0,width=Number(field.dataset.baseWidth)||40,height=Number(field.dataset.baseHeight)||32;return Math.min(left+width,labelLeft+labelWidth)-Math.max(left,labelLeft)>0&&Math.min(top+height,labelTop+labelHeight)-Math.max(top,labelTop)>Math.min(height,labelHeight)*.35;}).sort((a,b)=>{const dy=(Number(a.dataset.baseTop)||0)-(Number(b.dataset.baseTop)||0);return Math.abs(dy)<12?(Number(a.dataset.baseLeft)||0)-(Number(b.dataset.baseLeft)||0):dy;});
-    if(matches.length&&matches.length===related.length)splitPlaceholderLabel(label,raw,matches,related);
+    if(matches.length&&matches.length>=related.length)splitPlaceholderLabel(label,raw,matches,related);
   }
+  if(template.alignTrailing) for(const label of nodes.filter(node=>node.classList.contains('canvas-label')&&!node.dataset.placeholderSplit&&!node.querySelector('br')&&!node.querySelector('font')))alignTrailingField(label,fields);
   fields.forEach(field=>{
-    const anchored=field.dataset.anchorAligned==='1';
+    const anchored=field.dataset.anchorAligned==='1'||field.dataset.placeholderAligned==='1';
     const left=anchored?Number(field.dataset.dynamicLeft)||0:Math.max(Number(field.dataset.baseLeft)||0,Number(field.dataset.dynamicLeft)||0);
     const top=anchored?Number(field.dataset.dynamicTop)||0:Math.max(Number(field.dataset.baseTop)||0,Number(field.dataset.dynamicTop)||0);
     const width=Math.max(Number(field.dataset.baseWidth)||40,Number(field.dataset.dynamicWidth)||0);
@@ -267,10 +266,10 @@ function layoutCanvas(){
   });
   for(const label of nodes.filter(node=>node.dataset.placeholderSplit))reflowPlaceholderLabel(label,nodes);
   for(const field of fields){
-    const left=field.dataset.anchorAligned==='1'?Number(field.dataset.dynamicLeft)||0:Math.max(Number(field.dataset.baseLeft)||0,Number(field.dataset.dynamicLeft)||0);
+    const left=field.dataset.anchorAligned==='1'||field.dataset.placeholderAligned==='1'?Number(field.dataset.dynamicLeft)||0:Math.max(Number(field.dataset.baseLeft)||0,Number(field.dataset.dynamicLeft)||0);
     const baseWidth=Number(field.dataset.baseWidth)||40;
     const right=left+(Number(field.dataset.dynamicWidth)||baseWidth);
-    const top=field.dataset.anchorAligned==='1'?Number(field.dataset.dynamicTop)||0:Math.max(Number(field.dataset.baseTop)||0,Number(field.dataset.dynamicTop)||0);
+    const top=field.dataset.anchorAligned==='1'||field.dataset.placeholderAligned==='1'?Number(field.dataset.dynamicTop)||0:Math.max(Number(field.dataset.baseTop)||0,Number(field.dataset.dynamicTop)||0);
     const height=Number(field.dataset.baseHeight)||32;
     for(const other of nodes){
       if(other===field||!other.classList.contains('canvas-label'))continue;
@@ -278,20 +277,77 @@ function layoutCanvas(){
       const otherTop=Number(other.dataset.baseTop)||0;
       const otherHeight=Number(other.dataset.baseHeight)||32;
       const sameRow=Math.min(top+height,otherTop+otherHeight)-Math.max(top,otherTop)>Math.min(height,otherHeight)*.35;
-      if(sameRow&&otherLeft>=left+baseWidth-4)other.style.left=`${Math.max(otherLeft,right+8)}px`;
+      const originalLeft=Number(field.dataset.baseLeft)||0;
+      if(sameRow&&otherLeft>=originalLeft+baseWidth-4)other.style.left=`${Math.max(otherLeft,right+8)}px`;
     }
   }
+  if(template.separateText){hideOverlappingAccents(nodes,fields);separateFieldsFromText(canvas,nodes,fields);}
+  separateOverlappingFields(canvas,fields);
 }
 function splitPlaceholderLabel(label,raw,matches,fields){
   const labelLeft=Number(label.dataset.baseLeft)||0,labelTop=Number(label.dataset.baseTop)||0,labelHeight=Number(label.dataset.baseHeight)||32;
   label.dataset.placeholderSplit='1';label.dataset.placeholderFields=fields.map(field=>field.dataset.widgetId||'').join('|');label.innerHTML='';label.style.width='max-content';label.style.whiteSpace='nowrap';
   const parts=raw.split(/[\s\u00a0]{2,}/gu);for(const part of parts){const span=document.createElement('span');span.className='canvas-label-part';span.textContent=part.trim();span.style.position='absolute';span.style.top='0';label.append(span);}
   reflowPlaceholderLabel(label,[...label.parentElement.querySelectorAll('.canvas-element')]);
-  const fieldNodes=fields;fieldNodes.forEach(field=>{field.dataset.dynamicTop=String(labelTop+(labelHeight-(Number(field.dataset.baseHeight)||32))/2);});
+  const fieldNodes=fields;fieldNodes.forEach(field=>{field.dataset.placeholderAligned='1';field.dataset.dynamicTop=String(labelTop+(labelHeight-(Number(field.dataset.baseHeight)||32))/2);});
 }
 function reflowPlaceholderLabel(label,nodes){
   const ids=(label.dataset.placeholderFields||'').split('|').filter(Boolean),fields=ids.map(id=>nodes.find(node=>node.dataset.widgetId===id)).filter(Boolean),parts=[...label.querySelectorAll('.canvas-label-part')],labelLeft=Number(label.dataset.baseLeft)||0,labelTop=Number(label.dataset.baseTop)||0;let cursor=0;
-  parts.forEach((part,index)=>{part.style.left=`${cursor}px`;cursor+=part.offsetWidth;if(index<fields.length){const field=fields[index],width=Number(field.dataset.dynamicWidth)||Number(field.dataset.baseWidth)||40;field.dataset.dynamicLeft=String(labelLeft+cursor+8);field.dataset.dynamicTop=String(labelTop+(Number(label.dataset.baseHeight)||32-(Number(field.dataset.baseHeight)||32))/2);cursor+=width+8;}});label.style.width=`${Math.max(Number(label.dataset.baseWidth)||40,cursor)}px`;
+  parts.forEach((part,index)=>{part.style.left=`${cursor}px`;cursor+=part.offsetWidth;if(index<fields.length){const field=fields[index],width=Number(field.dataset.dynamicWidth)||Number(field.dataset.baseWidth)||40;field.dataset.dynamicLeft=String(labelLeft+cursor+8);field.dataset.dynamicTop=String(labelTop+(Number(label.dataset.baseHeight)||32-(Number(field.dataset.baseHeight)||32))/2);cursor+=width+16;}});label.style.width=`${Math.max(Number(label.dataset.baseWidth)||40,cursor)}px`;
+}
+function alignTrailingField(label,fields){
+  const labelLeft=Number(label.dataset.baseLeft)||0,labelTop=Number(label.dataset.baseTop)||0,labelWidth=Number(label.dataset.baseWidth)||40,labelHeight=Number(label.dataset.baseHeight)||32;
+  const related=fields.filter(field=>{if(field.dataset.anchorAligned==='1'||field.dataset.placeholderAligned==='1')return false;const left=Number(field.dataset.baseLeft)||0,top=Number(field.dataset.baseTop)||0,width=Number(field.dataset.baseWidth)||40,height=Number(field.dataset.baseHeight)||32;return left<labelLeft+labelWidth+12&&left+width>labelLeft&&Math.min(top+height,labelTop+labelHeight)-Math.max(top,labelTop)>Math.min(height,labelHeight)*.35;});
+  if(related.length!==1)return;
+  const field=related[0],labelRect=label.getBoundingClientRect(),range=document.createRange();range.selectNodeContents(label);const textRect=range.getBoundingClientRect(),scale=label.offsetWidth?labelRect.width/label.offsetWidth:1,textRight=labelLeft+Math.max(0,(textRect.right-labelRect.left)/scale),fieldLeft=Number(field.dataset.baseLeft)||0;
+  if(textRight<=labelLeft+8||fieldLeft>=textRight+6)return;
+  field.dataset.placeholderAligned='1';field.dataset.dynamicLeft=String(textRight+8);field.dataset.dynamicTop=String(labelTop+(labelHeight-(Number(field.dataset.baseHeight)||32))/2);
+}
+function hideOverlappingAccents(nodes,fields){
+  for(const label of nodes.filter(node=>node.classList.contains('canvas-label'))){
+    for(const target of label.querySelectorAll('font[data-accent]')){
+      const tr=target.getBoundingClientRect();
+      if(!tr.width||!tr.height)continue;
+      const overlaps=fields.some(field=>{const fr=field.getBoundingClientRect();const ix=Math.min(fr.right,tr.right)-Math.max(fr.left,tr.left),iy=Math.min(fr.bottom,tr.bottom)-Math.max(fr.top,tr.top);return ix>3&&iy>3&&ix>tr.width*.15&&iy>Math.min(fr.height,tr.height)*.2;});
+      if(overlaps)target.style.visibility='hidden';
+    }
+  }
+}
+function separateFieldsFromText(root,nodes,fields){
+  const canvasRect=root.getBoundingClientRect();
+  const textRects=label=>{const rects=[],walk=node=>{for(const child of node.childNodes||[]){if(child.nodeType===3&&child.textContent.trim()){const range=document.createRange();range.selectNodeContents(child);for(const rect of range.getClientRects())if(rect.width&&rect.height)rects.push(rect);}else if(child.nodeType===1&&getComputedStyle(child).visibility!=='hidden')walk(child);}};walk(label);return rects;};
+  for(const field of fields){
+    for(let pass=0;pass<4;pass++){
+      const fr=field.getBoundingClientRect();
+      const collisions=[];
+      for(const label of nodes.filter(node=>node.classList.contains('canvas-label')))for(const tr of textRects(label)){const ix=Math.min(fr.right,tr.right)-Math.max(fr.left,tr.left),iy=Math.min(fr.bottom,tr.bottom)-Math.max(fr.top,tr.top);if(ix>3&&iy>3)collisions.push(tr);}
+      if(!collisions.length)break;
+      const nextTop=Math.max(...collisions.map(rect=>rect.bottom-canvasRect.top))+6;
+      const currentTop=Number(field.style.top)||0;if(nextTop<=currentTop+1)break;
+      field.style.top=`${nextTop}px`;field.dataset.dynamicTop=String(nextTop);
+    }
+  }
+}
+function separateOverlappingFields(root,fields){
+  const rootRect=root.getBoundingClientRect();
+  for(let pass=0;pass<3;pass++){
+    let changed=false;
+    for(let index=0;index<fields.length;index++){
+      const first=fields[index],firstRect=first.getBoundingClientRect();
+      for(let next=index+1;next<fields.length;next++){
+        const second=fields[next],secondRect=second.getBoundingClientRect();
+        const ix=Math.min(firstRect.right,secondRect.right)-Math.max(firstRect.left,secondRect.left);
+        const iy=Math.min(firstRect.bottom,secondRect.bottom)-Math.max(firstRect.top,secondRect.top);
+        if(ix<=Math.min(firstRect.width,secondRect.width)*.35||iy<=3)continue;
+        const [upper,lower]=firstRect.top<=secondRect.top?[first,second]:[second,first];
+        const upperRect=upper===first?firstRect:secondRect;
+        const nextTop=upperRect.bottom-rootRect.top+6;
+        const currentTop=Number(lower.style.top)||0;
+        if(nextTop>currentTop+1){lower.style.top=`${nextTop}px`;lower.dataset.dynamicTop=String(nextTop);changed=true;}
+      }
+    }
+    if(!changed)break;
+  }
 }
 function dynamicBounds(exercise,root){
   const base=contentBounds(exercise),nodes=[...root.querySelectorAll('.canvas-element')];
@@ -302,4 +358,4 @@ function dynamicBounds(exercise,root){
 }
 function contentBounds(exercise){const rendered=(exercise.canvas.elements||[]).filter(element=>element.type!=='association_draggable'&&!(element.type==='linkable'&&element.linkable_type!=='source'));if(!rendered.length)return{x:0,y:0,width:Number(exercise.canvas.width)||650,height:Number(exercise.canvas.height)||400};const xs=rendered.map(element=>Number(element.metrics?.x)||0),ys=rendered.map(element=>Number(element.metrics?.y)||0),rights=rendered.map(element=>(Number(element.metrics?.x)||0)+(Number(element.metrics?.width)||40)),bottoms=rendered.map(element=>(Number(element.metrics?.y)||0)+(Number(element.metrics?.height)||32)),pad=12,x=Math.max(0,Math.min(...xs)-pad),y=Math.max(0,Math.min(...ys)-pad);return{x,y,width:Math.max(120,Math.max(...rights)-x+pad),height:Math.max(80,Math.max(...bottoms)-y+pad)};}
 
-function cleanHtml(value){const doc=new DOMParser().parseFromString(String(value),'text/html');for(const element of [...doc.body.querySelectorAll('*')]){if(!['P','BR','B','STRONG','I','EM','U','SPAN','FONT','SUB','SUP','UL','OL','LI'].includes(element.tagName))element.replaceWith(...element.childNodes);else [...element.attributes].forEach(attribute=>element.removeAttribute(attribute.name));}return doc.body.innerHTML;}
+function cleanHtml(value){const doc=new DOMParser().parseFromString(String(value),'text/html');for(const element of [...doc.body.querySelectorAll('*')]){if(!['P','BR','B','STRONG','I','EM','U','SPAN','FONT','SUB','SUP','UL','OL','LI'].includes(element.tagName))element.replaceWith(...element.childNodes);else{const accent=element.tagName==='FONT'?(element.getAttribute('color')||'').toLowerCase():'';[...element.attributes].forEach(attribute=>element.removeAttribute(attribute.name));if(accent==='#ff8c00'||accent==='orange')element.dataset.accent='1';}}return doc.body.innerHTML;}
