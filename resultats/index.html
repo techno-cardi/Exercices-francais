@@ -2,212 +2,152 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="robots" content="noindex,nofollow,noarchive">
-  <meta name="theme-color" content="#123b7a">
-  <title>Mes résultats | Français</title>
+  <meta name="theme-color" content="#0d47b5">
+  <title>Résultats</title>
+  <link id="syncFavicon" rel="icon" type="image/png" href="">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div class="page-shell">
-    <header class="site-header">
-      <div class="brand">
-        <div class="brand-mark">F</div>
-        <div>
-          <div class="brand-kicker">Français</div>
-          <div class="brand-title">Résultats et rétroactions</div>
-        </div>
+<div class="app-shell">
+  <header class="topbar">
+    <a class="brand" href="./" aria-label="Résultats">
+      <img class="brand-logo" data-sync-icon alt="">
+      <div><div class="brand-title">Résultats</div><div class="brand-subtitle">Publication et synchronisation Mozaïk</div></div>
+    </a>
+    <button id="logoutBtn" class="btn btn-ghost hidden" type="button">Se déconnecter</button>
+  </header>
+
+  <main>
+    <section id="loginView" class="login-view">
+      <div class="login-card card">
+        <img class="login-logo" data-sync-icon alt="">
+        <div class="eyebrow">Accès sécurisé</div>
+        <h1>Résultats</h1>
+        <p class="muted">Consulte tes résultats ou ouvre la console enseignant.</p>
+        <form id="loginForm" novalidate>
+          <label class="field-label" for="emailInput">Adresse courriel</label>
+          <input id="emailInput" class="input" type="email" autocomplete="email" placeholder="prenom.nom@educ.cscapitale.qc.ca" required>
+          <div id="credentialBlock" class="hidden">
+            <label id="credentialLabel" class="field-label" for="credentialInput">Mot de passe</label>
+            <input id="credentialInput" class="input" type="password" autocomplete="current-password">
+            <div id="credentialHint" class="hint"></div>
+          </div>
+          <div id="loginError" class="alert alert-error hidden"></div>
+          <button id="loginBtn" class="btn btn-primary btn-block" type="submit">Continuer</button>
+        </form>
       </div>
-      <button id="logoutBtn" class="ghost-btn hidden" type="button">Se déconnecter</button>
-    </header>
+    </section>
 
-    <main>
-      <section id="loginView" class="login-wrap">
-        <div class="login-card panel">
-          <div class="pill">Accès sécurisé</div>
-          <h1>Consulter mes résultats</h1>
-          <p class="muted">Entre ton adresse scolaire. À la première connexion, un élève utilise son numéro de fiche pour activer son compte et choisir un mot de passe. Ensuite, il utilise simplement son courriel et son mot de passe.</p>
+    <section id="studentView" class="hidden content-area">
+      <div class="page-head"><div><div class="eyebrow">Espace élève</div><h1 id="studentName"></h1><p id="studentMeta" class="muted"></p></div><div id="studentSummary" class="summary-card"></div></div>
+      <div id="studentAssignments" class="student-grid"></div>
+    </section>
 
-          <form id="loginForm" novalidate>
-            <label class="field-label" for="emailInput">Adresse courriel</label>
-            <input id="emailInput" class="text-input" type="email" autocomplete="email" placeholder="prenom.nom@educ.cscapitale.qc.ca" required>
+    <section id="teacherView" class="hidden teacher-layout">
+      <aside class="sidebar">
+        <div class="sidebar-label">Console enseignant</div>
+        <button class="nav-item active" data-teacher-view="dashboard" type="button">Tableau de bord</button>
+        <button class="nav-item" data-teacher-view="assignments" type="button">Travaux</button>
+        <div class="sidebar-divider"></div>
+        <div class="sidebar-label">Groupes</div>
+        <button class="nav-item group-nav" data-group="31" type="button">Groupe 31</button>
+        <button class="nav-item group-nav" data-group="32" type="button">Groupe 32</button>
+        <button class="nav-item group-nav" data-group="51" type="button">Groupe 51</button>
+      </aside>
 
-            <div id="credentialBlock" class="hidden">
-              <label id="credentialLabel" class="field-label" for="credentialInput">Numéro de fiche</label>
-              <input id="credentialInput" class="text-input" type="password" autocomplete="off">
-              <div id="credentialHint" class="field-hint"></div>
-            </div>
-
-            <div id="loginError" class="error-box hidden" role="alert"></div>
-            <button id="loginBtn" class="primary-btn" type="submit">Continuer</button>
-          </form>
-        </div>
-      </section>
-
-      <section id="studentView" class="hidden">
-        <div class="hero-row">
-          <div>
-            <div class="eyebrow">Espace élève</div>
-            <h1 id="studentName"></h1>
-            <p id="studentMeta" class="muted"></p>
+      <div class="teacher-main">
+        <section id="teacherDashboard">
+          <div class="page-head">
+            <div><div class="eyebrow">Console enseignant</div><h1>Tableau de bord</h1><p class="muted">Tes travaux, tes groupes et tes pondérations au même endroit.</p></div>
+            <button id="newAssignmentBtn" class="btn btn-primary" type="button">+ Nouveau travail</button>
           </div>
-          <div id="studentSummary" class="summary-card"></div>
-        </div>
-        <div id="studentAssignments" class="student-grid"></div>
-      </section>
+          <div id="groupStats" class="stats-grid"></div>
+          <div id="weightOverview" class="weight-overview"></div>
+          <div class="section-head"><div><h2>Travaux récents</h2><p class="muted">Clique sur un travail pour entrer les notes.</p></div><button id="showAllAssignments" class="btn btn-ghost" type="button">Voir tous les travaux</button></div>
+          <div id="recentAssignments" class="assignment-list"></div>
+        </section>
 
-      <section id="teacherView" class="hidden">
-        <div class="teacher-hero">
-          <div>
-            <div class="eyebrow">Console enseignant</div>
-            <h1>Gestion des résultats</h1>
-            <p class="muted">Travaux, compétences, pondération, notes et rétroactions.</p>
+        <section id="assignmentsView" class="hidden">
+          <div class="page-head"><div><div class="eyebrow">Travaux</div><h1>Tous les travaux</h1></div><button id="newAssignmentBtn2" class="btn btn-primary" type="button">+ Nouveau travail</button></div>
+          <div class="card toolbar">
+            <input id="assignmentSearch" class="input" type="search" placeholder="Rechercher un travail">
+            <select id="assignmentGroupFilter" class="select"><option value="">Tous les groupes</option><option value="31">31</option><option value="32">32</option><option value="51">51</option></select>
+            <select id="assignmentCompetenceFilter" class="select"><option value="">Toutes les compétences</option><option value="lecture">Lire</option><option value="ecriture">Écrire</option><option value="oral">Communiquer oralement</option></select>
           </div>
-          <button id="newAssignmentBtn" class="primary-btn compact" type="button">Nouveau travail</button>
-        </div>
+          <div id="assignmentList" class="assignment-list"></div>
+        </section>
 
-        <div id="groupStats" class="stats-grid"></div>
-
-        <div class="panel toolbar">
-          <input id="assignmentSearch" class="text-input" type="search" placeholder="Rechercher un travail">
-          <select id="assignmentGroupFilter" class="select-input">
-            <option value="">Tous les groupes</option>
-            <option value="31">Groupe 31</option>
-            <option value="32">Groupe 32</option>
-            <option value="51">Groupe 51</option>
-          </select>
-          <select id="assignmentSort" class="select-input">
-            <option value="recent">Plus récents</option>
-            <option value="title">Titre A-Z</option>
-            <option value="average">Moyenne</option>
-            <option value="progress">Correction</option>
-          </select>
-        </div>
-
-        <div id="assignmentList" class="assignment-list"></div>
-
-        <section id="assignmentDetail" class="hidden detail-section">
-          <div class="detail-heading">
-            <button id="backToAssignments" class="ghost-btn" type="button">Retour aux travaux</button>
-            <div id="saveState" class="save-state"></div>
-          </div>
-
-          <div class="panel assignment-editor">
-            <div class="editor-grid">
-              <div class="span-2">
-                <label class="field-label" for="editTitle">Titre du travail</label>
-                <input id="editTitle" class="text-input" type="text">
-              </div>
-              <div>
-                <label class="field-label" for="editWeight">Pondération (%)</label>
-                <input id="editWeight" class="text-input" type="number" min="0" max="100" step="0.1" placeholder="Optionnel">
-              </div>
-              <div>
-                <label class="field-label" for="editMaxScore">Note sur</label>
-                <input id="editMaxScore" class="text-input" type="number" min="1" max="1000" step="0.5">
-              </div>
-              <div class="span-2">
-                <div class="field-label">Compétences évaluées</div>
-                <div id="competencyChoices" class="choice-row">
-                  <label class="check-chip"><input type="checkbox" value="Lecture"> Lecture</label>
-                  <label class="check-chip"><input type="checkbox" value="Écriture"> Écriture</label>
-                  <label class="check-chip"><input type="checkbox" value="Communication orale"> Communication orale</label>
-                </div>
-              </div>
-              <div class="span-2">
-                <div class="field-label">Groupes</div>
-                <div id="groupChoices" class="choice-row">
-                  <label class="check-chip"><input type="checkbox" value="31"> 31</label>
-                  <label class="check-chip"><input type="checkbox" value="32"> 32</label>
-                  <label class="check-chip"><input type="checkbox" value="51"> 51</label>
-                </div>
-              </div>
-              <div class="span-2">
-                <label class="field-label" for="editInstructions">Consigne ou description</label>
-                <textarea id="editInstructions" class="text-area" rows="4"></textarea>
-              </div>
-              <div class="span-2 publish-row">
-                <label class="switch-line"><input id="editPublished" type="checkbox"> Visible pour les élèves</label>
-                <button id="saveAssignmentBtn" class="primary-btn compact" type="button">Enregistrer le travail</button>
-              </div>
+        <section id="assignmentDetail" class="hidden work-page">
+          <div class="work-topbar">
+            <button id="backToAssignments" class="btn btn-ghost" type="button">← Retour</button>
+            <div class="work-actions">
+              <span id="extensionStatus" class="extension-pill">Extension…</span>
+              <button id="syncMozaikBtn" class="btn btn-primary" type="button">Envoyer dans Mozaïk</button>
             </div>
           </div>
 
-          <div class="panel toolbar student-toolbar">
-            <input id="studentSearch" class="text-input" type="search" placeholder="Rechercher un élève">
-            <select id="studentGroupFilter" class="select-input">
-              <option value="">Tous les groupes</option>
-              <option value="31">31</option>
-              <option value="32">32</option>
-              <option value="51">51</option>
-            </select>
-            <select id="studentSort" class="select-input">
-              <option value="name">Nom</option>
-              <option value="gradeDesc">Note décroissante</option>
-              <option value="gradeAsc">Note croissante</option>
-              <option value="ungraded">Non corrigés d’abord</option>
-            </select>
+          <div class="card work-hero">
+            <div class="work-hero-main">
+              <div class="eyebrow">Travail</div>
+              <h1 id="workTitle">Travail</h1>
+              <div id="workMeta" class="meta-row"></div>
+            </div>
+            <div class="work-hero-side">
+              <label class="mini-label" for="detailGroupSelect">Groupe</label>
+              <select id="detailGroupSelect" class="select compact"></select>
+              <div id="syncState" class="sync-state"></div>
+            </div>
           </div>
 
-          <div class="panel table-wrap">
-            <table class="results-table">
-              <thead>
-                <tr>
-                  <th>Élève</th>
-                  <th>Groupe</th>
-                  <th>Note</th>
-                  <th>Publication</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody id="studentRows"></tbody>
-            </table>
+          <details id="workSettings" class="card settings-card">
+            <summary>Paramètres du travail</summary>
+            <div class="settings-grid">
+              <div class="span2"><label class="field-label" for="editTitle">Titre</label><input id="editTitle" class="input" type="text"></div>
+              <div><label class="field-label" for="editCompetenceKind">Compétence</label><select id="editCompetenceKind" class="select"><option value="lecture">Lire</option><option value="ecriture">Écrire</option><option value="oral">Communiquer oralement</option></select></div>
+              <div><label class="field-label" for="editActivityType">Type</label><select id="editActivityType" class="select"><option>Évaluation</option><option>SAÉ</option><option>Dictée</option><option>Lecture</option><option>Test</option><option>Examen</option><option>Travail</option><option>Autre</option></select></div>
+              <div><label class="field-label" for="editMaxScore">Note sur</label><input id="editMaxScore" class="input" type="number" min="0.1" step="0.1"></div>
+              <div><label class="field-label" for="editWeight">Pondération (%)</label><input id="editWeight" class="input" type="number" min="0" max="100" step="0.1"></div>
+              <div><label class="field-label" for="editTerm">Étape</label><select id="editTerm" class="select"><option value="1">Étape 1</option><option value="2">Étape 2</option><option value="3">Étape 3</option></select></div>
+              <div><label class="field-label" for="editActivityDate">Date</label><input id="editActivityDate" class="input" type="date"></div>
+              <div><label class="field-label" for="editPeriod">Période</label><input id="editPeriod" class="input" type="number" min="1" max="20"></div>
+              <div class="span2"><div class="field-label">Groupes</div><div id="groupChoices" class="choice-row"><label class="check-chip"><input type="checkbox" value="31"> 31</label><label class="check-chip"><input type="checkbox" value="32"> 32</label><label class="check-chip"><input type="checkbox" value="51"> 51</label></div></div>
+              <div class="span2 toggle-grid">
+                <label class="switch-line"><input id="editPublished" type="checkbox"> Visible dans Résultats</label>
+                <label class="switch-line"><input id="editResultsVisible" type="checkbox"> Visible aux parents et élèves dans Mozaïk</label>
+                <label class="switch-line"><input id="editReportCard" type="checkbox"> Porté au bulletin</label>
+                <label class="switch-line"><input id="editShowSchedule" type="checkbox"> Afficher dans l’horaire</label>
+                <label class="switch-line"><input id="editHomework" type="checkbox"> Devoir</label>
+              </div>
+              <div class="span2"><label class="field-label" for="editInstructions">Description</label><textarea id="editInstructions" class="textarea" rows="3"></textarea></div>
+              <div class="span2 settings-actions"><span id="saveState" class="save-state"></span><button id="saveAssignmentBtn" class="btn btn-primary" type="button">Enregistrer les paramètres</button></div>
+            </div>
+          </details>
+
+          <div class="card grade-card">
+            <div class="grade-card-head">
+              <div><h2>Notes</h2><p id="gradeHelp" class="muted">Entre une note, puis fais Entrée ou Tab pour passer à l’élève suivant.</p></div>
+              <div class="grade-tools"><input id="studentSearch" class="input search-small" type="search" placeholder="Rechercher un élève"><span id="gradeSaveState" class="save-state"></span></div>
+            </div>
+            <div class="grade-table-wrap">
+              <table class="grade-table">
+                <thead><tr><th class="col-last">Nom</th><th class="col-first">Prénom</th><th class="col-grade">Note</th><th class="col-percent">%</th><th class="col-visible">Visible</th><th class="col-detail"></th></tr></thead>
+                <tbody id="studentRows"></tbody>
+              </table>
+            </div>
           </div>
         </section>
-      </section>
-    </main>
-
-    <footer>Kevin Tremblay · Enseignant de français · École secondaire Cardinal-Roy</footer>
-  </div>
-
-  <dialog id="resultDialog" class="result-dialog">
-    <form method="dialog" class="dialog-shell">
-      <div class="dialog-head">
-        <div>
-          <div id="dialogStudentMeta" class="eyebrow"></div>
-          <h2 id="dialogStudentName"></h2>
-        </div>
-        <button class="icon-btn" value="cancel" aria-label="Fermer">×</button>
       </div>
+    </section>
+  </main>
+</div>
 
-      <div class="dialog-body">
-        <div>
-          <div class="field-label">Réponse originale</div>
-          <div id="dialogResponse" class="response-box"></div>
-        </div>
-        <div class="grade-line">
-          <div>
-            <label class="field-label" for="dialogGrade">Note</label>
-            <div class="grade-input-row">
-              <input id="dialogGrade" class="text-input small" type="number" min="0" step="0.5">
-              <span id="dialogMaxScore"></span>
-            </div>
-          </div>
-          <label class="switch-line"><input id="dialogVisible" type="checkbox"> Visible pour l’élève</label>
-        </div>
-        <div>
-          <label class="field-label" for="dialogFeedback">Rétroaction</label>
-          <textarea id="dialogFeedback" class="text-area" rows="8"></textarea>
-        </div>
-      </div>
-
-      <div class="dialog-actions">
-        <button class="ghost-btn" value="cancel">Annuler</button>
-        <button id="saveResultBtn" class="primary-btn compact" type="button">Enregistrer</button>
-      </div>
-    </form>
-  </dialog>
-
-  <script src="app.js"></script>
+<dialog id="resultDialog" class="dialog">
+  <div class="dialog-head"><div><div id="dialogStudentMeta" class="eyebrow"></div><h2 id="dialogStudentName"></h2></div><button id="closeResultDialog" class="icon-btn" type="button">×</button></div>
+  <div class="dialog-body"><div><div class="field-label">Réponse originale</div><div id="dialogResponse" class="response-box"></div></div><div><label class="field-label" for="dialogFeedback">Rétroaction</label><textarea id="dialogFeedback" class="textarea" rows="7"></textarea></div></div>
+  <div class="dialog-actions"><button id="saveFeedbackBtn" class="btn btn-primary" type="button">Enregistrer</button></div>
+</dialog>
+<script src="app.js"></script>
 </body>
 </html>
