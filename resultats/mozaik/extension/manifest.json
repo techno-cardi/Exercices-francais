@@ -1,26 +1,54 @@
 {
   "manifest_version": 3,
-  "name": "Cardinal - Synchronisation Mozaïk",
-  "version": "0.5.0",
-  "description": "Envoie les activités et résultats de Gestion des notes vers Mozaïk Portail.",
-  "permissions": ["scripting", "tabs", "windows"],
+  "name": "Cardinal - Gestion des notes",
+  "version": "0.8.0",
+  "description": "Synchronise Gestion des notes avec Mozaïk et Formative.",
+  "permissions": [
+    "scripting",
+    "tabs",
+    "windows",
+    "webRequest"
+  ],
   "host_permissions": [
     "https://mozaikportail.ca/*",
     "https://apiaffaires.mozaikportail.ca/*",
-    "https://techno-cardi.github.io/Exercices-francais/resultats/*"
+    "https://techno-cardi.github.io/Exercices-francais/resultats/*",
+    "https://app.formative.com/*",
+    "https://svc.goformative.com/*"
   ],
-  "background": { "service_worker": "background-v05.js" },
+  "background": {
+    "service_worker": "background-v08.js"
+  },
   "content_scripts": [
     {
-      "matches": ["https://techno-cardi.github.io/Exercices-francais/resultats/*"],
-      "js": ["console-bridge.js"],
+      "matches": [
+        "https://techno-cardi.github.io/Exercices-francais/resultats/*"
+      ],
+      "js": [
+        "console-bridge.js"
+      ],
       "run_at": "document_start"
     },
     {
-      "matches": ["https://mozaikportail.ca/*"],
-      "js": ["mozaik-ui.js"],
+      "matches": [
+        "https://mozaikportail.ca/*"
+      ],
+      "js": [
+        "mozaik-ui.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://app.formative.com/formatives/*/results*"
+      ],
+      "js": [
+        "formative-ui.js"
+      ],
       "run_at": "document_idle"
     }
   ],
-  "action": { "default_title": "Synchronisation Mozaïk" }
+  "action": {
+    "default_title": "Gestion des notes"
+  }
 }
