@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<title>Synchronisation Mozaïk | Français</title>
+<style>
+:root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#241719;background:#f7f3f2}*{box-sizing:border-box}body{margin:0}.wrap{max-width:980px;margin:auto;padding:28px 18px 60px}.top{display:flex;justify-content:space-between;gap:20px;align-items:center;margin-bottom:28px}.brand{display:flex;align-items:center;gap:12px}.mark{width:42px;height:42px;border-radius:12px;background:#8f1621;color:#fff;display:grid;place-items:center;font-weight:800}.kicker{font-size:12px;text-transform:uppercase;letter-spacing:.12em;color:#8f1621;font-weight:800}.title{font-size:22px;font-weight:800}.panel{background:#fff;border:1px solid #eadedc;border-radius:18px;box-shadow:0 10px 28px rgba(74,20,25,.07);padding:22px;margin-bottom:18px}.hidden{display:none!important}h1,h2{margin:0 0 8px}p{line-height:1.55}.muted{color:#735e61}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.span2{grid-column:1/-1}label{font-size:13px;font-weight:750;display:block;margin-bottom:7px}input,select{width:100%;border:1px solid #d8c8c7;border-radius:11px;padding:11px 12px;font:inherit;background:#fff}input:focus,select:focus{outline:2px solid rgba(143,22,33,.16);border-color:#8f1621}.checks{display:flex;flex-wrap:wrap;gap:12px}.check{display:flex;align-items:center;gap:7px;font-weight:600}.check input{width:auto}.btn{border:0;border-radius:11px;padding:11px 15px;font:inherit;font-weight:800;cursor:pointer}.primary{background:#8f1621;color:white}.secondary{background:#f1e8e7;color:#61131b}.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.code{font:800 32px ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.13em;background:#241719;color:#fff;border-radius:14px;padding:16px 18px;display:inline-block}.status{border-radius:12px;padding:12px 14px;background:#f5efee}.error{background:#fff0f1;color:#82111c;border:1px solid #efc4c7}.success{background:#edf8f0;color:#195b2c;border:1px solid #c5e6cf}.links{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}.links a{color:#8f1621;font-weight:750;text-decoration:none}.assignment-meta{font-size:14px;color:#735e61;margin-top:5px}@media(max-width:700px){.grid{grid-template-columns:1fr}.span2{grid-column:auto}.top{align-items:flex-start;flex-direction:column}.code{font-size:24px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="top"><div class="brand"><div class="mark">M</div><div><div class="kicker">Console enseignant</div><div class="title">Synchronisation Mozaïk</div></div></div><button id="logout" class="btn secondary hidden">Se déconnecter</button></header>
+
+<section id="login" class="panel">
+<h1>Connexion enseignant</h1><p class="muted">Utilise le même accès enseignant que la plateforme de résultats.</p>
+<div class="grid"><div><label for="email">Courriel</label><input id="email" type="email" autocomplete="email"></div><div><label for="password">Mot de passe</label><input id="password" type="password" autocomplete="current-password"></div><div class="span2 row"><button id="loginBtn" class="btn primary">Se connecter</button><span id="loginMsg" class="muted"></span></div></div>
+</section>
+
+<section id="console" class="hidden">
+<div class="panel"><h1>Préparer une synchronisation</h1><p class="muted">La plateforme prépare les données. Le favori Mozaïk les enverra ensuite avec ta session Mozaïk déjà ouverte. Aucun jeton Mozaïk n’est stocké ici.</p><div class="links"><a href="install.html" target="_blank">Installer le favori Synchroniser Mozaïk</a><a href="../" target="_blank">Ouvrir la plateforme de résultats</a></div></div>
+
+<div class="panel">
+<div class="grid">
+<div class="span2"><label for="assignment">Travail</label><select id="assignment"></select><div id="assignmentMeta" class="assignment-meta"></div></div>
+<div><label for="group">Groupe</label><select id="group"></select></div>
+<div><label for="term">Étape</label><select id="term"><option value="1">Étape 1</option><option value="2">Étape 2</option><option value="3">Étape 3</option></select></div>
+<div><label for="date">Date de l’activité</label><input id="date" type="date"></div>
+<div><label for="period">Période</label><input id="period" type="number" min="1" max="20" value="3"></div>
+<div><label for="weight">Pondération (%)</label><input id="weight" type="number" min="0" max="100" step="0.1" placeholder="Ex. 20"></div>
+<div><label for="competenceCode">Code de compétence Mozaïk</label><input id="competenceCode" type="text" placeholder="Optionnel, le connecteur peut demander"></div>
+<div class="span2 checks"><label class="check"><input id="reportCard" type="checkbox"> Résultat porté au bulletin</label><label class="check"><input id="resultsVisible" type="checkbox"> Résultat visible aux parents et aux élèves</label><label class="check"><input id="showSchedule" type="checkbox" checked> Afficher dans l’horaire</label><label class="check"><input id="homework" type="checkbox"> Devoir</label></div>
+<div class="span2 row"><button id="prepare" class="btn primary">Préparer la synchro</button><span id="prepareMsg" class="muted"></span></div>
+</div>
+</div>
+
+<div id="codePanel" class="panel hidden"><div class="kicker">Code temporaire</div><h2 id="modeTitle">Synchronisation prête</h2><p id="codeInfo" class="muted"></p><div class="row"><div id="syncCode" class="code"></div><button id="copyCode" class="btn secondary">Copier</button></div><div class="status" style="margin-top:16px">Ouvre Mozaïk dans Chrome, puis clique sur ton favori <strong>Synchroniser Mozaïk</strong>. Entre ce code quand il te le demande.</div></div>
+
+<div id="linksPanel" class="panel hidden"><h2>État Mozaïk du travail</h2><div id="linksState" class="muted"></div></div>
+</section>
+</div>
+<script>
+const DATA='https://ojyswaxuqwnqilrvtjll.supabase.co/functions/v1/school-results';
+const SYNC='https://ojyswaxuqwnqilrvtjll.supabase.co/functions/v1/mozaik-sync';
+const KEY='sb_publishable_mI94i3exzVPlHveGFX1WOw_1Ucab3_f';
+const $=id=>document.getElementById(id);
+let token=sessionStorage.getItem('results_teacher_token')||'';
+let assignments=[];
+async function api(url,body){const r=await fetch(url,{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json',apikey:KEY},body:JSON.stringify(body)});let d={};try{d=await r.json()}catch{}if(!r.ok||!d.ok)throw new Error(d.message||'Une erreur est survenue.');return d}
+function today(){return new Date().toISOString().slice(0,10)}
+function setLogin(show){$('login').classList.toggle('hidden',!show);$('console').classList.toggle('hidden',show);$('logout').classList.toggle('hidden',show)}
+async function load(){const d=await api(DATA,{action:'teacherDashboard',token});assignments=d.assignments||[];$('assignment').innerHTML=assignments.map(a=>`<option value="${a.id}">${esc(a.title)}</option>`).join('');if(!assignments.length)$('assignment').innerHTML='<option>Aucun travail</option>';setLogin(false);refreshAssignment()}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function current(){return assignments.find(a=>a.id===$('assignment').value)}
+function refreshAssignment(){const a=current();if(!a)return;$('assignmentMeta').textContent=`Groupes ${a.groups.join(', ')} · Note sur ${a.maxScore}${a.competencies?.length?' · '+a.competencies.join(' · '):''}`;$('group').innerHTML=a.groups.map(g=>`<option value="${g}">Groupe ${g}</option>`).join('');$('weight').value=a.weight??'';loadStatus()}
+async function loadStatus(){const a=current();if(!a)return;try{const d=await api(SYNC,{action:'status',teacherToken:token,assignmentId:a.id});$('linksPanel').classList.remove('hidden');$('linksState').innerHTML=d.links.length?d.links.map(l=>`<div class="status" style="margin-top:8px">Groupe ${esc(l.group_code)} : <strong>${l.sync_status==='synced'?'Synchronisé':esc(l.sync_status)}</strong>${l.last_synced_at?' · '+new Date(l.last_synced_at).toLocaleString('fr-CA'):''}${l.last_result_count!=null?' · '+l.last_result_count+' notes':''}</div>`).join(''):'Aucune activité Mozaïk liée pour ce travail.'}catch(e){$('linksPanel').classList.add('hidden')}}
+$('loginBtn').onclick=async()=>{try{$('loginMsg').textContent='Connexion...';const d=await api(DATA,{action:'teacherLogin',email:$('email').value.trim().toLowerCase(),password:$('password').value});token=d.token;sessionStorage.setItem('results_teacher_token',token);await load()}catch(e){$('loginMsg').textContent=e.message}};
+$('logout').onclick=()=>{token='';sessionStorage.removeItem('results_teacher_token');setLogin(true)};
+$('assignment').onchange=refreshAssignment;
+$('date').value=today();
+$('prepare').onclick=async()=>{const a=current();if(!a)return;try{$('prepare').disabled=true;$('prepareMsg').textContent='Préparation...';const d=await api(SYNC,{action:'prepare',teacherToken:token,assignmentId:a.id,groupCode:$('group').value,settings:{term:Number($('term').value),activityDate:$('date').value,period:Number($('period').value),weight:$('weight').value,competenceCode:$('competenceCode').value.trim(),reportCardEnabled:$('reportCard').checked,resultsVisible:$('resultsVisible').checked,showInSchedule:$('showSchedule').checked,homework:$('homework').checked}});$('syncCode').textContent=d.code;$('modeTitle').textContent=d.mode==='create'?'Création prête':'Mise à jour prête';$('codeInfo').textContent=`${d.resultCount} note${d.resultCount===1?'':'s'} prête${d.resultCount===1?'':'s'}. Code valide jusqu’à ${new Date(d.expiresAt).toLocaleTimeString('fr-CA',{hour:'2-digit',minute:'2-digit'})}.`;$('codePanel').classList.remove('hidden');$('prepareMsg').textContent='Prêt';await loadStatus()}catch(e){$('prepareMsg').textContent=e.message}finally{$('prepare').disabled=false}};
+$('copyCode').onclick=async()=>{await navigator.clipboard.writeText($('syncCode').textContent);$('copyCode').textContent='Copié';setTimeout(()=>$('copyCode').textContent='Copier',1300)};
+(async()=>{if(token){try{await load();return}catch{token='';sessionStorage.removeItem('results_teacher_token')}}setLogin(true)})();
+</script>
+</body>
+</html>
