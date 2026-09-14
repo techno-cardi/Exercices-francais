@@ -116,15 +116,12 @@
               <select id="detailGroupSelect" class="select compact"></select>
               <div class="visibility-actions">
                 <label class="toggle-card">
-                  <span><strong>Élèves</strong><small id="platformVisibilityText">Masqué</small></span>
-                  <input id="topPublishedToggle" type="checkbox">
+                  <span><strong>Visible aux élèves et parents</strong><small id="platformVisibilityText">Masqué</small></span>
+                  <input id="topPublishedToggle" type="checkbox" onchange="document.getElementById('topMozaikVisibleToggle').checked=this.checked">
                   <i></i>
                 </label>
-                <label class="toggle-card">
-                  <span><strong>Mozaïk</strong><small id="mozaikVisibilityText">Masqué</small></span>
-                  <input id="topMozaikVisibleToggle" type="checkbox">
-                  <i></i>
-                </label>
+                <input id="topMozaikVisibleToggle" type="checkbox" hidden aria-hidden="true" tabindex="-1">
+                <span id="mozaikVisibilityText" hidden></span>
               </div>
               <div id="syncState" class="sync-state"></div>
             </div>
