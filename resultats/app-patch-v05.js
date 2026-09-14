@@ -1,6 +1,6 @@
 (() => {
   const V04_ID = 'cardinal-app-patch-v04';
-  const V04_SRC = 'https://techno-cardi.github.io/Exercices-francais/resultats/app-patch-v04.js?v=4';
+  const V04_SRC = 'https://techno-cardi.github.io/Exercices-francais/resultats/app-patch-v04.js?v=6';
 
   function ensureV04() {
     if (document.getElementById(V04_ID) || window.__cardinalV04Installed) return;
