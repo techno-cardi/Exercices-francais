@@ -15,14 +15,21 @@
     if (!document.querySelector('link[data-cardinal-formative]')) {
       const link = document.createElement('link');
       link.rel = 'stylesheet';
-      link.href = 'formative.css?v=8';
+      link.href = 'formative.css?v=81';
       link.dataset.cardinalFormative = '1';
       document.head.appendChild(link);
     }
     if (!document.getElementById('cardinal-formative-integration')) {
       const script = document.createElement('script');
       script.id = 'cardinal-formative-integration';
-      script.src = 'formative-integration.js?v=8';
+      script.src = 'formative-integration.js?v=81';
+      script.async = false;
+      (document.body || document.documentElement).appendChild(script);
+    }
+    if (!document.getElementById('cardinal-formative-safety-v081')) {
+      const script = document.createElement('script');
+      script.id = 'cardinal-formative-safety-v081';
+      script.src = 'formative-safety-v081.js?v=1';
       script.async = false;
       (document.body || document.documentElement).appendChild(script);
     }
