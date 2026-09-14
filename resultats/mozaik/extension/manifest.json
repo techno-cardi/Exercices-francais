@@ -1,20 +1,20 @@
 {
   "manifest_version": 3,
   "name": "Cardinal - Synchronisation Mozaïk",
-  "version": "0.1.0",
-  "description": "Envoie les activités et résultats de la plateforme Cardinal vers Mozaïk Portail.",
+  "version": "0.2.0",
+  "description": "Envoie les activités et résultats de la plateforme Résultats vers Mozaïk Portail.",
   "permissions": ["scripting", "tabs"],
   "host_permissions": [
     "https://mozaikportail.ca/*",
     "https://apiaffaires.mozaikportail.ca/*",
-    "https://techno-cardi.github.io/Exercices-francais/resultats/mozaik/*"
+    "https://techno-cardi.github.io/Exercices-francais/resultats/*"
   ],
   "background": {
     "service_worker": "background.js"
   },
   "content_scripts": [
     {
-      "matches": ["https://techno-cardi.github.io/Exercices-francais/resultats/mozaik/*"],
+      "matches": ["https://techno-cardi.github.io/Exercices-francais/resultats/*"],
       "js": ["console-bridge.js"],
       "run_at": "document_start"
     }
