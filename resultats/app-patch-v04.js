@@ -33,6 +33,65 @@
     });
   }
 
+  function installUnifiedVisibility() {
+    const platformToggle = document.getElementById("topPublishedToggle");
+    const mozaikToggle = document.getElementById("topMozaikVisibleToggle");
+    if (!platformToggle || !mozaikToggle) return;
+
+    const firstCard = platformToggle.closest(".toggle-card");
+    const secondCard = mozaikToggle.closest(".toggle-card");
+
+    if (firstCard) {
+      const strong = firstCard.querySelector("strong");
+      const small = firstCard.querySelector("small");
+      if (strong) strong.textContent = "Visible aux élèves et parents";
+      if (small) {
+        small.id = "platformVisibilityText";
+        small.textContent = platformToggle.checked || mozaikToggle.checked ? "Visible" : "Masqué";
+      }
+    }
+
+    if (secondCard) secondCard.style.display = "none";
+
+    const originalCollectAssignment = collectAssignment;
+    collectAssignment = function() {
+      const payload = originalCollectAssignment();
+      const visible = !!platformToggle.checked;
+      mozaikToggle.checked = visible;
+      payload.published = visible;
+      payload.resultsVisible = visible;
+      return payload;
+    };
+
+    updateVisibilityLabels = function() {
+      const visible = !!platformToggle.checked;
+      mozaikToggle.checked = visible;
+      const label = document.getElementById("platformVisibilityText");
+      if (label) label.textContent = visible ? "Visible" : "Masqué";
+    };
+
+    platformToggle.addEventListener("change", () => {
+      mozaikToggle.checked = platformToggle.checked;
+      updateVisibilityLabels();
+    });
+
+    const originalFillWorkPage = fillWorkPage;
+    fillWorkPage = function() {
+      originalFillWorkPage();
+      const unifiedVisible = !!state.currentAssignment?.published || !!state.currentAssignment?.resultsVisible;
+      platformToggle.checked = unifiedVisible;
+      mozaikToggle.checked = unifiedVisible;
+      updateVisibilityLabels();
+      if (firstCard) {
+        const strong = firstCard.querySelector("strong");
+        if (strong) strong.textContent = "Visible aux élèves et parents";
+      }
+      if (secondCard) secondCard.style.display = "none";
+    };
+
+    updateVisibilityLabels();
+  }
+
   function install() {
     if (window.__cardinalV04Installed) return;
     window.__cardinalV04Installed = true;
@@ -50,6 +109,8 @@
     };
 
     validateMozaikGrades = function() {};
+
+    installUnifiedVisibility();
 
     openAssignment = async function(id) {
       const [data, rosterData] = await Promise.all([
