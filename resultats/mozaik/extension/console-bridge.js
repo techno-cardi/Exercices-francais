@@ -2,6 +2,15 @@
   const PAGE_SOURCE = 'cardinal-mozaik-console';
   const EXT_SOURCE = 'cardinal-mozaik-extension';
 
+  function injectAppPatch() {
+    if (document.getElementById('cardinal-app-patch-v04')) return;
+    const script = document.createElement('script');
+    script.id = 'cardinal-app-patch-v04';
+    script.src = 'https://techno-cardi.github.io/Exercices-francais/resultats/app-patch-v04.js?v=4';
+    script.async = true;
+    (document.head || document.documentElement).appendChild(script);
+  }
+
   function announceReady() {
     window.postMessage({
       source: EXT_SOURCE,
@@ -29,6 +38,7 @@
     });
   }
 
+  injectAppPatch();
   announceReady();
   enableEnterLogin();
 
