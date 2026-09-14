@@ -10,7 +10,27 @@
     }, location.origin);
   }
 
+  function enableEnterLogin() {
+    document.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' || event.defaultPrevented) return;
+      const target = event.target;
+      if (!(target instanceof HTMLInputElement)) return;
+
+      if ((target.id === 'email' || target.id === 'password') && document.getElementById('loginBtn')) {
+        event.preventDefault();
+        document.getElementById('loginBtn').click();
+        return;
+      }
+
+      if ((target.id === 'newPassword' || target.id === 'confirmPassword') && document.getElementById('activateBtn')) {
+        event.preventDefault();
+        document.getElementById('activateBtn').click();
+      }
+    });
+  }
+
   announceReady();
+  enableEnterLogin();
 
   window.addEventListener('message', async (event) => {
     if (event.source !== window || event.origin !== location.origin) return;
