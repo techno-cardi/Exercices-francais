@@ -1,6 +1,6 @@
 (() => {
-  if (window.__cardinalMozaikUiV05) return;
-  window.__cardinalMozaikUiV05 = true;
+  if (window.__cardinalMozaikUiV07) return;
+  window.__cardinalMozaikUiV07 = true;
 
   const HOST_ID = 'cardinal-mozaik-sync-ui-host';
   let host = document.getElementById(HOST_ID);
@@ -35,7 +35,7 @@
       .error .primary{background:#b3261e}
     </style>
     <div class="box" id="box">
-      <div class="head"><div class="icon" id="icon">↻</div><div><h3 id="title">Synchronisation</h3><p id="message"></p></div></div>
+      <div class="head"><div class="icon">↻</div><div><h3 id="title">Synchronisation</h3><p id="message"></p></div></div>
       <div class="bar" id="bar"><div class="fill" id="fill"></div></div>
       <div class="actions" id="actions">
         <button class="primary" id="openBtn" type="button">Afficher le travail</button>
@@ -57,7 +57,8 @@
 
   document.addEventListener('pointerdown', event => {
     if (!box.classList.contains('show')) return;
-    if (event.target === host || host.contains(event.target)) return;
+    const path = event.composedPath();
+    if (path.includes(host)) return;
     hide();
   }, true);
 
@@ -85,7 +86,6 @@
     message.textContent = msg.message || '';
     fill.style.width = `${Math.max(0, Math.min(100, Number(msg.progress || 0)))}%`;
     bar.classList.toggle('indeterminate', !!msg.indeterminate);
-
     actions.classList.toggle('show', !!msg.closable);
     openBtn.style.display = msg.canOpenActivity ? '' : 'none';
   });
