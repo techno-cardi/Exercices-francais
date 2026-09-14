@@ -2,11 +2,18 @@ importScripts('background.js');
 
 const originalHandleSyncV03 = handleSync;
 
+async function ensureSyncUi(tabId) {
+  try {
+    await chrome.scripting.executeScript({ target: { tabId }, files: ['mozaik-ui.js'] });
+  } catch {}
+}
+
 async function sendSyncUi(tabId, data) {
   try {
     await chrome.tabs.sendMessage(tabId, { type: 'CARDINAL_MOZAIK_SYNC_UI', ...data });
   } catch {
-    await sleep(250);
+    await ensureSyncUi(tabId);
+    await sleep(150);
     try { await chrome.tabs.sendMessage(tabId, { type: 'CARDINAL_MOZAIK_SYNC_UI', ...data }); } catch {}
   }
 }
@@ -58,6 +65,7 @@ handleSync = async function(payload) {
     if (tab.status !== 'complete') await waitForTabComplete(tab.id);
   }
 
+  await ensureSyncUi(tab.id);
   await sendSyncUi(tab.id, { status: 'working', progress: 20, title: 'Synchronisation en cours', message: 'Connexion à Mozaïk…' });
   const normalized = roundedPayload(payload);
   await sendSyncUi(tab.id, { status: 'working', progress: 45, title: 'Synchronisation en cours', message: 'Préparation du travail et des notes…', indeterminate: true });
