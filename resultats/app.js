@@ -1,423 +1,82 @@
-const DATA_ENDPOINT = "https://ojyswaxuqwnqilrvtjll.supabase.co/functions/v1/school-results";
-const AUTH_ENDPOINT = "https://ojyswaxuqwnqilrvtjll.supabase.co/functions/v1/school-student-auth";
-const TEACHER_ENDPOINT = "https://ojyswaxuqwnqilrvtjll.supabase.co/functions/v1/school-teacher-api";
-const PUBLIC_KEY = "sb_publishable_mI94i3exzVPlHveGFX1WOw_1Ucab3_f";
+const DATA_ENDPOINT="https://ojyswaxuqwnqilrvtjll.supabase.co/functions/v1/school-results";
+const AUTH_ENDPOINT="https://ojyswaxuqwnqilrvtjll.supabase.co/functions/v1/school-student-auth";
+const TEACHER_ENDPOINT="https://ojyswaxuqwnqilrvtjll.supabase.co/functions/v1/school-teacher-api";
+const SYNC_ENDPOINT="https://ojyswaxuqwnqilrvtjll.supabase.co/functions/v1/mozaik-sync";
+const PUBLIC_KEY="sb_publishable_mI94i3exzVPlHveGFX1WOw_1Ucab3_f";
+const PAGE_SOURCE="cardinal-mozaik-console";
+const EXT_SOURCE="cardinal-mozaik-extension";
+const $=id=>document.getElementById(id);
 
-const $ = (id) => document.getElementById(id);
-const state = {
-  loginMode: "email",
-  email: "",
-  teacherToken: localStorage.getItem("results_teacher_token") || "",
-  studentToken: sessionStorage.getItem("results_student_token") || "",
-  teacherAssignments: [],
-  groupStats: {},
-  currentAssignment: null,
-  currentStudents: [],
-  currentStudent: null,
-};
+const state={loginMode:"email",email:"",teacherToken:localStorage.getItem("results_teacher_token")||"",studentToken:sessionStorage.getItem("results_student_token")||"",teacherAssignments:[],groupStats:{},currentAssignment:null,currentStudents:[],currentStudent:null,detailGroup:"",extensionReady:false,extensionVersion:"",syncLinks:[],dashboardGroup:localStorage.getItem("results_dashboard_group")||"51"};
+const pendingExtension=new Map();
 
-const loginView = $("loginView");
-const studentView = $("studentView");
-const teacherView = $("teacherView");
-const loginForm = $("loginForm");
-const emailInput = $("emailInput");
-const credentialBlock = $("credentialBlock");
-const credentialLabel = $("credentialLabel");
-const credentialInput = $("credentialInput");
-const credentialHint = $("credentialHint");
-const loginBtn = $("loginBtn");
-const loginError = $("loginError");
-const logoutBtn = $("logoutBtn");
+async function api(endpoint,payload){const res=await fetch(endpoint,{method:"POST",cache:"no-store",headers:{"Content-Type":"application/json",apikey:PUBLIC_KEY},body:JSON.stringify(payload)});let data={};try{data=await res.json()}catch{}if(!res.ok||!data.ok)throw new Error(data.message||"Une erreur est survenue.");return data}
+function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[c]))}
+function formatNumber(v,digits=2){if(v===null||v===undefined||v==="")return"";const n=Number(v);if(!Number.isFinite(n))return"";return Number.isInteger(n)?String(n):n.toLocaleString("fr-CA",{maximumFractionDigits:digits})}
+function competenceLabel(k){return k==="lecture"?"Lire":k==="ecriture"?"Écrire":k==="oral"?"Communiquer oralement":"Compétence"}
+function competencyArray(k){return k==="lecture"?["Lecture"]:k==="ecriture"?["Écriture"]:k==="oral"?["Communication orale"]:[]}
+function today(){return new Date().toISOString().slice(0,10)}
+function show(el,on=true){el?.classList.toggle("hidden",!on)}
+async function loadBrandIcon(){try{const r=await fetch("assets/sync-icon.b64",{cache:"force-cache"});if(!r.ok)return;const b64=(await r.text()).trim();const src="data:image/png;base64,"+b64;document.querySelectorAll("[data-sync-icon]").forEach(img=>img.src=src);const fav=$("syncFavicon");if(fav)fav.href=src}catch{}}
+loadBrandIcon();
 
-const authExtra = document.createElement("div");
-authExtra.id = "authExtra";
-authExtra.className = "auth-extra";
-credentialBlock.appendChild(authExtra);
+function announceExtension(ok,version=""){state.extensionReady=ok;state.extensionVersion=version||state.extensionVersion;const el=$("extensionStatus");if(el){el.classList.toggle("ok",ok);el.textContent=ok?`Extension v${state.extensionVersion||"?"}`:"Extension non détectée"}}
+function pingExtension(){window.postMessage({source:PAGE_SOURCE,type:"MOZAIK_EXTENSION_PING"},location.origin)}
+window.addEventListener("message",e=>{if(e.source!==window||e.origin!==location.origin||e.data?.source!==EXT_SOURCE)return;if(e.data.type==="MOZAIK_EXTENSION_READY"){announceExtension(true,String(e.data.version||""));return}if(e.data.type==="MOZAIK_EXTENSION_RESULT"){const id=String(e.data.requestId||""),p=pendingExtension.get(id);if(!p)return;pendingExtension.delete(id);clearTimeout(p.timer);p.resolve(e.data.result)}});
+function sendToExtension(payload){return new Promise((resolve,reject)=>{const requestId=crypto.randomUUID(),timer=setTimeout(()=>{pendingExtension.delete(requestId);reject(new Error("L’extension n’a pas répondu dans le délai prévu."))},120000);pendingExtension.set(requestId,{resolve,reject,timer});window.postMessage({source:PAGE_SOURCE,type:"MOZAIK_EXTENSION_SYNC",requestId,payload},location.origin)})}
 
-async function api(endpoint, payload) {
-  const res = await fetch(endpoint, {
-    method: "POST",
-    cache: "no-store",
-    headers: { "Content-Type": "application/json", apikey: PUBLIC_KEY },
-    body: JSON.stringify(payload),
-  });
-  let data = {};
-  try { data = await res.json(); } catch {}
-  if (!res.ok || !data.ok) throw new Error(data.message || "Une erreur est survenue.");
-  return data;
-}
+const loginView=$("loginView"),studentView=$("studentView"),teacherView=$("teacherView"),loginForm=$("loginForm"),emailInput=$("emailInput"),credentialBlock=$("credentialBlock"),credentialLabel=$("credentialLabel"),credentialInput=$("credentialInput"),credentialHint=$("credentialHint"),loginBtn=$("loginBtn"),loginError=$("loginError"),logoutBtn=$("logoutBtn");
+const authExtra=document.createElement("div");authExtra.id="authExtra";credentialBlock.appendChild(authExtra);
+function buttonLabel(){if(state.loginMode==="email")return"Continuer";if(state.loginMode==="activate")return"Activer mon compte";if(state.loginMode==="reset")return"Choisir ce nouveau mot de passe";return"Se connecter"}
+function setLoading(on,label="Chargement..."){loginBtn.disabled=on;loginBtn.textContent=on?label:buttonLabel()}
+function clearError(){loginError.textContent="";show(loginError,false)}
+function showError(m){loginError.textContent=m;show(loginError,true)}
+function resetCredentialUi(){show(credentialBlock,false);credentialInput.value="";authExtra.innerHTML="";credentialHint.textContent=""}
+function addPasswordFields(reset=false){authExtra.innerHTML=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div><label class="field-label" for="newPassword">${reset?"Nouveau mot de passe":"Crée un mot de passe"}</label><input id="newPassword" class="input" type="password" autocomplete="new-password"></div><div><label class="field-label" for="confirmPassword">Confirme le mot de passe</label><input id="confirmPassword" class="input" type="password" autocomplete="new-password"></div></div><div class="hint">Minimum 8 caractères.</div>`}
+function configureMode(mode){state.loginMode=mode;show(credentialBlock,true);authExtra.innerHTML="";credentialInput.value="";if(mode==="teacher"){credentialLabel.textContent="Mot de passe enseignant";credentialInput.type="password";credentialInput.autocomplete="current-password";credentialHint.textContent="Utilise le mot de passe de cette plateforme."}else if(mode==="password"){credentialLabel.textContent="Mot de passe";credentialInput.type="password";credentialInput.autocomplete="current-password";credentialHint.textContent="Ton compte est déjà activé.";authExtra.innerHTML='<button id="forgotBtn" class="btn btn-ghost" style="margin-top:8px" type="button">Mot de passe oublié?</button>';$("forgotBtn").onclick=()=>configureMode("reset")}else if(mode==="activate"){credentialLabel.textContent="Numéro de fiche";credentialInput.inputMode="numeric";credentialHint.textContent="Première connexion : entre ton numéro de fiche, puis choisis ton mot de passe.";addPasswordFields(false)}else if(mode==="reset"){credentialLabel.textContent="Numéro de fiche";credentialInput.inputMode="numeric";credentialHint.textContent="Confirme ton identité avec ton numéro de fiche.";addPasswordFields(true)}loginBtn.textContent=buttonLabel();credentialInput.focus()}
+loginForm.addEventListener("submit",async e=>{e.preventDefault();clearError();try{if(state.loginMode==="email"){const email=emailInput.value.trim().toLowerCase();if(!email.includes("@"))throw new Error("Entre ton adresse courriel complète.");state.email=email;setLoading(true,"Vérification...");if(email.endsWith("@educ.cscapitale.qc.ca")){const d=await api(AUTH_ENDPOINT,{action:"mode",email});configureMode(d.mode)}else configureMode("teacher");return}if(state.loginMode==="teacher"){setLoading(true,"Connexion...");const d=await api(TEACHER_ENDPOINT,{action:"login",email:state.email,password:credentialInput.value});state.teacherToken=d.token;localStorage.setItem("results_teacher_token",d.token);await loadTeacherDashboard();return}if(state.loginMode==="password"){setLoading(true,"Connexion...");const d=await api(AUTH_ENDPOINT,{action:"login",email:state.email,password:credentialInput.value});state.studentToken=d.token;sessionStorage.setItem("results_student_token",d.token);await loadStudentDashboard();return}if(state.loginMode==="activate"||state.loginMode==="reset"){const p=$("newPassword")?.value||"",c=$("confirmPassword")?.value||"";if(p.length<8)throw new Error("Choisis un mot de passe d’au moins 8 caractères.");if(p!==c)throw new Error("Les deux mots de passe ne sont pas identiques.");setLoading(true,"Enregistrement...");const d=await api(AUTH_ENDPOINT,{action:state.loginMode==="activate"?"activate":"reset",email:state.email,fiche:credentialInput.value.trim(),password:p});state.studentToken=d.token;sessionStorage.setItem("results_student_token",d.token);await loadStudentDashboard()}}catch(err){showError(err.message||"Une erreur est survenue.")}finally{setLoading(false)}});
+emailInput.addEventListener("input",()=>{if(state.loginMode!=="email"){state.loginMode="email";resetCredentialUi();loginBtn.textContent="Continuer";clearError()}});
+logoutBtn.addEventListener("click",async()=>{const old=state.teacherToken;localStorage.removeItem("results_teacher_token");sessionStorage.removeItem("results_student_token");Object.assign(state,{teacherToken:"",studentToken:"",loginMode:"email",email:""});emailInput.value="";resetCredentialUi();show(studentView,false);show(teacherView,false);show(loginView,true);show(logoutBtn,false);if(old){try{await api(TEACHER_ENDPOINT,{action:"logout",token:old})}catch{}}});
 
-function showError(message) {
-  loginError.textContent = message;
-  loginError.classList.remove("hidden");
-}
-function clearError() {
-  loginError.textContent = "";
-  loginError.classList.add("hidden");
-}
-function setLoading(on, label = "Chargement...") {
-  loginBtn.disabled = on;
-  loginBtn.textContent = on ? label : buttonLabel();
-}
-function buttonLabel() {
-  if (state.loginMode === "email") return "Continuer";
-  if (state.loginMode === "activate") return "Activer mon compte";
-  if (state.loginMode === "reset") return "Choisir ce nouveau mot de passe";
-  return "Se connecter";
-}
-function resetCredentialUi() {
-  credentialBlock.classList.add("hidden");
-  credentialInput.value = "";
-  credentialInput.type = "password";
-  credentialInput.autocomplete = "off";
-  credentialInput.inputMode = "";
-  authExtra.innerHTML = "";
-  credentialHint.textContent = "";
-}
-function addPasswordFields(reset = false) {
-  authExtra.innerHTML = `
-    <div class="password-grid">
-      <div>
-        <label class="field-label" for="newPassword">${reset ? "Nouveau mot de passe" : "Crée un mot de passe"}</label>
-        <input id="newPassword" class="text-input" type="password" autocomplete="new-password" minlength="8">
-      </div>
-      <div>
-        <label class="field-label" for="confirmPassword">Confirme le mot de passe</label>
-        <input id="confirmPassword" class="text-input" type="password" autocomplete="new-password" minlength="8">
-      </div>
-    </div>
-    <div class="field-hint">Minimum 8 caractères. Après l’activation, tu utiliseras seulement ton courriel et ce mot de passe.</div>`;
-}
-function configureMode(mode) {
-  state.loginMode = mode;
-  credentialBlock.classList.remove("hidden");
-  authExtra.innerHTML = "";
-  credentialInput.value = "";
+async function loadStudentDashboard(){const d=await api(DATA_ENDPOINT,{action:"studentDashboard",token:state.studentToken});show(loginView,false);show(teacherView,false);show(studentView,true);show(logoutBtn,true);$("studentName").textContent=d.user.name;$("studentMeta").textContent=`${d.user.email} · Groupe ${d.user.group}`;const graded=d.assignments.filter(a=>a.result&&a.result.grade!==null);$("studentSummary").innerHTML=`<strong>${graded.length}</strong><span>résultat${graded.length===1?"":"s"}</span>`;$("studentAssignments").innerHTML=d.assignments.length?d.assignments.map(a=>`<article class="card student-card"><div class="eyebrow">${a.result?"Travail corrigé":"Travail"}</div><h2>${esc(a.title)}</h2><div class="meta-row"><span class="pill">${(a.competencies||[]).map(esc).join(" · ")||"Français"}</span>${a.weight!==null?`<span class="pill gray">${a.weight}%</span>`:""}</div>${a.result?`<h3>${a.result.grade===null?"Non noté":`${formatNumber(a.result.grade)} / ${formatNumber(a.maxScore)}`}</h3>${a.result.feedback?`<p>${esc(a.result.feedback)}</p>`:""}`:`<p class="muted">Aucun résultat publié.</p>`}</article>`).join(""):'<div class="card" style="padding:28px">Aucun travail publié pour le moment.</div>'}
 
-  if (mode === "teacher") {
-    credentialLabel.textContent = "Mot de passe enseignant";
-    credentialInput.type = "password";
-    credentialInput.autocomplete = "current-password";
-    credentialInput.inputMode = "";
-    credentialHint.textContent = "Utilise le mot de passe enseignant de cette plateforme.";
-  } else if (mode === "password") {
-    credentialLabel.textContent = "Mot de passe";
-    credentialInput.type = "password";
-    credentialInput.autocomplete = "current-password";
-    credentialInput.inputMode = "";
-    credentialHint.textContent = "Ton compte est déjà activé.";
-    authExtra.innerHTML = `<button id="forgotBtn" class="link-btn" type="button">Mot de passe oublié?</button>`;
-    $("forgotBtn").addEventListener("click", () => configureMode("reset"));
-  } else if (mode === "activate") {
-    credentialLabel.textContent = "Numéro de fiche";
-    credentialInput.type = "password";
-    credentialInput.inputMode = "numeric";
-    credentialInput.autocomplete = "off";
-    credentialHint.textContent = "Première connexion : entre ton numéro de fiche, puis choisis ton mot de passe.";
-    addPasswordFields(false);
-  } else if (mode === "reset") {
-    credentialLabel.textContent = "Numéro de fiche";
-    credentialInput.type = "password";
-    credentialInput.inputMode = "numeric";
-    credentialInput.autocomplete = "off";
-    credentialHint.textContent = "Ton numéro de fiche permet de confirmer ton identité avant de choisir un nouveau mot de passe.";
-    addPasswordFields(true);
-  }
-  loginBtn.textContent = buttonLabel();
-  credentialInput.focus();
-}
+function setTeacherSection(name){show($("teacherDashboard"),name==="dashboard");show($("assignmentsView"),name==="assignments");show($("assignmentDetail"),name==="detail");document.querySelectorAll(".nav-item[data-teacher-view]").forEach(b=>b.classList.toggle("active",b.dataset.teacherView===name))}
+document.querySelectorAll(".nav-item[data-teacher-view]").forEach(b=>b.onclick=()=>{if(b.dataset.teacherView==="dashboard")setTeacherSection("dashboard");else{setTeacherSection("assignments");renderAssignmentList()}});
+document.querySelectorAll(".group-nav").forEach(b=>b.onclick=()=>{state.dashboardGroup=b.dataset.group;localStorage.setItem("results_dashboard_group",state.dashboardGroup);$("assignmentGroupFilter").value=state.dashboardGroup;setTeacherSection("assignments");renderAssignmentList()});
 
-loginForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  clearError();
-  try {
-    if (state.loginMode === "email") {
-      const email = emailInput.value.trim().toLowerCase();
-      if (!email.includes("@")) throw new Error("Entre ton adresse courriel complète.");
-      state.email = email;
-      setLoading(true, "Vérification...");
-      if (email.endsWith("@educ.cscapitale.qc.ca")) {
-        const data = await api(AUTH_ENDPOINT, { action: "mode", email });
-        configureMode(data.mode);
-      } else {
-        configureMode("teacher");
-      }
-      return;
-    }
+async function loadTeacherDashboard(){const d=await api(TEACHER_ENDPOINT,{action:"teacherDashboard",token:state.teacherToken});state.teacherAssignments=d.assignments||[];state.groupStats=d.groups||{};show(loginView,false);show(studentView,false);show(teacherView,true);show(logoutBtn,true);setTeacherSection("dashboard");renderDashboard();renderAssignmentList();setTimeout(pingExtension,150)}
+function renderDashboard(){$("groupStats").innerHTML=["31","32","51"].map(g=>`<div class="card stat-card"><div class="eyebrow">Groupe ${g}</div><div class="big">${state.groupStats[g]||0}</div><div class="muted">élèves</div></div>`).join("");const g=state.dashboardGroup||"51",term=1;const kinds=["lecture","ecriture","oral"];$('weightOverview').innerHTML=kinds.map(k=>{const total=state.teacherAssignments.filter(a=>a.groups.includes(g)&&Number(a.term||1)===term&&a.competenceKind===k).reduce((s,a)=>s+Number(a.weight||0),0);const pct=Math.min(total,100);return`<div class="card weight-card"><div class="eyebrow">Groupe ${g} · Étape ${term}</div><h3>${competenceLabel(k)}</h3><div class="progress"><span style="width:${pct}%"></span></div><div class="weight-line"><strong>${formatNumber(total)} / 100 %</strong><span class="muted">${total>100?`+${formatNumber(total-100)} %`: `${formatNumber(Math.max(0,100-total))} % restant`}</span></div></div>`}).join("");$("recentAssignments").innerHTML=assignmentCards(state.teacherAssignments.slice(0,6))}
+function assignmentCards(list){if(!list.length)return'<div class="card" style="padding:28px">Aucun travail.</div>';return list.map(a=>`<article class="card assignment-card" data-id="${a.id}"><div><h3>${esc(a.title)}</h3><div class="assignment-meta"><span class="pill">${competenceLabel(a.competenceKind)}</span><span class="pill gray">Groupe${a.groups.length>1?"s":""} ${a.groups.join(", ")}</span>${a.weight!==null?`<span class="pill gray">${formatNumber(a.weight)} %</span>`:""}<span class="pill ${a.mozaikSyncStatus==="synced"?"green":a.mozaikSyncStatus==="dirty"?"amber":"gray"}">${a.mozaikSyncStatus==="synced"?"Mozaïk synchronisé":a.mozaikSyncStatus==="dirty"?"Modifié":"Non synchronisé"}</span></div></div><div class="assignment-side"><div class="metric"><strong>${a.gradedCount}/${a.studentCount}</strong><span class="muted">notes</span></div><div class="metric"><strong>${a.average===null?"-":formatNumber(a.average)}</strong><span class="muted">moyenne</span></div></div></article>`).join("")}
+function wireAssignmentCards(root){root.querySelectorAll(".assignment-card").forEach(c=>c.onclick=()=>openAssignment(c.dataset.id))}
+function renderAssignmentList(){const q=$("assignmentSearch")?.value.trim().toLowerCase()||"",g=$("assignmentGroupFilter")?.value||"",k=$("assignmentCompetenceFilter")?.value||"";const list=state.teacherAssignments.filter(a=>(!q||a.title.toLowerCase().includes(q))&&(!g||a.groups.includes(g))&&(!k||a.competenceKind===k));$("assignmentList").innerHTML=assignmentCards(list);wireAssignmentCards($("assignmentList"));wireAssignmentCards($("recentAssignments"))}
+["assignmentSearch","assignmentGroupFilter","assignmentCompetenceFilter"].forEach(id=>$(id)?.addEventListener("input",renderAssignmentList));
+$("showAllAssignments").onclick=()=>{setTeacherSection("assignments");renderAssignmentList()};
 
-    if (state.loginMode === "teacher") {
-      setLoading(true, "Connexion...");
-      const data = await api(TEACHER_ENDPOINT, { action: "login", email: state.email, password: credentialInput.value });
-      state.teacherToken = data.token;
-      localStorage.setItem("results_teacher_token", data.token);
-      await loadTeacherDashboard();
-      return;
-    }
+function newAssignment(){state.currentAssignment={id:null,title:"Nouveau travail",competencies:["Lecture"],competenceKind:"lecture",weight:null,maxScore:10,groups:[state.dashboardGroup||"51"],published:false,instructions:"",term:1,activityDate:today(),activityType:"Évaluation",reportCardEnabled:false,resultsVisible:false,showInSchedule:true,homework:false,period:3,mozaikSyncStatus:"not_synced"};state.currentStudents=[];state.detailGroup=state.currentAssignment.groups[0];setTeacherSection("detail");fillWorkPage();renderGradeRows();$("syncMozaikBtn").disabled=true}
+$("newAssignmentBtn").onclick=newAssignment;$("newAssignmentBtn2").onclick=newAssignment;
+$("backToAssignments").onclick=()=>{setTeacherSection("assignments");renderAssignmentList()};
 
-    if (state.loginMode === "password") {
-      setLoading(true, "Connexion...");
-      const data = await api(AUTH_ENDPOINT, { action: "login", email: state.email, password: credentialInput.value });
-      state.studentToken = data.token;
-      sessionStorage.setItem("results_student_token", data.token);
-      await loadStudentDashboard();
-      return;
-    }
+async function openAssignment(id){const d=await api(TEACHER_ENDPOINT,{action:"teacherAssignment",token:state.teacherToken,assignmentId:id});state.currentAssignment=d.assignment;state.currentStudents=d.students||[];state.detailGroup=state.currentAssignment.groups[0]||"";setTeacherSection("detail");fillWorkPage();renderGradeRows();await refreshSyncState();setTimeout(pingExtension,100)}
+function fillWorkPage(){const a=state.currentAssignment;$("workTitle").textContent=a.title;$("workMeta").innerHTML=`<span class="pill">${competenceLabel(a.competenceKind)}</span><span class="pill gray">Étape ${a.term||1}</span>${a.weight!==null?`<span class="pill gray">${formatNumber(a.weight)} %</span>`:""}<span class="pill gray">Note sur ${formatNumber(a.maxScore)}</span>`;$("detailGroupSelect").innerHTML=a.groups.map(g=>`<option value="${g}">Groupe ${g}</option>`).join("");$("detailGroupSelect").value=state.detailGroup||a.groups[0]||"";$("editTitle").value=a.title||"";$("editCompetenceKind").value=a.competenceKind||"lecture";$("editActivityType").value=[...$("editActivityType").options].some(o=>o.value===a.activityType)?a.activityType:"Autre";$("editMaxScore").value=a.maxScore??10;$("editWeight").value=a.weight??"";$("editTerm").value=String(a.term||1);$("editActivityDate").value=a.activityDate||today();$("editPeriod").value=a.period||3;$("editPublished").checked=!!a.published;$("editResultsVisible").checked=!!a.resultsVisible;$("editReportCard").checked=!!a.reportCardEnabled;$("editShowSchedule").checked=a.showInSchedule!==false;$("editHomework").checked=!!a.homework;$("editInstructions").value=a.instructions||"";document.querySelectorAll("#groupChoices input").forEach(i=>i.checked=a.groups.includes(i.value));$("syncMozaikBtn").disabled=!a.id}
+function collectAssignment(){const kind=$("editCompetenceKind").value;return{id:state.currentAssignment?.id||null,title:$("editTitle").value.trim(),competenceKind:kind,competencies:competencyArray(kind),weight:$("editWeight").value===""?null:Number($("editWeight").value),maxScore:Number($("editMaxScore").value||10),groups:[...document.querySelectorAll("#groupChoices input:checked")].map(i=>i.value),published:$("editPublished").checked,instructions:$("editInstructions").value,term:Number($("editTerm").value),activityDate:$("editActivityDate").value,activityType:$("editActivityType").value,reportCardEnabled:$("editReportCard").checked,resultsVisible:$("editResultsVisible").checked,showInSchedule:$("editShowSchedule").checked,homework:$("editHomework").checked,period:Number($("editPeriod").value||3)}}
+async function saveAssignmentSettings(){const payload=collectAssignment();$("saveState").textContent="Enregistrement...";const d=await api(TEACHER_ENDPOINT,{action:"saveAssignment",token:state.teacherToken,assignment:payload});$("saveState").textContent="Enregistré";if(!payload.id){await loadTeacherDashboard();await openAssignment(d.id);return state.currentAssignment}const updated=await api(TEACHER_ENDPOINT,{action:"teacherAssignment",token:state.teacherToken,assignmentId:d.id});state.currentAssignment=updated.assignment;state.currentStudents=updated.students||state.currentStudents;state.detailGroup=state.currentAssignment.groups.includes(state.detailGroup)?state.detailGroup:state.currentAssignment.groups[0];fillWorkPage();renderGradeRows();await refreshSyncState();return state.currentAssignment}
+$("saveAssignmentBtn").onclick=async()=>{try{await saveAssignmentSettings()}catch(e){$("saveState").textContent="";alert(e.message)}};
+$("detailGroupSelect").onchange=async()=>{state.detailGroup=$("detailGroupSelect").value;renderGradeRows();await refreshSyncState()};
+$("studentSearch").addEventListener("input",renderGradeRows);
 
-    if (state.loginMode === "activate" || state.loginMode === "reset") {
-      const password = $("newPassword")?.value || "";
-      const confirm = $("confirmPassword")?.value || "";
-      if (password.length < 8) throw new Error("Choisis un mot de passe d’au moins 8 caractères.");
-      if (password !== confirm) throw new Error("Les deux mots de passe ne sont pas identiques.");
-      setLoading(true, state.loginMode === "activate" ? "Activation..." : "Modification...");
-      const data = await api(AUTH_ENDPOINT, {
-        action: state.loginMode === "activate" ? "activate" : "reset",
-        email: state.email,
-        fiche: credentialInput.value.trim(),
-        password,
-      });
-      state.studentToken = data.token;
-      sessionStorage.setItem("results_student_token", data.token);
-      await loadStudentDashboard();
-    }
-  } catch (err) {
-    showError(err.message || "Une erreur est survenue.");
-  } finally {
-    setLoading(false);
-  }
-});
+function gradeValue(raw,max){let s=String(raw??"").trim();if(!s)return{grade:null,text:""};if(s.includes("/"))s=s.split("/")[0].trim();s=s.replace(/\s/g,"").replace(",",".");const n=Number(s);if(!Number.isFinite(n))throw new Error("Entre une note valide.");if(n<0||n>Number(max))throw new Error(`La note doit être entre 0 et ${formatNumber(max)}.`);return{grade:n,text:formatNumber(n)}}
+function updatePercent(input,grade){const td=input.closest("tr")?.querySelector(".percent-value");if(td)td.textContent=grade===null?"-":`${formatNumber((grade/Number(state.currentAssignment.maxScore))*100,1)} %`}
+function visibleStudents(){const q=$("studentSearch").value.trim().toLowerCase(),g=state.detailGroup;return state.currentStudents.filter(s=>(!g||s.group===g)&&(!q||s.name.toLowerCase().includes(q)||s.email.toLowerCase().includes(q))).sort((a,b)=>a.lastName.localeCompare(b.lastName,"fr",{sensitivity:"base"})||a.firstName.localeCompare(b.firstName,"fr",{sensitivity:"base"}))}
+function renderGradeRows(){if(!state.currentAssignment)return;const list=visibleStudents(),max=state.currentAssignment.maxScore;$("studentRows").innerHTML=list.length?list.map(s=>`<tr data-email="${esc(s.email)}"><td class="student-last">${esc(s.lastName||s.name)}</td><td>${esc(s.firstName||"")}</td><td><div class="grade-input-wrap"><input class="grade-input" type="text" inputmode="decimal" autocomplete="off" data-email="${esc(s.email)}" data-original="${s.grade===null?"":String(s.grade)}" value="${s.grade===null?"":formatNumber(s.grade)}"><span class="max-score">/ ${formatNumber(max)}</span></div></td><td><span class="percent-value">${s.grade===null?"-":`${formatNumber((Number(s.grade)/Number(max))*100,1)} %`}</span></td><td><input class="visibility-toggle" type="checkbox" tabindex="-1" data-email="${esc(s.email)}" ${s.visible!==false?"checked":""}></td><td><button class="detail-btn" tabindex="-1" data-email="${esc(s.email)}" type="button">•••</button></td></tr>`).join(""):`<tr><td colspan="6" style="padding:28px;text-align:center;color:#67758a">Aucun élève.</td></tr>`;wireGradeInputs()}
+function wireGradeInputs(){const inputs=[...document.querySelectorAll(".grade-input")];inputs.forEach((input,index)=>{input.addEventListener("focus",()=>input.select());input.addEventListener("input",()=>{if(input.value.includes(".")){const p=input.selectionStart;input.value=input.value.replace(/\./g,",");try{input.setSelectionRange(p,p)}catch{}}});input.addEventListener("blur",()=>commitGrade(input));input.addEventListener("keydown",e=>{if(e.key!=="Enter"&&e.key!=="Tab")return;e.preventDefault();commitGrade(input);const dir=e.shiftKey?-1:1,next=inputs[index+dir];if(next){next.focus();next.select()}})});document.querySelectorAll(".visibility-toggle").forEach(c=>c.onchange=()=>saveVisibility(c));document.querySelectorAll(".detail-btn").forEach(b=>b.onclick=()=>openStudentDialog(b.dataset.email))}
+async function commitGrade(input){const email=input.dataset.email,s=state.currentStudents.find(x=>x.email===email);if(!s)return;let parsed;try{parsed=gradeValue(input.value,state.currentAssignment.maxScore)}catch(e){input.classList.add("error");$("gradeSaveState").textContent=e.message;setTimeout(()=>{input.value=s.grade===null?"":formatNumber(s.grade);input.classList.remove("error")},900);return}const old=s.grade;if((old===null&&parsed.grade===null)||(old!==null&&parsed.grade!==null&&Number(old)===Number(parsed.grade))){input.value=parsed.text;return}s.grade=parsed.grade;input.dataset.original=parsed.grade===null?"":String(parsed.grade);input.value=parsed.text;input.classList.remove("error","saved");input.classList.add("saving");updatePercent(input,parsed.grade);$("gradeSaveState").textContent="Enregistrement...";try{await api(TEACHER_ENDPOINT,{action:"saveResult",token:state.teacherToken,assignmentId:state.currentAssignment.id,email:s.email,response:s.response,grade:parsed.grade,feedback:s.feedback,visible:s.visible!==false});input.classList.remove("saving");input.classList.add("saved");$("gradeSaveState").textContent="Enregistré";state.currentAssignment.mozaikSyncStatus="dirty";await refreshSyncState();setTimeout(()=>input.classList.remove("saved"),700)}catch(e){s.grade=old;input.value=old===null?"":formatNumber(old);input.classList.remove("saving");input.classList.add("error");updatePercent(input,old);$("gradeSaveState").textContent=e.message}}
+async function saveVisibility(c){const s=state.currentStudents.find(x=>x.email===c.dataset.email);if(!s)return;const old=s.visible;s.visible=c.checked;try{await api(TEACHER_ENDPOINT,{action:"saveResult",token:state.teacherToken,assignmentId:state.currentAssignment.id,email:s.email,response:s.response,grade:s.grade,feedback:s.feedback,visible:s.visible});state.currentAssignment.mozaikSyncStatus="dirty";await refreshSyncState()}catch(e){s.visible=old;c.checked=old;alert(e.message)}}
 
-emailInput.addEventListener("input", () => {
-  if (state.loginMode !== "email") {
-    state.loginMode = "email";
-    resetCredentialUi();
-    loginBtn.textContent = "Continuer";
-    clearError();
-  }
-});
+function openStudentDialog(email){const s=state.currentStudents.find(x=>x.email===email);if(!s)return;state.currentStudent=s;$("dialogStudentMeta").textContent=`Groupe ${s.group} · ${s.email}`;$("dialogStudentName").textContent=s.name;$("dialogResponse").textContent=s.response||"Aucune réponse enregistrée.";$("dialogFeedback").value=s.feedback||"";$("resultDialog").showModal()}
+$("closeResultDialog").onclick=()=>$("resultDialog").close();
+$("saveFeedbackBtn").onclick=async()=>{const s=state.currentStudent;if(!s)return;try{const feedback=$("dialogFeedback").value;await api(TEACHER_ENDPOINT,{action:"saveResult",token:state.teacherToken,assignmentId:state.currentAssignment.id,email:s.email,response:s.response,grade:s.grade,feedback,visible:s.visible!==false});s.feedback=feedback;state.currentAssignment.mozaikSyncStatus="dirty";$("resultDialog").close();await refreshSyncState()}catch(e){alert(e.message)}};
 
-logoutBtn.addEventListener("click", async () => {
-  const oldTeacherToken = state.teacherToken;
-  localStorage.removeItem("results_teacher_token");
-  sessionStorage.removeItem("results_student_token");
-  state.teacherToken = "";
-  state.studentToken = "";
-  state.loginMode = "email";
-  state.email = "";
-  emailInput.value = "";
-  resetCredentialUi();
-  studentView.classList.add("hidden");
-  teacherView.classList.add("hidden");
-  loginView.classList.remove("hidden");
-  logoutBtn.classList.add("hidden");
-  loginBtn.textContent = "Continuer";
-  if (oldTeacherToken) {
-    try { await api(TEACHER_ENDPOINT, { action: "logout", token: oldTeacherToken }); } catch {}
-  }
-});
+async function refreshSyncState(){if(!state.currentAssignment?.id)return;try{const d=await api(SYNC_ENDPOINT,{action:"status",teacherToken:state.teacherToken,assignmentId:state.currentAssignment.id});state.syncLinks=d.links||[];const link=state.syncLinks.find(l=>l.group_code===state.detailGroup);const btn=$("syncMozaikBtn"),el=$("syncState");if(!link){el.textContent="Pas encore envoyé dans Mozaïk";btn.textContent="Envoyer dans Mozaïk"}else if(link.sync_status==="synced"){el.textContent=`Synchronisé${link.last_synced_at?" · "+new Date(link.last_synced_at).toLocaleString("fr-CA"):""}`;btn.textContent="Synchroniser de nouveau"}else if(link.sync_status==="dirty"){el.textContent="Modifications non synchronisées";btn.textContent="Mettre à jour Mozaïk"}else if(link.sync_status==="error"){el.textContent="Erreur lors de la dernière synchro";btn.textContent="Réessayer la synchro"}else{el.textContent=link.sync_status||"Non synchronisé";btn.textContent="Envoyer dans Mozaïk"}}catch{$("syncState").textContent="État Mozaïk indisponible"}}
+$("syncMozaikBtn").onclick=async()=>{if(!state.currentAssignment?.id)return;const btn=$("syncMozaikBtn"),old=btn.textContent;let job=null;try{btn.disabled=true;btn.textContent="Préparation...";pingExtension();await new Promise(r=>setTimeout(r,180));if(!state.extensionReady)throw new Error("Extension Chrome non détectée. Recharge l’extension et cette page.");await saveAssignmentSettings();const group=state.detailGroup;if(!group)throw new Error("Choisis un groupe.");await api(SYNC_ENDPOINT,{action:"prepare",teacherToken:state.teacherToken,assignmentId:state.currentAssignment.id,groupCode:group,settings:{term:Number(state.currentAssignment.term||1),activityDate:state.currentAssignment.activityDate||today(),period:Number(state.currentAssignment.period||3),weight:state.currentAssignment.weight??0,competenceKind:state.currentAssignment.competenceKind,reportCardEnabled:!!state.currentAssignment.reportCardEnabled,resultsVisible:!!state.currentAssignment.resultsVisible,showInSchedule:state.currentAssignment.showInSchedule!==false,homework:!!state.currentAssignment.homework}});job=await api(SYNC_ENDPOINT,{action:"claimLatest",teacherToken:state.teacherToken});btn.textContent="Envoi...";const result=await sendToExtension(job.payload);const completed=await api(SYNC_ENDPOINT,{action:"complete",jobId:job.jobId,claimToken:job.claimToken,success:result?.success===true,activityId:result?.activityId||"",competenceCode:result?.competenceCode||"",syncedCount:result?.syncedCount||0,message:result?.message||""});if(!result?.success)throw new Error(result?.message||completed?.message||"La synchronisation a échoué.");$("syncState").textContent=`Synchronisation réussie : ${result.syncedCount} note${result.syncedCount===1?"":"s"} · ${result.competenceLabel||competenceLabel(state.currentAssignment.competenceKind)}`;await refreshSyncState()}catch(e){if(job){try{await api(SYNC_ENDPOINT,{action:"complete",jobId:job.jobId,claimToken:job.claimToken,success:false,activityId:"",competenceCode:"",syncedCount:0,message:e.message})}catch{}}$("syncState").textContent=e.message;btn.textContent="Réessayer la synchro"}finally{btn.disabled=false;if(btn.textContent==="Préparation..."||btn.textContent==="Envoi...")btn.textContent=old}};
 
-async function loadStudentDashboard() {
-  const data = await api(DATA_ENDPOINT, { action: "studentDashboard", token: state.studentToken });
-  loginView.classList.add("hidden");
-  teacherView.classList.add("hidden");
-  studentView.classList.remove("hidden");
-  logoutBtn.classList.remove("hidden");
-  $("studentName").textContent = data.user.name;
-  $("studentMeta").textContent = `${data.user.email} · Groupe ${data.user.group}`;
-  const graded = data.assignments.filter(a => a.result && a.result.grade !== null);
-  $("studentSummary").innerHTML = `<strong>${graded.length}</strong><span>résultat${graded.length === 1 ? "" : "s"} disponible${graded.length === 1 ? "" : "s"}</span>`;
-  const root = $("studentAssignments");
-  if (!data.assignments.length) {
-    root.innerHTML = `<div class="panel empty-state">Aucun travail publié pour le moment.</div>`;
-    return;
-  }
-  root.innerHTML = data.assignments.map(a => {
-    const tags = [...(a.competencies || []).map(c => `<span class="tag">${escapeHtml(c)}</span>`), a.weight !== null ? `<span class="tag">Pondération ${a.weight}%</span>` : ""].join("");
-    if (!a.result) {
-      return `<article class="panel student-card"><div class="student-card-head"><div><div class="eyebrow">Travail</div><h2>${escapeHtml(a.title)}</h2></div><div class="score-badge">À venir</div></div><div class="metadata">${tags}</div>${a.instructions ? `<div class="instructions">${escapeHtml(a.instructions)}</div>` : ""}<p class="muted">Aucun résultat publié pour ce travail.</p></article>`;
-    }
-    const score = a.result.grade === null ? "Non noté" : `${formatNumber(a.result.grade)} / ${formatNumber(a.maxScore)}`;
-    return `<article class="panel student-card"><div class="student-card-head"><div><div class="eyebrow">Travail corrigé</div><h2>${escapeHtml(a.title)}</h2></div><div class="score-badge">${score}</div></div><div class="metadata">${tags}</div>${a.instructions ? `<div class="instructions">${escapeHtml(a.instructions)}</div>` : ""}<div class="student-detail-grid"><div class="detail-box"><h3>Ta réponse</h3><div class="response-text">${escapeHtml(a.result.response || "Aucune réponse enregistrée.")}</div></div><div class="detail-box"><h3>Rétroaction</h3><div class="feedback-text">${escapeHtml(a.result.feedback || "Aucune rétroaction pour le moment.")}</div></div></div></article>`;
-  }).join("");
-}
-
-async function loadTeacherDashboard() {
-  const data = await api(TEACHER_ENDPOINT, { action: "teacherDashboard", token: state.teacherToken });
-  state.teacherAssignments = data.assignments || [];
-  state.groupStats = data.groups || {};
-  loginView.classList.add("hidden");
-  studentView.classList.add("hidden");
-  teacherView.classList.remove("hidden");
-  logoutBtn.classList.remove("hidden");
-  $("assignmentDetail").classList.add("hidden");
-  $("assignmentList").classList.remove("hidden");
-  $("groupStats").innerHTML = ["31","32","51"].map(g => `<div class="panel stat-card"><div class="eyebrow">Groupe ${g}</div><div class="stat-number">${state.groupStats[g] || 0}</div><div class="muted">élèves</div></div>`).join("");
-  renderAssignmentList();
-}
-
-function renderAssignmentList() {
-  const search = $("assignmentSearch").value.trim().toLowerCase();
-  const group = $("assignmentGroupFilter").value;
-  const sort = $("assignmentSort").value;
-  let list = state.teacherAssignments.filter(a => (!search || a.title.toLowerCase().includes(search)) && (!group || a.groups.includes(group)));
-  if (sort === "title") list.sort((a,b) => a.title.localeCompare(b.title,"fr"));
-  if (sort === "average") list.sort((a,b) => (b.average ?? -1) - (a.average ?? -1));
-  if (sort === "progress") list.sort((a,b) => (b.gradedCount/b.studentCount || 0) - (a.gradedCount/a.studentCount || 0));
-  const root = $("assignmentList");
-  if (!list.length) { root.innerHTML = `<div class="panel empty-state">Aucun travail ne correspond aux filtres.</div>`; return; }
-  root.innerHTML = list.map(a => `<article class="panel assignment-card" data-id="${a.id}"><div><h3 class="assignment-title editable" data-title-id="${a.id}" title="Double-clique pour renommer">${escapeHtml(a.title)}</h3><div class="assignment-meta"><span><span class="status-dot ${a.published ? "live" : ""}"></span>${a.published ? "Publié" : "Masqué"}</span><span>Groupes ${a.groups.join(", ")}</span>${a.competencies.length ? `<span>${a.competencies.map(escapeHtml).join(" · ")}</span>` : ""}${a.weight !== null ? `<span>${a.weight}%</span>` : ""}</div></div><div class="assignment-metrics"><div class="metric"><strong>${a.average === null ? "-" : formatNumber(a.average)}</strong><span class="muted">moyenne</span></div><div class="metric"><strong>${a.gradedCount}/${a.studentCount}</strong><span class="muted">corrigés</span></div><button class="ghost-btn open-assignment" type="button">Ouvrir</button></div></article>`).join("");
-
-  root.querySelectorAll(".open-assignment").forEach(btn => btn.addEventListener("click", e => openAssignment(e.target.closest(".assignment-card").dataset.id)));
-  root.querySelectorAll(".assignment-title").forEach(title => {
-    title.addEventListener("dblclick", async (event) => {
-      event.stopPropagation();
-      const id = title.dataset.titleId;
-      const assignment = state.teacherAssignments.find(a => a.id === id);
-      if (!assignment) return;
-      title.contentEditable = "true";
-      title.focus();
-      document.execCommand?.("selectAll", false, null);
-      const finish = async () => {
-        title.contentEditable = "false";
-        const newTitle = title.textContent.trim();
-        if (!newTitle || newTitle === assignment.title) { title.textContent = assignment.title; return; }
-        try {
-          await api(TEACHER_ENDPOINT, { action: "saveAssignment", token: state.teacherToken, assignment: { ...assignment, title: newTitle } });
-          assignment.title = newTitle;
-          renderAssignmentList();
-        } catch (err) { alert(err.message); title.textContent = assignment.title; }
-      };
-      title.addEventListener("blur", finish, { once:true });
-      title.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); title.blur(); } if (e.key === "Escape") { title.textContent = assignment.title; title.blur(); } }, { once:true });
-    });
-  });
-}
-
-["assignmentSearch","assignmentGroupFilter","assignmentSort"].forEach(id => $(id).addEventListener("input", renderAssignmentList));
-
-$("newAssignmentBtn").addEventListener("click", () => {
-  state.currentAssignment = { id:null,title:"Nouveau travail",competencies:[],weight:null,maxScore:10,groups:["51"],published:false,instructions:"" };
-  state.currentStudents = [];
-  fillAssignmentEditor();
-  $("assignmentList").classList.add("hidden");
-  $("assignmentDetail").classList.remove("hidden");
-  $("studentRows").innerHTML = `<tr><td colspan="5" class="empty-state">Enregistre d’abord le travail pour afficher les élèves.</td></tr>`;
-});
-
-$("backToAssignments").addEventListener("click", () => {
-  $("assignmentDetail").classList.add("hidden");
-  $("assignmentList").classList.remove("hidden");
-});
-
-async function openAssignment(id) {
-  const data = await api(TEACHER_ENDPOINT, { action: "teacherAssignment", token: state.teacherToken, assignmentId:id });
-  state.currentAssignment = data.assignment;
-  state.currentStudents = data.students || [];
-  fillAssignmentEditor();
-  $("assignmentList").classList.add("hidden");
-  $("assignmentDetail").classList.remove("hidden");
-  renderStudentRows();
-}
-
-function fillAssignmentEditor() {
-  const a = state.currentAssignment;
-  $("editTitle").value = a.title || "";
-  $("editWeight").value = a.weight ?? "";
-  $("editMaxScore").value = a.maxScore ?? 10;
-  $("editInstructions").value = a.instructions || "";
-  $("editPublished").checked = !!a.published;
-  document.querySelectorAll("#competencyChoices input").forEach(input => input.checked = (a.competencies || []).includes(input.value));
-  document.querySelectorAll("#groupChoices input").forEach(input => input.checked = (a.groups || []).includes(input.value));
-}
-
-function collectAssignment() {
-  return {
-    id: state.currentAssignment?.id || null,
-    title: $("editTitle").value.trim(),
-    weight: $("editWeight").value === "" ? null : Number($("editWeight").value),
-    maxScore: Number($("editMaxScore").value || 10),
-    competencies: [...document.querySelectorAll("#competencyChoices input:checked")].map(i => i.value),
-    groups: [...document.querySelectorAll("#groupChoices input:checked")].map(i => i.value),
-    published: $("editPublished").checked,
-    instructions: $("editInstructions").value,
-  };
-}
-
-$("saveAssignmentBtn").addEventListener("click", async () => {
-  try {
-    $("saveState").textContent = "Enregistrement...";
-    const assignment = collectAssignment();
-    const data = await api(TEACHER_ENDPOINT, { action:"saveAssignment", token:state.teacherToken, assignment });
-    $("saveState").textContent = "Enregistré";
-    await loadTeacherDashboard();
-    await openAssignment(data.id);
-  } catch (err) { $("saveState").textContent = ""; alert(err.message); }
-});
-
-function renderStudentRows() {
-  const search = $("studentSearch").value.trim().toLowerCase();
-  const group = $("studentGroupFilter").value;
-  const sort = $("studentSort").value;
-  let list = state.currentStudents.filter(s => (!search || s.name.toLowerCase().includes(search) || s.email.toLowerCase().includes(search)) && (!group || s.group === group));
-  if (sort === "name") list.sort((a,b) => a.name.localeCompare(b.name,"fr"));
-  if (sort === "gradeDesc") list.sort((a,b) => (b.grade ?? -Infinity) - (a.grade ?? -Infinity));
-  if (sort === "gradeAsc") list.sort((a,b) => (a.grade ?? Infinity) - (b.grade ?? Infinity));
-  if (sort === "ungraded") list.sort((a,b) => Number(a.grade !== null) - Number(b.grade !== null) || a.name.localeCompare(b.name,"fr"));
-  $("studentRows").innerHTML = list.map(s => `<tr><td><strong>${escapeHtml(s.name)}</strong><br><span class="muted">${escapeHtml(s.email)}</span></td><td>${s.group}</td><td class="grade-cell">${s.grade === null ? "-" : `${formatNumber(s.grade)} / ${formatNumber(state.currentAssignment.maxScore)}`}</td><td>${s.visible ? "Visible" : "Masqué"}</td><td><button class="ghost-btn open-copy" data-email="${escapeAttr(s.email)}" type="button">Corriger</button></td></tr>`).join("") || `<tr><td colspan="5" class="empty-state">Aucun élève.</td></tr>`;
-  document.querySelectorAll(".open-copy").forEach(btn => btn.addEventListener("click", () => openStudentDialog(btn.dataset.email)));
-}
-["studentSearch","studentGroupFilter","studentSort"].forEach(id => $(id).addEventListener("input", renderStudentRows));
-
-function openStudentDialog(email) {
-  const s = state.currentStudents.find(x => x.email === email);
-  if (!s) return;
-  state.currentStudent = s;
-  $("dialogStudentMeta").textContent = `Groupe ${s.group} · ${s.email}`;
-  $("dialogStudentName").textContent = s.name;
-  $("dialogResponse").textContent = s.response || "Aucune réponse enregistrée.";
-  $("dialogGrade").value = s.grade ?? "";
-  $("dialogGrade").max = state.currentAssignment.maxScore;
-  $("dialogMaxScore").textContent = `/ ${formatNumber(state.currentAssignment.maxScore)}`;
-  $("dialogFeedback").value = s.feedback || "";
-  $("dialogVisible").checked = s.visible !== false;
-  $("resultDialog").showModal();
-}
-
-$("saveResultBtn").addEventListener("click", async () => {
-  if (!state.currentStudent) return;
-  const btn = $("saveResultBtn");
-  btn.disabled = true;
-  btn.textContent = "Enregistrement...";
-  try {
-    const grade = $("dialogGrade").value === "" ? null : Number($("dialogGrade").value);
-    await api(TEACHER_ENDPOINT, {
-      action:"saveResult",
-      token:state.teacherToken,
-      assignmentId:state.currentAssignment.id,
-      email:state.currentStudent.email,
-      response:state.currentStudent.response,
-      grade,
-      feedback:$("dialogFeedback").value,
-      visible:$("dialogVisible").checked,
-    });
-    state.currentStudent.grade = grade;
-    state.currentStudent.feedback = $("dialogFeedback").value;
-    state.currentStudent.visible = $("dialogVisible").checked;
-    $("resultDialog").close();
-    renderStudentRows();
-    $("saveState").textContent = "Correction enregistrée";
-  } catch (err) { alert(err.message); }
-  finally { btn.disabled = false; btn.textContent = "Enregistrer"; }
-});
-
-function escapeHtml(value) { return String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[c])); }
-function escapeAttr(value) { return escapeHtml(value); }
-function formatNumber(value) { const n = Number(value); return Number.isInteger(n) ? String(n) : n.toLocaleString("fr-CA", { maximumFractionDigits:1 }); }
-
-(async function restoreSession(){
-  if (state.teacherToken) {
-    try { await loadTeacherDashboard(); return; } catch { localStorage.removeItem("results_teacher_token"); state.teacherToken=""; }
-  }
-  if (state.studentToken) {
-    try { await loadStudentDashboard(); return; } catch { sessionStorage.removeItem("results_student_token"); state.studentToken=""; }
-  }
-})();
+(async function restore(){if(state.teacherToken){try{await loadTeacherDashboard();return}catch{localStorage.removeItem("results_teacher_token");state.teacherToken=""}}if(state.studentToken){try{await loadStudentDashboard();return}catch{sessionStorage.removeItem("results_student_token");state.studentToken=""}}show(loginView,true);show(logoutBtn,false)})();
