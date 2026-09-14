@@ -5,27 +5,35 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="robots" content="noindex,nofollow,noarchive">
   <meta name="theme-color" content="#0d47b5">
-  <title>Résultats</title>
+  <title>Gestion des notes</title>
   <link id="syncFavicon" rel="icon" type="image/png" href="">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 <div class="app-shell">
   <header class="topbar">
-    <a class="brand" href="./" aria-label="Résultats">
+    <a class="brand" href="./" aria-label="Gestion des notes">
       <img class="brand-logo" data-sync-icon alt="">
-      <div><div class="brand-title">Résultats</div><div class="brand-subtitle">Publication et synchronisation Mozaïk</div></div>
+      <div>
+        <div class="brand-title">Gestion des notes</div>
+        <div class="brand-subtitle">Créé par Kevin Tremblay, 2026</div>
+      </div>
     </a>
     <button id="logoutBtn" class="btn btn-ghost hidden" type="button">Se déconnecter</button>
   </header>
 
   <main>
-    <section id="loginView" class="login-view">
+    <section id="bootView" class="boot-view">
+      <img class="boot-logo" data-sync-icon alt="">
+      <div class="boot-title">Gestion des notes</div>
+    </section>
+
+    <section id="loginView" class="login-view hidden">
       <div class="login-card card">
         <img class="login-logo" data-sync-icon alt="">
         <div class="eyebrow">Accès sécurisé</div>
-        <h1>Résultats</h1>
-        <p class="muted">Consulte tes résultats ou ouvre la console enseignant.</p>
+        <h1>Gestion des notes</h1>
+        <p class="muted">Consulte tes résultats ou ouvre l’espace enseignant.</p>
         <form id="loginForm" novalidate>
           <label class="field-label" for="emailInput">Adresse courriel</label>
           <input id="emailInput" class="input" type="email" autocomplete="email" placeholder="prenom.nom@educ.cscapitale.qc.ca" required>
@@ -41,15 +49,18 @@
     </section>
 
     <section id="studentView" class="hidden content-area">
-      <div class="page-head"><div><div class="eyebrow">Espace élève</div><h1 id="studentName"></h1><p id="studentMeta" class="muted"></p></div><div id="studentSummary" class="summary-card"></div></div>
+      <div class="page-head">
+        <div><div class="eyebrow">Espace élève</div><h1 id="studentName"></h1><p id="studentMeta" class="muted"></p></div>
+        <div id="studentSummary" class="summary-card"></div>
+      </div>
       <div id="studentAssignments" class="student-grid"></div>
     </section>
 
     <section id="teacherView" class="hidden teacher-layout">
       <aside class="sidebar">
-        <div class="sidebar-label">Console enseignant</div>
+        <div class="sidebar-label">Gestion</div>
         <button class="nav-item active" data-teacher-view="dashboard" type="button">Tableau de bord</button>
-        <button class="nav-item" data-teacher-view="assignments" type="button">Travaux</button>
+        <button class="nav-item" data-teacher-view="assignments" type="button">Tous les travaux</button>
         <div class="sidebar-divider"></div>
         <div class="sidebar-label">Groupes</div>
         <button class="nav-item group-nav" data-group="31" type="button">Groupe 31</button>
@@ -60,17 +71,23 @@
       <div class="teacher-main">
         <section id="teacherDashboard">
           <div class="page-head">
-            <div><div class="eyebrow">Console enseignant</div><h1>Tableau de bord</h1><p class="muted">Tes travaux, tes groupes et tes pondérations au même endroit.</p></div>
+            <div><div class="eyebrow">Gestion des notes</div><h1>Tableau de bord</h1><p class="muted">Choisis un groupe pour voir ses travaux et ses pondérations.</p></div>
             <button id="newAssignmentBtn" class="btn btn-primary" type="button">+ Nouveau travail</button>
           </div>
           <div id="groupStats" class="stats-grid"></div>
           <div id="weightOverview" class="weight-overview"></div>
-          <div class="section-head"><div><h2>Travaux récents</h2><p class="muted">Clique sur un travail pour entrer les notes.</p></div><button id="showAllAssignments" class="btn btn-ghost" type="button">Voir tous les travaux</button></div>
+          <div class="section-head">
+            <div><h2 id="recentTitle">Travaux du groupe</h2><p class="muted">Clique sur un travail pour saisir ou modifier les notes.</p></div>
+            <button id="showAllAssignments" class="btn btn-ghost" type="button">Voir tous les travaux</button>
+          </div>
           <div id="recentAssignments" class="assignment-list"></div>
         </section>
 
         <section id="assignmentsView" class="hidden">
-          <div class="page-head"><div><div class="eyebrow">Travaux</div><h1>Tous les travaux</h1></div><button id="newAssignmentBtn2" class="btn btn-primary" type="button">+ Nouveau travail</button></div>
+          <div class="page-head">
+            <div><div class="eyebrow">Travaux</div><h1>Tous les travaux</h1></div>
+            <button id="newAssignmentBtn2" class="btn btn-primary" type="button">+ Nouveau travail</button>
+          </div>
           <div class="card toolbar">
             <input id="assignmentSearch" class="input" type="search" placeholder="Rechercher un travail">
             <select id="assignmentGroupFilter" class="select"><option value="">Tous les groupes</option><option value="31">31</option><option value="32">32</option><option value="51">51</option></select>
@@ -95,8 +112,20 @@
               <div id="workMeta" class="meta-row"></div>
             </div>
             <div class="work-hero-side">
-              <label class="mini-label" for="detailGroupSelect">Groupe</label>
+              <label class="mini-label" for="detailGroupSelect">Groupe affiché</label>
               <select id="detailGroupSelect" class="select compact"></select>
+              <div class="visibility-actions">
+                <label class="toggle-card">
+                  <span><strong>Élèves</strong><small id="platformVisibilityText">Masqué</small></span>
+                  <input id="topPublishedToggle" type="checkbox">
+                  <i></i>
+                </label>
+                <label class="toggle-card">
+                  <span><strong>Mozaïk</strong><small id="mozaikVisibilityText">Masqué</small></span>
+                  <input id="topMozaikVisibleToggle" type="checkbox">
+                  <i></i>
+                </label>
+              </div>
               <div id="syncState" class="sync-state"></div>
             </div>
           </div>
@@ -114,8 +143,6 @@
               <div><label class="field-label" for="editPeriod">Période</label><input id="editPeriod" class="input" type="number" min="1" max="20"></div>
               <div class="span2"><div class="field-label">Groupes</div><div id="groupChoices" class="choice-row"><label class="check-chip"><input type="checkbox" value="31"> 31</label><label class="check-chip"><input type="checkbox" value="32"> 32</label><label class="check-chip"><input type="checkbox" value="51"> 51</label></div></div>
               <div class="span2 toggle-grid">
-                <label class="switch-line"><input id="editPublished" type="checkbox"> Visible dans Résultats</label>
-                <label class="switch-line"><input id="editResultsVisible" type="checkbox"> Visible aux parents et élèves dans Mozaïk</label>
                 <label class="switch-line"><input id="editReportCard" type="checkbox"> Porté au bulletin</label>
                 <label class="switch-line"><input id="editShowSchedule" type="checkbox"> Afficher dans l’horaire</label>
                 <label class="switch-line"><input id="editHomework" type="checkbox"> Devoir</label>
@@ -132,7 +159,7 @@
             </div>
             <div class="grade-table-wrap">
               <table class="grade-table">
-                <thead><tr><th class="col-last">Nom</th><th class="col-first">Prénom</th><th class="col-grade">Note</th><th class="col-percent">%</th><th class="col-visible">Visible</th><th class="col-detail"></th></tr></thead>
+                <thead><tr><th class="col-last">Nom</th><th class="col-first">Prénom</th><th class="col-grade">Note</th><th class="col-percent">%</th><th class="col-detail"></th></tr></thead>
                 <tbody id="studentRows"></tbody>
               </table>
             </div>
@@ -142,6 +169,8 @@
     </section>
   </main>
 </div>
+
+<div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
 
 <dialog id="resultDialog" class="dialog">
   <div class="dialog-head"><div><div id="dialogStudentMeta" class="eyebrow"></div><h2 id="dialogStudentName"></h2></div><button id="closeResultDialog" class="icon-btn" type="button">×</button></div>
