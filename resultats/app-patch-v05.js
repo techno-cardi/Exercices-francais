@@ -11,6 +11,23 @@
     (document.head || document.documentElement).appendChild(script);
   }
 
+  function ensureFormativeClient() {
+    if (!document.querySelector('link[data-cardinal-formative]')) {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = 'formative.css?v=8';
+      link.dataset.cardinalFormative = '1';
+      document.head.appendChild(link);
+    }
+    if (!document.getElementById('cardinal-formative-integration')) {
+      const script = document.createElement('script');
+      script.id = 'cardinal-formative-integration';
+      script.src = 'formative-integration.js?v=8';
+      script.async = false;
+      (document.body || document.documentElement).appendChild(script);
+    }
+  }
+
   function installImmediateMozaikFeedback() {
     const btn = document.getElementById('syncMozaikBtn');
     if (!btn) {
@@ -145,6 +162,7 @@
   }
 
   ensureV04();
+  ensureFormativeClient();
   installImmediateMozaikFeedback();
   waitForAppNavigation();
 })();
