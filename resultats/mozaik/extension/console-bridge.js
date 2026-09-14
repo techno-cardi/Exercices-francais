@@ -3,10 +3,10 @@
   const EXT_SOURCE = 'cardinal-mozaik-extension';
 
   function injectAppPatch() {
-    if (document.getElementById('cardinal-app-patch-v04')) return;
+    if (document.getElementById('cardinal-app-patch-v05')) return;
     const script = document.createElement('script');
-    script.id = 'cardinal-app-patch-v04';
-    script.src = 'https://techno-cardi.github.io/Exercices-francais/resultats/app-patch-v04.js?v=4';
+    script.id = 'cardinal-app-patch-v05';
+    script.src = 'https://techno-cardi.github.io/Exercices-francais/resultats/app-patch-v05.js?v=5';
     script.async = true;
     (document.head || document.documentElement).appendChild(script);
   }
@@ -49,6 +49,11 @@
 
     if (data.type === 'MOZAIK_EXTENSION_PING') {
       announceReady();
+      return;
+    }
+
+    if (data.type === 'MOZAIK_EXTENSION_SHOW_PROGRESS') {
+      try { await chrome.runtime.sendMessage({ type: 'SHOW_MOZAIK_SYNC_UI' }); } catch {}
       return;
     }
 
