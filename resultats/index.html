@@ -117,9 +117,10 @@
               <div class="visibility-actions">
                 <label class="toggle-card">
                   <span><strong>Visible aux élèves et parents</strong><small id="platformVisibilityText">Masqué</small></span>
-                  <input id="topPublishedToggle" type="checkbox" onchange="document.getElementById('topMozaikVisibleToggle').checked=this.checked">
+                  <input id="topPublishedToggle" type="checkbox">
                   <i></i>
                 </label>
+                <!-- État technique Mozaïk, lié au seul toggle visible par le code de la page. -->
                 <input id="topMozaikVisibleToggle" type="checkbox" hidden aria-hidden="true" tabindex="-1">
                 <span id="mozaikVisibilityText" hidden></span>
               </div>
@@ -175,5 +176,7 @@
   <div class="dialog-actions"><button id="saveFeedbackBtn" class="btn btn-primary" type="button">Enregistrer</button></div>
 </dialog>
 <script src="app.js"></script>
+<script id="cardinal-app-patch-v04" src="app-patch-v04.js?v=7"></script>
+<script id="cardinal-app-patch-v05" src="app-patch-v05.js?v=7"></script>
 </body>
 </html>
