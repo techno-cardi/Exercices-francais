@@ -1,0 +1,308 @@
+const MOZAIK_URL = 'https://mozaikportail.ca/*';
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message?.type !== 'START_MOZAIK_SYNC') return;
+  handleSync(message.payload)
+    .then(sendResponse)
+    .catch((error) => sendResponse({ success: false, message: error?.message || String(error) }));
+  return true;
+});
+
+async function handleSync(payload) {
+  if (!payload?.assignment || !payload?.group || !Array.isArray(payload?.results)) {
+    throw new Error('Le lot de synchronisation est incomplet.');
+  }
+
+  const tabs = await chrome.tabs.query({ url: MOZAIK_URL });
+  const tab = tabs.find(t => t.active) || tabs[0];
+  if (!tab?.id) {
+    await chrome.tabs.create({ url: 'https://mozaikportail.ca/' });
+    throw new Error('Mozaïk a été ouvert. Connecte-toi au portail, puis clique de nouveau sur « Envoyer dans Mozaïk ».');
+  }
+
+  const [{ result }] = await chrome.scripting.executeScript({
+    target: { tabId: tab.id },
+    world: 'MAIN',
+    func: syncInsideMozaik,
+    args: [payload]
+  });
+
+  if (!result || typeof result !== 'object') {
+    throw new Error('Mozaïk n’a retourné aucun résultat exploitable. Recharge l’onglet Mozaïk et réessaie.');
+  }
+  return result;
+}
+
+async function syncInsideMozaik(payload) {
+  try {
+    const API = 'https://apiaffaires.mozaikportail.ca';
+
+    function norm(s) {
+      return String(s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    }
+
+    function strings(o, d = 0, out = []) {
+      if (d > 4 || o == null) return out;
+      if (typeof o === 'string') { out.push(o); return out; }
+      if (typeof o !== 'object') return out;
+      for (const v of Object.values(o)) {
+        if (typeof v === 'string') out.push(v);
+        else if (v && typeof v === 'object') strings(v, d + 1, out);
+      }
+      return out;
+    }
+
+    function findField(o, names, d = 0, seen = new WeakSet()) {
+      if (!o || typeof o !== 'object' || d > 5 || seen.has(o)) return null;
+      seen.add(o);
+      for (const [k, v] of Object.entries(o)) {
+        const nk = norm(k).replace(/ /g, '');
+        if (names.includes(nk) && v != null && typeof v !== 'object') return v;
+      }
+      for (const v of Object.values(o)) {
+        const r = findField(v, names, d + 1, seen);
+        if (r != null) return r;
+      }
+      return null;
+    }
+
+    function fiche(m) {
+      return findField(m, ['fiche', 'numerofiche', 'nofiche']);
+    }
+
+    function possibleNames(m) {
+      const first = findField(m, ['prenom', 'firstname', 'first']);
+      const last = findField(m, ['nom', 'lastname', 'last', 'nomfamille']);
+      const arr = [];
+      if (first && last) arr.push(norm(first + ' ' + last), norm(last + ' ' + first));
+      const full = findField(m, ['nomcomplet', 'fullname', 'displayname']);
+      if (full) arr.push(norm(full));
+      return [...new Set(arr.filter(Boolean))];
+    }
+
+    function memberEmail(m) {
+      return strings(m).map(x => String(x).trim().toLowerCase()).find(x => x.endsWith('@educ.cscapitale.qc.ca')) || null;
+    }
+
+    function findUuid(o, d = 0) {
+      if (d > 5 || o == null) return null;
+      if (typeof o === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(o)) return o;
+      if (typeof o !== 'object') return null;
+      for (const k of ['idActivite', 'id', 'activityId']) {
+        if (typeof o[k] === 'string' && /^[0-9a-f-]{36}$/i.test(o[k])) return o[k];
+      }
+      for (const v of Object.values(o)) {
+        const r = findUuid(v, d + 1);
+        if (r) return r;
+      }
+      return null;
+    }
+
+    function findCompetenceArray(o, d = 0) {
+      if (d > 5 || o == null) return null;
+      if (Array.isArray(o) && o.some(x => x && typeof x === 'object')) {
+        const ok = o.some(x => ['code', 'id', 'valeur', 'codeCompetence', 'numero'].some(k => x[k] != null));
+        if (ok) return o;
+      }
+      if (typeof o === 'object') {
+        for (const v of Object.values(o)) {
+          const r = findCompetenceArray(v, d + 1);
+          if (r) return r;
+        }
+      }
+      return null;
+    }
+
+    function compInfo(c) {
+      const code = c.codeCompetence ?? c.code ?? c.valeur ?? c.numero ?? c.id;
+      const label = c.description ?? c.libelle ?? c.nom ?? c.titre ?? c.descriptionLongue ?? String(code ?? '');
+      return { code: String(code ?? ''), label: String(label ?? '') };
+    }
+
+    function findToken() {
+      const root = window.authentification;
+      if (!root) return null;
+      const seen = new WeakSet();
+      const stack = [root];
+      let steps = 0;
+      while (stack.length && steps++ < 2500) {
+        const o = stack.pop();
+        if (!o || typeof o !== 'object' || seen.has(o)) continue;
+        seen.add(o);
+        try {
+          if (typeof o.AccessToken === 'string' && o.AccessToken.length > 40) return o.AccessToken;
+        } catch {}
+        let vals = [];
+        try { vals = Object.values(o); } catch {}
+        for (const v of vals) if (v && typeof v === 'object') stack.push(v);
+      }
+      return null;
+    }
+
+    async function request(method, path, token, body) {
+      const headers = {
+        Authorization: 'Bearer ' + token,
+        Accept: 'application/json, text/plain, */*',
+        'Encode-Response': 'false',
+        ...(body !== undefined ? { 'Content-Type': 'application/json' } : {})
+      };
+      const response = await fetch(API + path, {
+        method,
+        headers,
+        body: body !== undefined ? JSON.stringify(body) : undefined
+      });
+      const text = await response.text();
+      let data = null;
+      if (text) {
+        try { data = JSON.parse(text); } catch { data = text; }
+      }
+      const detail = typeof data === 'string' ? data : (data?.Message || data?.message || '');
+      if (!response.ok) throw new Error(method + ' ' + path + ' : ' + response.status + (detail ? ' ' + detail : ''));
+      return data;
+    }
+
+    function schoolYearStart() {
+      const d = new Date();
+      return d.getMonth() >= 6 ? d.getFullYear() : d.getFullYear() - 1;
+    }
+
+    function currentizeId(id, establishmentId) {
+      const raw = String(id || '');
+      const prefix = String(establishmentId || '');
+      if (!raw || !prefix) return raw;
+      return raw.replace(new RegExp('^' + prefix + '\\d{4}'), prefix + String(schoolYearStart()));
+    }
+
+    function activityPayload(a, competence, existing) {
+      const p = {
+        codeEtape: String(a.term),
+        titre: a.title,
+        notePublique: existing?.notePublique ?? null,
+        notePrivee: existing?.notePrivee ?? null,
+        dateActivite: a.activityDate,
+        periode: Number(a.period),
+        faitALaMaison: !!a.homework,
+        afficheeDansHoraire: !!a.showInSchedule,
+        contientResultats: existing?.contientResultats ?? 'Aucun',
+        competenceInvalide: false,
+        parametresEvaluation: {
+          competence: String(competence),
+          noteMaximale: Number(a.maxScore),
+          porteeAuBulletin: !!a.reportCardEnabled,
+          ponderation: Number(a.weight),
+          resultatsDisponibles: !!a.resultsVisible
+        },
+        liens: Array.isArray(existing?.liens) ? existing.liens : []
+      };
+      if (existing) p.parametresEvaluation.idCategoriePonderation = existing?.parametresEvaluation?.idCategoriePonderation ?? null;
+      else p.categoriePonderationInexistante = false;
+      return p;
+    }
+
+    function competenceWanted(a) {
+      const key = norm(a.competenceKey || '');
+      if (key.includes('lecture') || key === 'lire') return ['lire', 'lecture'];
+      if (key.includes('ecriture') || key.includes('ecrire')) return ['ecrire', 'ecriture'];
+      if (key.includes('oral')) return ['communiquer oralement', 'oral'];
+      const fromAssignment = norm((a.competencies || []).join(' '));
+      if (fromAssignment.includes('lecture')) return ['lire', 'lecture'];
+      if (fromAssignment.includes('ecriture')) return ['ecrire', 'ecriture'];
+      if (fromAssignment.includes('oral')) return ['communiquer oralement', 'oral'];
+      return [];
+    }
+
+    async function resolveCompetence(a, g, token) {
+      const cd = await request('GET', `/api/evaluation/matieresOrganisme/${g.establishmentId}/anneeCourante/${g.subjectCode}/competences`, token);
+      const infos = (findCompetenceArray(cd) || []).map(compInfo).filter(x => x.code);
+      const wanted = competenceWanted(a);
+      for (const needle of wanted) {
+        const hit = infos.find(x => norm(x.label).includes(needle));
+        if (hit) return hit;
+      }
+      throw new Error('Impossible d’identifier automatiquement la compétence Mozaïk. Compétences trouvées : ' + infos.map(x => `${x.code} : ${x.label}`).join(', '));
+    }
+
+    const token = findToken();
+    if (!token) throw new Error('Impossible de trouver la session Mozaïk active. Recharge Mozaïk et réessaie.');
+
+    const a = payload.assignment;
+    const g = {
+      ...payload.group,
+      groupCourseId: currentizeId(payload.group.groupCourseId, payload.group.establishmentId),
+      groupMatterId: currentizeId(payload.group.groupMatterId, payload.group.establishmentId)
+    };
+
+    const memberData = await request('GET', `/api/organisationscolaire/groupes/${g.establishmentId}/${g.groupMatterId}/membres`, token);
+    const members = Array.isArray(memberData) ? memberData : (memberData?.membres || []);
+    if (!members.length) throw new Error('La liste des élèves Mozaïk est vide ou illisible pour le groupe ' + g.code + '.');
+
+    const matched = [];
+    const missing = [];
+    for (const r of payload.results) {
+      const em = String(r.email).toLowerCase();
+      let candidates = members.filter(m => memberEmail(m) === em);
+      if (!candidates.length) {
+        const n = norm(r.name);
+        candidates = members.filter(m => possibleNames(m).includes(n));
+      }
+      if (candidates.length !== 1) {
+        missing.push(r.name + ' (' + r.email + ')');
+        continue;
+      }
+      const f = fiche(candidates[0]);
+      if (f == null) {
+        missing.push(r.name + ' (fiche introuvable)');
+        continue;
+      }
+      matched.push({ fiche: Number(f), resultat: String(r.grade) });
+    }
+
+    if (missing.length) {
+      throw new Error('Association impossible pour : ' + missing.join(', ') + '. Aucune donnée n’a été écrite.');
+    }
+
+    const competence = await resolveCompetence(a, g, token);
+    let activityId = payload.link?.activityId || null;
+
+    if (!activityId) {
+      const created = await request('POST', `/api/evaluation/apprentissage/${g.establishmentId}/activites/groupe/${g.groupMatterId}`, token, activityPayload(a, competence.code, null));
+      activityId = findUuid(created);
+      if (!activityId) throw new Error('Mozaïk a créé l’activité, mais son identifiant n’a pas pu être lu. Vérifie Mozaïk avant de réessayer.');
+
+      const plan = await request('GET', `/api/evaluation/planifications/${g.establishmentId}/groupes/${g.groupCourseId}`, token);
+      const existing = Array.isArray(plan?.activites) ? plan.activites : [];
+      const ids = existing.map(x => typeof x === 'string' ? x : x?.id).filter(Boolean);
+      if (!ids.includes(activityId)) ids.push(activityId);
+      await request('PUT', `/api/evaluation/planifications/${g.establishmentId}/groupes/${g.groupCourseId}`, token, {
+        idListeCategoriesPonderation: plan?.idListeCategoriesPonderation ?? null,
+        activites: ids.map(id => ({ id }))
+      });
+    } else {
+      const list = await request('GET', `/api/evaluation/apprentissage/${g.establishmentId}/activites/groupe/${g.groupCourseId}`, token);
+      const arr = Array.isArray(list) ? list : (list?.activites || []);
+      const existing = arr.find(x => x?.id === activityId || x?.idActivite === activityId);
+      if (!existing) throw new Error('L’activité liée n’existe plus dans Mozaïk. Aucune note n’a été modifiée.');
+      await request('PUT', `/api/evaluation/apprentissage/${g.establishmentId}/activites/groupe/${g.groupMatterId}/${activityId}`, token, activityPayload(a, competence.code, existing));
+    }
+
+    await request('PUT', `/api/evaluation/resultats/${g.establishmentId}/activites/groupe/${g.groupMatterId}/${activityId}`, token, { eleves: matched });
+
+    return {
+      success: true,
+      activityId,
+      competenceCode: String(competence.code),
+      competenceLabel: competence.label,
+      syncedCount: matched.length,
+      message: 'Synchronisation réussie'
+    };
+  } catch (error) {
+    return {
+      success: false,
+      activityId: '',
+      competenceCode: '',
+      competenceLabel: '',
+      syncedCount: 0,
+      message: error?.message || String(error)
+    };
+  }
+}
