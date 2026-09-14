@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Cardinal - Synchronisation Mozaïk",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Envoie les activités et résultats de Gestion des notes vers Mozaïk Portail.",
   "permissions": ["scripting", "tabs"],
   "host_permissions": [
@@ -9,12 +9,17 @@
     "https://apiaffaires.mozaikportail.ca/*",
     "https://techno-cardi.github.io/Exercices-francais/resultats/*"
   ],
-  "background": { "service_worker": "background.js" },
+  "background": { "service_worker": "background-v04.js" },
   "content_scripts": [
     {
       "matches": ["https://techno-cardi.github.io/Exercices-francais/resultats/*"],
       "js": ["console-bridge.js"],
       "run_at": "document_start"
+    },
+    {
+      "matches": ["https://mozaikportail.ca/*"],
+      "js": ["mozaik-ui.js"],
+      "run_at": "document_idle"
     }
   ],
   "action": { "default_title": "Synchronisation Mozaïk" }
