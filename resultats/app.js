@@ -1,12 +1,13 @@
 const DATA_ENDPOINT = "https://ojyswaxuqwnqilrvtjll.supabase.co/functions/v1/school-results";
 const AUTH_ENDPOINT = "https://ojyswaxuqwnqilrvtjll.supabase.co/functions/v1/school-student-auth";
+const TEACHER_ENDPOINT = "https://ojyswaxuqwnqilrvtjll.supabase.co/functions/v1/school-teacher-api";
 const PUBLIC_KEY = "sb_publishable_mI94i3exzVPlHveGFX1WOw_1Ucab3_f";
 
 const $ = (id) => document.getElementById(id);
 const state = {
   loginMode: "email",
   email: "",
-  teacherToken: sessionStorage.getItem("results_teacher_token") || "",
+  teacherToken: localStorage.getItem("results_teacher_token") || "",
   studentToken: sessionStorage.getItem("results_student_token") || "",
   teacherAssignments: [],
   groupStats: {},
@@ -69,6 +70,7 @@ function resetCredentialUi() {
   credentialInput.value = "";
   credentialInput.type = "password";
   credentialInput.autocomplete = "off";
+  credentialInput.inputMode = "";
   authExtra.innerHTML = "";
   credentialHint.textContent = "";
 }
@@ -84,7 +86,7 @@ function addPasswordFields(reset = false) {
         <input id="confirmPassword" class="text-input" type="password" autocomplete="new-password" minlength="8">
       </div>
     </div>
-    <div class="field-hint">Minimum 8 caractères. Tu utiliseras ensuite seulement ton courriel et ce mot de passe.</div>`;
+    <div class="field-hint">Minimum 8 caractères. Après l’activation, tu utiliseras seulement ton courriel et ce mot de passe.</div>`;
 }
 function configureMode(mode) {
   state.loginMode = mode;
@@ -96,11 +98,13 @@ function configureMode(mode) {
     credentialLabel.textContent = "Mot de passe enseignant";
     credentialInput.type = "password";
     credentialInput.autocomplete = "current-password";
-    credentialHint.textContent = "Utilise le même mot de passe que dans l’Atelier.";
+    credentialInput.inputMode = "";
+    credentialHint.textContent = "Utilise le mot de passe enseignant de cette plateforme.";
   } else if (mode === "password") {
     credentialLabel.textContent = "Mot de passe";
     credentialInput.type = "password";
     credentialInput.autocomplete = "current-password";
+    credentialInput.inputMode = "";
     credentialHint.textContent = "Ton compte est déjà activé.";
     authExtra.innerHTML = `<button id="forgotBtn" class="link-btn" type="button">Mot de passe oublié?</button>`;
     $("forgotBtn").addEventListener("click", () => configureMode("reset"));
@@ -109,14 +113,14 @@ function configureMode(mode) {
     credentialInput.type = "password";
     credentialInput.inputMode = "numeric";
     credentialInput.autocomplete = "off";
-    credentialHint.textContent = "Première connexion : valide ton identité avec ton numéro de fiche, puis choisis ton mot de passe.";
+    credentialHint.textContent = "Première connexion : entre ton numéro de fiche, puis choisis ton mot de passe.";
     addPasswordFields(false);
   } else if (mode === "reset") {
     credentialLabel.textContent = "Numéro de fiche";
     credentialInput.type = "password";
     credentialInput.inputMode = "numeric";
     credentialInput.autocomplete = "off";
-    credentialHint.textContent = "Ton numéro de fiche permet de confirmer ton identité.";
+    credentialHint.textContent = "Ton numéro de fiche permet de confirmer ton identité avant de choisir un nouveau mot de passe.";
     addPasswordFields(true);
   }
   loginBtn.textContent = buttonLabel();
@@ -143,9 +147,9 @@ loginForm.addEventListener("submit", async (event) => {
 
     if (state.loginMode === "teacher") {
       setLoading(true, "Connexion...");
-      const data = await api(DATA_ENDPOINT, { action: "teacherLogin", email: state.email, password: credentialInput.value });
+      const data = await api(TEACHER_ENDPOINT, { action: "login", email: state.email, password: credentialInput.value });
       state.teacherToken = data.token;
-      sessionStorage.setItem("results_teacher_token", data.token);
+      localStorage.setItem("results_teacher_token", data.token);
       await loadTeacherDashboard();
       return;
     }
@@ -191,8 +195,9 @@ emailInput.addEventListener("input", () => {
   }
 });
 
-logoutBtn.addEventListener("click", () => {
-  sessionStorage.removeItem("results_teacher_token");
+logoutBtn.addEventListener("click", async () => {
+  const oldTeacherToken = state.teacherToken;
+  localStorage.removeItem("results_teacher_token");
   sessionStorage.removeItem("results_student_token");
   state.teacherToken = "";
   state.studentToken = "";
@@ -205,6 +210,9 @@ logoutBtn.addEventListener("click", () => {
   loginView.classList.remove("hidden");
   logoutBtn.classList.add("hidden");
   loginBtn.textContent = "Continuer";
+  if (oldTeacherToken) {
+    try { await api(TEACHER_ENDPOINT, { action: "logout", token: oldTeacherToken }); } catch {}
+  }
 });
 
 async function loadStudentDashboard() {
@@ -233,7 +241,7 @@ async function loadStudentDashboard() {
 }
 
 async function loadTeacherDashboard() {
-  const data = await api(DATA_ENDPOINT, { action: "teacherDashboard", token: state.teacherToken });
+  const data = await api(TEACHER_ENDPOINT, { action: "teacherDashboard", token: state.teacherToken });
   state.teacherAssignments = data.assignments || [];
   state.groupStats = data.groups || {};
   loginView.classList.add("hidden");
@@ -273,7 +281,7 @@ function renderAssignmentList() {
         const newTitle = title.textContent.trim();
         if (!newTitle || newTitle === assignment.title) { title.textContent = assignment.title; return; }
         try {
-          await api(DATA_ENDPOINT, { action: "saveAssignment", token: state.teacherToken, assignment: { ...assignment, title: newTitle } });
+          await api(TEACHER_ENDPOINT, { action: "saveAssignment", token: state.teacherToken, assignment: { ...assignment, title: newTitle } });
           assignment.title = newTitle;
           renderAssignmentList();
         } catch (err) { alert(err.message); title.textContent = assignment.title; }
@@ -301,7 +309,7 @@ $("backToAssignments").addEventListener("click", () => {
 });
 
 async function openAssignment(id) {
-  const data = await api(DATA_ENDPOINT, { action: "teacherAssignment", token: state.teacherToken, assignmentId:id });
+  const data = await api(TEACHER_ENDPOINT, { action: "teacherAssignment", token: state.teacherToken, assignmentId:id });
   state.currentAssignment = data.assignment;
   state.currentStudents = data.students || [];
   fillAssignmentEditor();
@@ -338,7 +346,7 @@ $("saveAssignmentBtn").addEventListener("click", async () => {
   try {
     $("saveState").textContent = "Enregistrement...";
     const assignment = collectAssignment();
-    const data = await api(DATA_ENDPOINT, { action:"saveAssignment", token:state.teacherToken, assignment });
+    const data = await api(TEACHER_ENDPOINT, { action:"saveAssignment", token:state.teacherToken, assignment });
     $("saveState").textContent = "Enregistré";
     await loadTeacherDashboard();
     await openAssignment(data.id);
@@ -381,7 +389,7 @@ $("saveResultBtn").addEventListener("click", async () => {
   btn.textContent = "Enregistrement...";
   try {
     const grade = $("dialogGrade").value === "" ? null : Number($("dialogGrade").value);
-    await api(DATA_ENDPOINT, {
+    await api(TEACHER_ENDPOINT, {
       action:"saveResult",
       token:state.teacherToken,
       assignmentId:state.currentAssignment.id,
@@ -407,7 +415,7 @@ function formatNumber(value) { const n = Number(value); return Number.isInteger(
 
 (async function restoreSession(){
   if (state.teacherToken) {
-    try { await loadTeacherDashboard(); return; } catch { sessionStorage.removeItem("results_teacher_token"); state.teacherToken=""; }
+    try { await loadTeacherDashboard(); return; } catch { localStorage.removeItem("results_teacher_token"); state.teacherToken=""; }
   }
   if (state.studentToken) {
     try { await loadStudentDashboard(); return; } catch { sessionStorage.removeItem("results_student_token"); state.studentToken=""; }
