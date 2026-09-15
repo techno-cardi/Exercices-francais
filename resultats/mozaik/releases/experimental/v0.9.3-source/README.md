@@ -29,7 +29,8 @@ This beta starts from the known-good v0.8.2 extension lineage and the v0.9.2 cor
 - At sync time, the last known Gestion mapping can be used only as a navigation hint to open the correct group roster.
 - Old IDs are currentized to the current academic year before navigation.
 - The live official roster is read from the Mozaïk members API.
-- Supabase `school-roster` v3 validates the discovered roster against the active students already assigned to that Gestion group before changed Mozaïk identifiers are allowed to replace the stored configuration.
+- Supabase `school-roster` v4 validates the detected group suffix, current school-year prefix, matter subject code and official school-email roster before changed Mozaïk identifiers are allowed to replace the stored configuration.
+- For a changed mapping, the detected roster must be reasonably complete and strongly overlap the active students already assigned to that Gestion group.
 - If validation is insufficient, the existing configuration remains unchanged and normal sync falls back to it.
 - No fiche number is persisted by this discovery layer.
 
