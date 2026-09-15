@@ -5,11 +5,14 @@
   const ROSTER_ENDPOINT = 'https://ojyswaxuqwnqilrvtjll.supabase.co/functions/v1/school-roster';
 
   function knownGroups() {
-    if (typeof state === 'undefined') return [];
     const set = new Set();
-    Object.keys(state.groupStats || {}).forEach(g => g && set.add(String(g)));
-    (state.teacherAssignments || []).forEach(a => (a.groups || []).forEach(g => g && set.add(String(g))));
-    return [...set].sort((a,b) => a.localeCompare(b, 'fr', { numeric:true, sensitivity:'base' }));
+    if (typeof state !== 'undefined') {
+      Object.keys(state.groupStats || {}).forEach(g => g && set.add(String(g)));
+      (state.teacherAssignments || []).forEach(a => (a.groups || []).forEach(g => g && set.add(String(g))));
+    }
+    document.querySelectorAll('.group-nav[data-group]').forEach(el => el.dataset.group && set.add(String(el.dataset.group)));
+    document.querySelectorAll('#assignmentGroupFilter option').forEach(o => o.value && set.add(String(o.value)));
+    return [...set].filter(Boolean).sort((a,b) => a.localeCompare(b, 'fr', { numeric:true, sensitivity:'base' }));
   }
 
   function escAttr(v) {
@@ -184,9 +187,29 @@
       };
 
       const groupChoices = document.getElementById('groupChoices');
-      groupChoices?.addEventListener('change', () => refreshCopyOptions());
+      groupChoices?.addEventListener('change', () => {
+        if (state.currentAssignment && !state.currentAssignment.id) {
+          const checked = [...groupChoices.querySelectorAll('input:checked')].map(i => String(i.value));
+          if (checked.length) state.currentAssignment.groups = checked;
+        }
+        refreshCopyOptions();
+      });
+
       const groupSelect = document.getElementById('detailGroupSelect');
       groupSelect?.addEventListener('change', () => setTimeout(() => refreshMappingBadge(true), 0));
+
+      const refreshNewWorkUi = () => {
+        if (!state.currentAssignment || state.currentAssignment.id) return;
+        renderAllGroupChoices();
+        ensureCopyControl();
+      };
+      document.querySelectorAll('#newAssignmentBtn,#newAssignmentBtn2').forEach(btn => {
+        if (btn.dataset.cardinalAllGroupsV0951 === '1') return;
+        btn.dataset.cardinalAllGroupsV0951 = '1';
+        btn.addEventListener('click', () => {
+          [0, 50, 180, 450].forEach(ms => setTimeout(refreshNewWorkUi, ms));
+        }, true);
+      });
 
       renderAllGroupChoices();
       ensureCopyControl();
