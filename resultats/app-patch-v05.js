@@ -35,6 +35,15 @@
     }
   }
 
+  function ensureV07() {
+    if (document.getElementById('cardinal-app-patch-v07') || window.__cardinalV07Installed) return;
+    const script = document.createElement('script');
+    script.id = 'cardinal-app-patch-v07';
+    script.src = 'app-patch-v07.js?v=3';
+    script.async = false;
+    (document.body || document.documentElement).appendChild(script);
+  }
+
   function installImmediateMozaikFeedback() {
     const btn = document.getElementById('syncMozaikBtn');
     if (!btn) {
@@ -170,6 +179,7 @@
 
   ensureV04();
   ensureFormativeClient();
+  ensureV07();
   installImmediateMozaikFeedback();
   waitForAppNavigation();
 })();
