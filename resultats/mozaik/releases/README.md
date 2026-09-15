@@ -21,11 +21,43 @@ Confirmed behaviors include:
 - Gestion -> Mozaïk synchronization;
 - non-bulletin Mozaïk activity creation with `ponderation:null`.
 
-Use this ZIP as the source baseline for the next stable extension version.
+Use this ZIP as the rollback/source baseline until a newer build completes real end-to-end testing.
 
-Important: `resultats/mozaik/extension/` currently contains an older 0.8.1-style source state and must not be treated as an exact mirror of this archive.
+Important: `resultats/mozaik/extension/` is not automatically authoritative just because it is the public source directory. Compare it with the exact tested archive before promotion/recovery.
 
-## Experimental archive
+## Current test candidate
+
+### `experimental/cardinal-mozaik-extension-v0.9.3-beta.zip`
+
+Status: **implemented beta, ready for controlled testing, not yet production**
+
+SHA-256:
+
+`52c422480b3b3c8fa77f67223970c6b555c56588e324345b87a9995e1cfeaf7d`
+
+Git blob SHA:
+
+`97d7c2b2aa34e7429d5a55c60617afa0169e3719`
+
+Companion notes/source additions:
+
+`experimental/v0.9.3-source/`
+
+Main changes:
+
+- Formative stays visually untouched on normal page load;
+- teacher actions start from the Chrome extension popup;
+- temporary Formative UI is injected only after an explicit action and uses stealth/neutral wording;
+- automatic Formative class/question detection;
+- simple Formative -> ChatGPT -> Formative correction bridge with local preview;
+- optional comments and guarded grade writes;
+- global Formative evaluation -> one Gestion result path;
+- automatic Mozaïk group/course/matter discovery;
+- official Mozaïk roster extraction and backend validation before changed group IDs are saved.
+
+Do not promote v0.9.3 until the test sequence in `resultats/docs/CURRENT_STATE.md` has passed.
+
+## Older experimental archive
 
 ### `experimental/cardinal-mozaik-extension-v0.9.1-beta.zip`
 
