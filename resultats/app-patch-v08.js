@@ -90,6 +90,73 @@
     return [...set].sort((a,b) => a.localeCompare(b, 'fr', { numeric:true, sensitivity:'base' }));
   }
 
+  function clearWorkRoute() {
+    try {
+      const url = new URL(location.href);
+      url.searchParams.delete('travail');
+      url.searchParams.delete('groupe');
+      history.replaceState({}, '', url);
+    } catch {}
+  }
+
+  function installDynamicDashboard() {
+    try {
+      if (
+        typeof state === 'undefined' ||
+        typeof assignmentCards !== 'function' ||
+        typeof wireAssignmentCards !== 'function' ||
+        typeof competenceLabel !== 'function' ||
+        typeof formatNumber !== 'function'
+      ) {
+        setTimeout(installDynamicDashboard, 100);
+        return;
+      }
+      if (window.__cardinalDynamicDashboardV08) return;
+      window.__cardinalDynamicDashboardV08 = true;
+
+      renderDashboard = function() {
+        const groups = knownGroups();
+        if (!groups.length) {
+          document.getElementById('groupStats').innerHTML = '<div class="card" style="padding:28px">Aucun groupe actif.</div>';
+          document.getElementById('weightOverview').innerHTML = '';
+          document.getElementById('recentTitle').textContent = 'Travaux du groupe';
+          document.getElementById('recentAssignments').innerHTML = '<div class="card" style="padding:28px">Aucun travail.</div>';
+          return;
+        }
+        if (!groups.includes(String(state.dashboardGroup || ''))) {
+          state.dashboardGroup = groups[0];
+          localStorage.setItem('results_dashboard_group', groups[0]);
+        }
+        const selected = String(state.dashboardGroup);
+        document.querySelectorAll('.group-nav').forEach(b => b.classList.toggle('active', b.dataset.group === selected));
+        document.getElementById('groupStats').innerHTML = groups.map(g => `
+          <button class="card stat-card stat-button ${g === selected ? 'selected' : ''}" data-dashboard-group="${g}" type="button">
+            <div class="eyebrow">Groupe ${g}</div>
+            <div class="big">${state.groupStats[g] || 0}</div>
+            <div class="muted">élèves</div>
+          </button>`).join('');
+        document.querySelectorAll('[data-dashboard-group]').forEach(b => b.onclick = () => selectDashboardGroup(b.dataset.dashboardGroup, false));
+
+        const term = 1;
+        const kinds = ['lecture', 'ecriture', 'oral'];
+        document.getElementById('weightOverview').innerHTML = kinds.map(k => {
+          const total = (state.teacherAssignments || [])
+            .filter(a => (a.groups || []).includes(selected) && Number(a.term || 1) === term && a.competenceKind === k)
+            .reduce((sum, a) => sum + Number(a.weight || 0), 0);
+          const pct = Math.min(total, 100);
+          return `<div class="card weight-card"><div class="eyebrow">Étape ${term}</div><h3>${competenceLabel(k)}</h3><div class="progress"><span style="width:${pct}%"></span></div><div class="weight-line"><strong>${formatNumber(total)} / 100 %</strong><span class="muted">${total > 100 ? `+${formatNumber(total - 100)} %` : `${formatNumber(Math.max(0, 100 - total))} % restant`}</span></div></div>`;
+        }).join('');
+
+        const list = (state.teacherAssignments || []).filter(a => (a.groups || []).includes(selected)).slice(0, 8);
+        document.getElementById('recentTitle').textContent = `Travaux du groupe ${selected}`;
+        document.getElementById('recentAssignments').innerHTML = assignmentCards(list);
+        wireAssignmentCards(document.getElementById('recentAssignments'));
+      };
+    } catch {
+      setTimeout(installDynamicDashboard, 100);
+    }
+  }
+
   function rebuildGroupUi() {
     try {
       if (typeof state === 'undefined') return;
@@ -118,6 +185,7 @@
             b.type = 'button';
             b.textContent = `Groupe ${group}`;
             b.onclick = () => {
+              clearWorkRoute();
               if (typeof selectDashboardGroup === 'function') selectDashboardGroup(group, true);
             };
             anchor.insertAdjacentElement('afterend', b);
@@ -205,6 +273,7 @@
   }
 
   ensureGlobalImportPatch();
+  installDynamicDashboard();
   installSyncDiscovery();
   rebuildGroupUi();
   setInterval(rebuildGroupUi, 800);
