@@ -1,0 +1,6 @@
+--- v0.9.3/formative-stealth-v093.js
++++ v0.9.4/formative-stealth-v093.js
+@@
+   chrome.runtime.onMessage.addListener((message,sender,sendResponse)=>{
++    if(message?.type==='CARDINAL_SIMPLE_PING'){sendResponse({ok:true});return;}
+     if(message?.type!=='CARDINAL_SIMPLE_OPEN_CORRECTION'&&message?.type!=='CARDINAL_SIMPLE_SEND_GLOBAL')return;
