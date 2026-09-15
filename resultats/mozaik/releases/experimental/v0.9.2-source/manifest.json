@@ -35,7 +35,7 @@
     },
     {
       "matches": ["https://app.formative.com/formatives/*/results*"],
-      "js": ["formative-simple-ui.js"],
+      "js": ["formative-simple-ui.js", "formative-stealth-v092.js"],
       "run_at": "document_idle"
     },
     {
