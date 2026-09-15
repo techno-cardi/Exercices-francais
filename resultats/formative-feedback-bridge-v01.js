@@ -78,6 +78,20 @@
     }
   }
 
+  function refreshRestoredStudentDashboard() {
+    try {
+      if (!window.__cardinalStudentFeedbackDashboardWrapped) {
+        setTimeout(refreshRestoredStudentDashboard, 120);
+        return;
+      }
+      if (window.__cardinalStudentFeedbackInitialRefreshDone) return;
+      const view = document.getElementById('studentView');
+      if (typeof state === 'undefined' || !state.studentToken || !view || view.classList.contains('hidden')) return;
+      window.__cardinalStudentFeedbackInitialRefreshDone = true;
+      Promise.resolve(loadStudentDashboard()).catch(() => {});
+    } catch {}
+  }
+
   async function saveIncomingFeedback(payload) {
     if (!payload?.formativeId || !Array.isArray(payload?.items) || !payload.items.length) return;
     if (typeof state === 'undefined' || !state.teacherToken) {
@@ -148,5 +162,6 @@
 
   ensureStyles();
   installStudentDashboard();
+  setTimeout(refreshRestoredStudentDashboard, 350);
   setInterval(retryPending, 1800);
 })();
