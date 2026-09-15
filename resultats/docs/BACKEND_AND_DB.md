@@ -49,10 +49,14 @@ Relevant functions:
 | `school-student-auth` | `68455680-d59e-491e-be5f-c6f3561f500c` | 1 | false |
 | `mozaik-sync` | `f6d5c9c0-d700-432a-98e4-1f9537192030` | 3 | false |
 | `school-teacher-api` | `23d77dc4-aef6-448d-aed7-ae0de05c2ba4` | 3 | false |
-| `school-roster` | `0f7a3f03-325b-4b47-a9f4-123b16165d83` | 1 | false |
+| `school-roster` | `0f7a3f03-325b-4b47-a9f4-123b16165d83` | 3 | false |
 | `school-formative-link` | `a6a95bd6-53e2-4bd0-bc75-3357950a9a8e` | 1 | false |
 | `school-teacher-delete-assignment` | `95a93d9a-0c2c-4298-a7a7-2cecaec77c87` | 1 | false |
 | `school-formative-feedback` | `ab137643-3a08-4968-af33-5d9abe3c9fce` | 1 | false |
+
+Current `school-roster` v3 deployment SHA-256:
+
+`6996eb8ac6ae30c3cc7310a0b49a319d18312040eae5ed8285ed9eab3d747696`
 
 `verify_jwt=false` is intentional for these functions because they implement their own publishable-key/session-token validation. Do not flip this blindly.
 
@@ -160,6 +164,8 @@ subject_code text
 updated_at timestamptz
 ```
 
+The v0.9.3 discovery flow may refresh these values, but only after authenticated backend validation. Do not let browser heuristics alone overwrite this table.
+
 ### `school_mozaik_links`
 
 ```text
@@ -244,6 +250,34 @@ updated_at timestamptz default now()
 ```
 
 Do not let this table force the product into storing every question-level comment in Gestion des notes. Per-question comments are optional. The current preferred model is that detailed question feedback stays primarily in Formative unless Kevin explicitly wants it copied to his portal.
+
+## `school-roster` behaviors that must be preserved
+
+`school-roster` v3 uses the same custom authentication model as the other teacher endpoints: publishable key plus a hashed, non-expired teacher session and an active teacher row.
+
+Current actions:
+
+```text
+get
+upsert
+discoveryConfig
+syncDiscovery
+```
+
+Important behavior:
+
+- `get` returns Gestion roster metadata for an assignment;
+- `upsert` updates verified first/last names for recognized active students;
+- `discoveryConfig` returns the currently stored `school_mozaik_groups` mapping for one known Gestion group so the extension can use it only as a fallback/navigation hint;
+- `syncDiscovery` validates the discovered Mozaïk group identifiers and official roster before a changed mapping is saved;
+- discovered roster emails are restricted to the school email domain and compared against active `school_students` in the target group;
+- when a roster is available, the current implementation requires meaningful overlap, including a minimum match count and at least a 60% match ratio under its denominator rule;
+- if the IDs differ from the stored mapping and no roster can be validated, the function refuses the replacement;
+- if the mapping is unchanged, an empty roster does not force an unnecessary failure;
+- official first/last names are only updated for recognized active students in that exact group;
+- fiche numbers are not part of this discovery write path.
+
+The reason for this validation is important: Mozaïk IDs discovered from portal traffic are useful, but a heuristic browser match must never silently point Gestion to the wrong matter/group.
 
 ## Teacher API behaviors that must be preserved
 
