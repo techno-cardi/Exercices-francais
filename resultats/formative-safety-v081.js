@@ -119,3 +119,12 @@
   observer.observe(document.documentElement, { childList: true, subtree: true });
   ensureSafetyControls();
 })();
+
+(() => {
+  if (document.getElementById('cardinal-app-patch-v06')) return;
+  const script = document.createElement('script');
+  script.id = 'cardinal-app-patch-v06';
+  script.src = 'app-patch-v06.js?v=1';
+  script.async = false;
+  (document.body || document.documentElement).appendChild(script);
+})();
