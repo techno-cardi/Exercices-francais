@@ -29,7 +29,7 @@
     if (!document.getElementById('cardinal-formative-safety-v081')) {
       const script = document.createElement('script');
       script.id = 'cardinal-formative-safety-v081';
-      script.src = 'formative-safety-v081.js?v=1';
+      script.src = 'formative-safety-v081.js?v=2';
       script.async = false;
       (document.body || document.documentElement).appendChild(script);
     }
