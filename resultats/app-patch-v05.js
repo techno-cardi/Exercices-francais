@@ -48,7 +48,7 @@
     if (document.getElementById('cardinal-app-patch-v09') || window.__cardinalV09Installed) return;
     const script = document.createElement('script');
     script.id = 'cardinal-app-patch-v09';
-    script.src = 'app-patch-v09.js?v=1';
+    script.src = 'app-patch-v09.js?v=2';
     script.async = false;
     (document.body || document.documentElement).appendChild(script);
   }
