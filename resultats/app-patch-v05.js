@@ -62,6 +62,15 @@
     (document.body || document.documentElement).appendChild(script);
   }
 
+  function ensureV11() {
+    if (document.getElementById('cardinal-app-patch-v11') || window.__cardinalV11Installed) return;
+    const script = document.createElement('script');
+    script.id = 'cardinal-app-patch-v11';
+    script.src = 'app-patch-v11.js?v=1';
+    script.async = false;
+    (document.body || document.documentElement).appendChild(script);
+  }
+
   function installImmediateMozaikFeedback() {
     const btn = document.getElementById('syncMozaikBtn');
     if (!btn) {
@@ -200,6 +209,7 @@
   ensureV08();
   ensureV09();
   ensureV10();
+  ensureV11();
   installImmediateMozaikFeedback();
   waitForAppNavigation();
 })();
