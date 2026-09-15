@@ -1,0 +1,48 @@
+{
+  "manifest_version": 3,
+  "name": "Cardinal - Gestion des notes",
+  "version": "0.9.2",
+  "description": "Pont simple entre Formative, ChatGPT, Gestion des notes et Mozaïk, avec détection automatique des groupes et listes Mozaïk.",
+  "permissions": [
+    "scripting",
+    "tabs",
+    "windows",
+    "webRequest",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://mozaikportail.ca/*",
+    "https://apiaffaires.mozaikportail.ca/*",
+    "https://techno-cardi.github.io/Exercices-francais/resultats/*",
+    "https://app.formative.com/*",
+    "https://svc.goformative.com/*",
+    "https://chatgpt.com/*",
+    "https://chat.openai.com/*"
+  ],
+  "background": {
+    "service_worker": "background-v092.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://techno-cardi.github.io/Exercices-francais/resultats/*"],
+      "js": ["console-bridge.js"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["https://mozaikportail.ca/*"],
+      "js": ["mozaik-ui.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://app.formative.com/formatives/*/results*"],
+      "js": ["formative-simple-ui.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://chatgpt.com/*", "https://chat.openai.com/*"],
+      "js": ["chatgpt-ui.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {"default_title": "Gestion des notes"}
+}
