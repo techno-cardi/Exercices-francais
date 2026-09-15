@@ -1,0 +1,8 @@
+{
+  "version": "0.9.5.0",
+  "channel": "beta",
+  "releasedAt": "2026-09-15",
+  "sha256": "603aec17918edf5ce5f9a48ee4a43576c9e36460d7c31f8897b823736c61a233",
+  "distribution": "unpacked-until-chrome-web-store",
+  "chromeWebStoreId": null
+}
