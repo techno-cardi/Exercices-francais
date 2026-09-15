@@ -1,0 +1,14 @@
+--- v0.9.3/formative-simple-ui.js
++++ v0.9.4/formative-simple-ui.js
+@@
+-      .launcher{position:fixed;right:18px;bottom:18px;z-index:2147483646;display:flex;gap:8px;align-items:center}
++      .launcher{display:none!important;position:fixed;right:18px;bottom:18px;z-index:2147483646;gap:8px;align-items:center}
+@@
+-      <button id="correctBtn" class="primary">Corriger avec ChatGPT</button>
++      <button id="correctBtn" class="primary">Préparer une correction</button>
+@@
+-        <div class="actions"><button class="secondary" data-close="chooseModal">Annuler</button><button id="copyOpenBtn" class="primary">Copier et ouvrir ChatGPT</button></div>
++        <div class="actions"><button class="secondary" data-close="chooseModal">Annuler</button><button id="copyOpenBtn" class="primary">Copier les réponses</button></div>
+@@
+-        <div class="head"><div><div class="eyebrow">Retour de ChatGPT</div><h2 id="previewTitle">Vérifier avant publication</h2></div><button class="close" data-close="previewModal">×</button></div>
++        <div class="head"><div><div class="eyebrow">Retour de correction</div><h2 id="previewTitle">Vérifier avant publication</h2></div><button class="close" data-close="previewModal">×</button></div>
