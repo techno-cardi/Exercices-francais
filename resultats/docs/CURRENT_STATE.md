@@ -2,289 +2,194 @@
 
 Last updated: **2026-09-15**
 
-This file is the first status file a future ChatGPT should read after `CHATGPT_PROJECT_INSTRUCTIONS.md`.
+This is the first status file a future ChatGPT should read after `CHATGPT_PROJECT_INSTRUCTIONS.md`.
 
 ## Executive status
 
-The production system is usable today for:
+The production system is usable for:
 
-- manual assignment creation in Gestion des notes;
-- entering/editing grades and feedback in Gestion des notes;
+- manual assignment creation and grade entry in Gestion des notes;
 - student result viewing;
-- sending a Gestion assignment/results to Mozaïk;
-- linking/importing Formative questions into Gestion des notes;
-- pushing Gestion grades back to one linked Formative question;
-- deleting an assignment from Gestion des notes without deleting the external Formative/Mozaïk item;
-- group-specific average and median display.
+- Formative -> ChatGPT-assisted correction -> guarded return to Formative;
+- global Formative evaluation -> one Gestion assignment/result;
+- Gestion -> Mozaïk synchronization;
+- assignment deletion from Gestion without silently deleting the external Formative/Mozaïk item;
+- group-specific average/median display.
 
-The preferred Formative architecture is:
+Preferred evaluation flow:
 
-`Formative question -> ChatGPT-assisted correction when needed -> results back into that Formative question -> global Formative evaluation result -> Gestion des notes -> Mozaïk`
+`Formative -> question-level correction in Formative -> one global Formative result -> Gestion des notes -> Mozaïk`
 
-Formative remains the source of truth for question-level grading, including its auto-corrected questions. Gestion des notes should normally contain one final/global result for a Formative evaluation, not one assignment per question.
+Formative remains the question-level source of truth. Gestion normally stores the final/global evaluation result rather than one assignment per Formative question.
 
 ## Extension status
 
-### Known-good production baseline
+### Last fully exercised candidate before durability rewrite
 
-**v0.8.2 is still the last extension version verified in real use.**
+Kevin ran the controlled checklist successfully with **v0.9.3.9** on 2026-09-15, including the Formative/ChatGPT flows and global Formative import behaviors that had been failing in earlier hotfixes.
 
-Exact archived ZIP:
+Important behaviors preserved from 0.9.3.x:
 
-`resultats/mozaik/releases/cardinal-mozaik-extension-v0.8.2.zip`
+- Cardinal does not leave correction/global buttons visibly injected in the Formative page;
+- actions are launched from the extension popup;
+- direct `/results/N` Formative URLs can preselect the question;
+- ChatGPT recognizes a final `Élève/Nom | Note | Commentaire` table, with Commentaire optional;
+- a failed Formative publication remains recoverable as a pending batch;
+- comments are preselected when comments exist;
+- changed student answers are detected before publishing;
+- Formative bridge PING/version handling avoids using an invalid old extension context;
+- global Formative import selects only questions with graded points by default and offers `Sélectionner tout` / `Sélectionner les questions corrigées`.
 
-SHA-256:
+### Current candidate: v0.9.4.0 durable beta
 
-`aeb96f880da6c25d744ad52eca676c961c6d192990ccca5c5ab2ec5964708721`
+v0.9.4.0 keeps the proven Formative/ChatGPT code path and changes the Mozaïk/group architecture so a future school year or different group numbers do not require hardcoded code edits.
 
-Real behaviors confirmed with this baseline:
+New durability rules:
 
-- Formative authentication/header capture works locally in Chrome.
-- Gestion -> Formative grade push works for a single linked question.
-- Kevin successfully pushed the real Dilemme du collier grades from Gestion des notes into Formative.
-- Formative -> Gestion linking/import works.
-- Mozaïk sync works after the non-bulletin `ponderation:null` fix.
-- Dilemme du collier was successfully sent from Gestion des notes to Mozaïk.
+- no active allow-list of `31`, `32`, `51` in teacher assignment save, global Formative import or Mozaïk sync preparation;
+- teacher dashboard groups are generated from active `school_students`;
+- Gestion sidebar, dashboard group cards, assignment filter and group choices are rebuilt from the live backend group list;
+- Formative section-title group extraction is generic rather than limited to `31|32|51`;
+- Mozaïk academic year is derived first from IDs actually observed in the authenticated portal;
+- the local calendar is only a navigation fallback;
+- previous Mozaïk mapping is only a navigation/ranking hint;
+- changed mapping must pass backend roster validation before replacing `school_mozaik_groups`;
+- multiple plausible candidates are sent to the backend and ambiguous candidates are refused instead of guessed.
 
-### v0.9.3 beta, current test candidate
+See `MOZAIK_DURABILITY_V094.md` for the detailed architecture and regression requirements.
 
-Exact archived beta ZIP:
+## Current live backend versions
 
-`resultats/mozaik/releases/experimental/cardinal-mozaik-extension-v0.9.3-beta.zip`
+Supabase project: `ojyswaxuqwnqilrvtjll`
 
-SHA-256:
+Live versions after the durability work:
 
-`52c422480b3b3c8fa77f67223970c6b555c56588e324345b87a9995e1cfeaf7d`
+- `school-results`: v1
+- `school-student-auth`: v1
+- `school-teacher-api`: **v4**
+- `school-roster`: **v5**
+- `mozaik-sync`: **v4**
+- `school-formative-link`: v1
+- `school-teacher-delete-assignment`: v1
+- `school-formative-feedback`: v1
 
-Git blob SHA:
+The live deployed source is authoritative. Fetch it from Supabase before editing/deploying.
 
-`97d7c2b2aa34e7429d5a55c60617afa0169e3719`
+`verify_jwt=false` remains intentional for the relevant functions because they use the existing publishable-key + application session-token validation. Do not flip this blindly.
 
-Companion source/notes:
+## school-roster v5
 
-`resultats/mozaik/releases/experimental/v0.9.3-source/`
+Important behavior:
 
-This beta is **implemented but not yet verified end-to-end in real use**. Do not call it the stable version until controlled tests pass.
+- `discoveryConfig` returns the last validated mapping as a hint;
+- `syncDiscovery` validates one live candidate;
+- `syncDiscoveryCandidates` validates several candidates against the expected active Gestion roster;
+- course and matter IDs must end with the exact requested group code;
+- course and matter IDs must encode the same academic-year start after the establishment prefix;
+- the subject code must match the numeric subject encoded in the matter ID;
+- year validity is no longer based primarily on today's calendar date;
+- changed mappings require sufficient roster coverage/precision;
+- ambiguous similarly strong candidates are rejected rather than selected silently;
+- official names are only updated for recognized active students in the exact group;
+- fiche numbers are not part of the discovery persistence path.
 
-Important v0.9.3 behavior:
+## mozaik-sync v4
 
-- **Formative receives no Cardinal content script on ordinary page load.** Opening or projecting Formative should look completely normal.
-- Teacher actions are launched from the Chrome extension popup.
-- Only when the teacher explicitly chooses `Préparer une correction` or `Envoyer le résultat global dans Gestion` does the extension inject the Formative helper UI.
-- Injected Formative UI is immediately put in stealth mode: no persistent launcher, no visible ChatGPT branding, and correction wording is neutral.
-- Formative class and selected question are detected automatically from live Formative state/URL when possible; otherwise the actual Formative classes/questions are offered for selection.
-- The correction prompt carries the question, points and responses so Kevin can calibrate naturally in ChatGPT with a rubric, examples, stricter/looser expectations or individual adjustments.
-- A ChatGPT-side button appears only while a Formative correction context exists.
-- The final human-readable `Élève | Note | Commentaire` table is parsed by the extension, with paste fallback if ChatGPT DOM detection ever changes.
-- Before any write, Formative gets a local preview. Ambiguous/unmatched names and invalid grades are not silently accepted.
-- Notes and comments remain independent choices.
-- Structured-rubric note writes remain blocked until rubric-level writes are explicitly supported.
-- Media-dependent questions/responses are not graded blindly.
-- The active correction context is stored locally in the extension, so switching ChatGPT accounts does not invalidate the Formative mapping.
+The former hardcoded check for groups 31/32/51 is gone.
 
-### Mozaïk automatic discovery in v0.9.3
+A sync group must now:
 
-The goal is that annual/group IDs should not need manual hardcoding when the portal exposes the current values.
+1. have a safe group-code format;
+2. exist among active `school_students`;
+3. belong to the assignment being synchronized;
+4. have a validated `school_mozaik_groups` mapping.
 
-v0.9.3 now:
+Normal prepare / claim / complete behavior remains.
 
-- observes real Mozaïk portal/API traffic to learn current group/course/matter identifiers;
-- currentizes a previously known group ID only as a navigation hint when needed;
-- can open the official group roster page during a requested sync if passive discovery is incomplete;
-- reads the official roster through the Mozaïk members API using the browser-local bearer;
-- never sends the Mozaïk bearer to GitHub, Supabase or ChatGPT;
-- does not persist student fiche numbers through this discovery flow;
-- sends the discovered group configuration plus school-email roster to the authenticated `school-roster` backend;
-- requires backend roster validation before a changed Mozaïk group mapping can replace the stored configuration;
-- falls back to the existing stored configuration if discovery cannot be validated.
+## school-teacher-api v4
 
-Automatic discovery runs as part of an intentional Gestion -> Mozaïk synchronization. It should not randomly open Mozaïk while Kevin is teaching.
+The former group allow-list is gone from:
 
-### Older experimental archive
+- dashboard group counts;
+- assignment creation/update;
+- Formative global import.
 
-Historical prototype only:
+Group lists are derived from active student records and every assignment/import group is validated against those records.
 
-`resultats/mozaik/releases/experimental/cardinal-mozaik-extension-v0.9.1-beta.zip`
+Student authentication itself was inspected and does not contain a 31/32/51 allow-list.
 
-SHA-256:
+## Gestion frontend
 
-`094bc156559e62cb6954f4e07ea134f73c6fa9f2a5f5f2b3c5eff80f20b77aa4`
+Main page: `resultats/index.html`
 
-That beta explored a more complex batching/session workflow and was superseded. Do not promote it just because its version number is above v0.8.2.
+It loads `app.js`, v04, v05 and v06. `app-patch-v05.js` now loads `app-patch-v08.js`.
 
-## Important source-directory warning
+`app-patch-v08.js` provides:
 
-The public checked-in directory:
+- dynamic group navigation/filter/choices;
+- dynamic dashboard group cards;
+- Mozaïk discovery V3 coordination;
+- server-side candidate validation before normal sync;
+- global Formative import helper loading.
 
-`resultats/mozaik/extension/`
+The base HTML still contains current-year group placeholders so the page has a usable skeleton before data loads, but v08 replaces those controls from the live backend list. They are not an authorization or business-rule source.
 
-is not yet the promoted v0.9.3 source. Do not overwrite production from an experimental folder until v0.9.3 passes real tests.
+## Mozaïk discovery V3
 
-For recovery, the exact archived ZIPs are authoritative for their respective builds.
+The extension service worker is `background-v094.js`, layered over the proven 0.9.3 code.
 
-## Production frontend state
+Discovery V3:
 
-Main page:
+1. observes actual Mozaïk URLs/resources;
+2. extracts establishment, course ID, matter ID, group suffix, subject and academic-year start;
+3. groups candidates by establishment/year;
+4. reads the official roster for candidate matter groups;
+5. navigates to the official roster page when identifiers are incomplete;
+6. uses the previous mapping only as a last navigation hint;
+7. sends one or more live candidates to Gestion for authenticated roster validation.
 
-`resultats/index.html`
+The browser-local Mozaïk bearer remains local and must never be sent to GitHub, Supabase or ChatGPT.
 
-It directly loads:
+## Current mappings
 
-```text
-app.js
-app-patch-v04.js?v=7
-app-patch-v05.js?v=7
-app-patch-v06.js?v=2
-```
+The production database still contains the validated 2026 mappings for groups 31, 32 and 51. The durability deployment did not rewrite them.
 
-`app-patch-v05.js` now also loads `app-patch-v07.js?v=3` dynamically.
+Their course and matter IDs both encode the 2026 academic-year start, which is internally consistent.
 
-`app-patch-v07.js` adds:
-
-- safe automatic Mozaïk group/roster discovery before sync when extension >= 0.9.3;
-- retrieval of the currently stored Mozaïk group mapping only as a fallback/navigation hint;
-- backend validation through `school-roster` before changed IDs are saved;
-- loading of `formative-global-v01.js` for global Formative import defaults.
-
-`app-patch-v06.js` preserves:
-
-- post-Mozaïk-sync teacher-data refresh so cards do not show stale state;
-- teacher-data refresh on navigation;
-- work statistics loader;
-- assignment deletion UI;
-- optional Formative feedback bridge loader.
-
-`work-stats-v01.js` displays mean and median for the selected group and updates after grade edits/group changes.
-
-## Backend status
-
-Supabase project:
-
-`ojyswaxuqwnqilrvtjll`
-
-The live deployed function remains authoritative when changing backend behavior.
-
-### `school-roster`
-
-Function ID:
-
-`0f7a3f03-325b-4b47-a9f4-123b16165d83`
-
-Live version:
-
-`4`
-
-Live deployment SHA-256:
-
-`602fd02a537ae0ee7bf2c4d43631045227219f62f7715525779014e92c92657a`
-
-Important v4 behavior:
-
-- custom teacher-session + publishable-key authentication remains in place;
-- `discoveryConfig` returns the existing stored mapping for one known Gestion group;
-- `syncDiscovery` validates the detected IDs against the target group suffix, current school-year prefix and subject code encoded in the matter-group ID;
-- discovered school-email roster membership is compared against active `school_students` before changed IDs can replace `school_mozaik_groups`;
-- when IDs are changing, the detected roster must be reasonably complete, with at least 70% of the expected group size present in the detected school-email list;
-- the matching roster must cover at least 60% of the expected Gestion group and at least 80% of the detected school-email roster must belong to that Gestion group;
-- if IDs are changing and no sufficiently complete/valid roster can be verified, the backend refuses the replacement;
-- official first/last names are only updated for recognized active students in that exact group.
-
-See `BACKEND_AND_DB.md` for the rest of the functions/schema/auth boundaries.
-
-## Global Formative result
-
-`formative-global-v01.js` and the v0.9.3 beta include a beta path for importing a whole Formative evaluation as one Gestion assignment.
-
-The intended rule remains:
-
-- Formative handles all question-level points, including auto-corrected questions;
-- the full evaluation is sent to Gestion only after correction is complete;
-- Gestion stores the one global assessment result for each student;
-- then the existing Gestion -> Mozaïk workflow is used.
-
-This path is **not yet considered verified** until it is tested on real Formative data. Do not claim production reliability yet.
-
-## Manual work remains first-class
-
-`+ Nouveau travail` in Gestion des notes remains available.
-
-For work that does not come from Formative, for example a paper dictation:
-
-`Nouveau travail -> Dictée -> enter grades in Gestion -> Mozaïk`
-
-`Dictée` is already one of the frontend activity types.
-
-## Assignment deletion
-
-`TEST synchro Mozaïk S5 - à supprimer` was removed from Gestion des notes. Database cascades removed its local test results and Mozaïk link.
-
-The teacher UI now has `Supprimer le travail` in assignment settings.
-
-Deletion from Gestion must not automatically delete the external activity in Mozaïk or Formative.
-
-## Dilemme du collier
-
-Real Gestion assignment ID:
-
-`0080e18b-9209-478d-a069-0f2c94225fb5`
-
-Title:
-
-`SAÉ - Le dilemme du collier`
-
-Important history:
-
-- Gestion des notes contained the real grades.
-- Early Formative values were development/test data and must not be treated as authoritative historical grades.
-- Kevin later successfully pushed the real Gestion grades to Formative.
-- The assignment successfully synchronized to Mozaïk after fixing the non-bulletin weighting payload.
-
-Use this assignment as a regression reference, but do not overwrite its real grades casually during development.
+Do not create fake production students/groups solely to simulate a future school year. The generic future-group path should be exercised when a real active roster exists.
 
 ## Mozaïk regression rule
 
-For `reportCardEnabled=false`, the official portal behavior proved:
+For `reportCardEnabled=false`, proven official portal behavior is:
 
 `parametresEvaluation.ponderation = null`
 
 Do not regress this.
 
+The real `SAÉ - Le dilemme du collier` synchronization remains an important regression reference. Do not casually overwrite its real grades during development.
+
 ## Formative regression rules
 
-Known working numeric-grade and feedback mutations are documented in `FORMATIVE_PROTOCOL.md`.
+- do not turn unanswered/incomplete responses into zero automatically;
+- do not invent unsupported feedback mutations;
+- do not assume an empty rubric-level payload is safe for rubric-enabled questions;
+- preserve preflight checks for changed answers/max scores;
+- preserve the pending-batch recovery path;
+- keep Formative authorization/cookies inside the local extension;
+- avoid MutationObservers that rewrite the same observed Formative DOM, which previously caused a self-triggering freeze.
 
-Do not invent a Formative edit-feedback mutation.
+## Promotion test for v0.9.4.0
 
-Do not assume empty `rubricLevels` is safe for rubric-enabled questions.
+Before calling v0.9.4.0 stable:
 
-Do not turn unanswered/incomplete responses into zero automatically.
+1. install/reload v0.9.4.0 and hard-refresh Gestion, Formative and ChatGPT;
+2. verify Gestion displays the current groups 31, 32 and 51 from backend data;
+3. quick regression-test Formative correction -> ChatGPT table -> Formative preview/publish;
+4. quick regression-test global Formative -> Gestion and corrected-question selection;
+5. open an existing safe Gestion assignment for group 51 and start Mozaïk sync;
+6. verify UI reports automatic validation of group 51 and academic year 2026-2027;
+7. verify the normal Mozaïk create/update flow completes;
+8. if the activity is already linked, verify update rather than duplicate creation;
+9. regression-test a non-bulletin activity and preserve `ponderation:null`.
 
-Do not expose Formative Authorization headers/cookies outside the local browser extension.
-
-## What is implemented but still needs real testing
-
-The following now exist in v0.9.3 beta but are **not yet promoted as stable**:
-
-- discreet extension-popup launch from Formative with no automatic visible Formative UI;
-- automatic Formative class/question detection;
-- Formative answer export to ChatGPT for natural calibration;
-- ChatGPT result-table recognition and return to the original Formative question;
-- local preview and guarded Formative publication;
-- optional comments;
-- global Formative evaluation import into Gestion;
-- automatic Mozaïk group/course/matter discovery plus official-roster validation.
-
-## Safe test sequence before promotion
-
-1. Keep v0.8.2 available as rollback.
-2. Install v0.9.3 beta on a test browser/profile or controlled Chrome extension load.
-3. Open Formative and verify **nothing Cardinal/ChatGPT appears on the page before opening the extension popup**.
-4. Test `Préparer une correction` on one harmless text question with known answers.
-5. Verify the correct class and question are auto-selected.
-6. Correct/calibrate in ChatGPT and return notes only.
-7. Confirm preview, student matching and grade range validation before publishing.
-8. Test comments separately.
-9. Test global evaluation -> Gestion on a non-critical Formative assessment and compare every global total before accepting it.
-10. Test Gestion -> Mozaïk on a disposable/safe assignment and verify group + roster autodetection.
-11. Regression-test a non-bulletin activity so `ponderation:null` is preserved.
-12. Only after these tests, synchronize/promote `resultats/mozaik/extension/` and installer, then mark v0.9.3 stable.
+Keep the v0.9.3.9 ZIP available as immediate rollback while testing v0.9.4.0.
