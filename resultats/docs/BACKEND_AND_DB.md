@@ -49,14 +49,14 @@ Relevant functions:
 | `school-student-auth` | `68455680-d59e-491e-be5f-c6f3561f500c` | 1 | false |
 | `mozaik-sync` | `f6d5c9c0-d700-432a-98e4-1f9537192030` | 3 | false |
 | `school-teacher-api` | `23d77dc4-aef6-448d-aed7-ae0de05c2ba4` | 3 | false |
-| `school-roster` | `0f7a3f03-325b-4b47-a9f4-123b16165d83` | 3 | false |
+| `school-roster` | `0f7a3f03-325b-4b47-a9f4-123b16165d83` | 4 | false |
 | `school-formative-link` | `a6a95bd6-53e2-4bd0-bc75-3357950a9a8e` | 1 | false |
 | `school-teacher-delete-assignment` | `95a93d9a-0c2c-4298-a7a7-2cecaec77c87` | 1 | false |
 | `school-formative-feedback` | `ab137643-3a08-4968-af33-5d9abe3c9fce` | 1 | false |
 
-Current `school-roster` v3 deployment SHA-256:
+Current `school-roster` v4 deployment SHA-256:
 
-`6996eb8ac6ae30c3cc7310a0b49a319d18312040eae5ed8285ed9eab3d747696`
+`602fd02a537ae0ee7bf2c4d43631045227219f62f7715525779014e92c92657a`
 
 `verify_jwt=false` is intentional for these functions because they implement their own publishable-key/session-token validation. Do not flip this blindly.
 
@@ -253,7 +253,7 @@ Do not let this table force the product into storing every question-level commen
 
 ## `school-roster` behaviors that must be preserved
 
-`school-roster` v3 uses the same custom authentication model as the other teacher endpoints: publishable key plus a hashed, non-expired teacher session and an active teacher row.
+`school-roster` v4 uses the same custom authentication model as the other teacher endpoints: publishable key plus a hashed, non-expired teacher session and an active teacher row.
 
 Current actions:
 
@@ -270,10 +270,14 @@ Important behavior:
 - `upsert` updates verified first/last names for recognized active students;
 - `discoveryConfig` returns the currently stored `school_mozaik_groups` mapping for one known Gestion group so the extension can use it only as a fallback/navigation hint;
 - `syncDiscovery` validates the discovered Mozaïk group identifiers and official roster before a changed mapping is saved;
+- both course and matter IDs must end with the exact Gestion group code;
+- both IDs must start with the detected establishment ID plus the current school-year start year;
+- the `subject_code` must exactly match the numeric subject encoded in the matter-group ID;
 - discovered roster emails are restricted to the school email domain and compared against active `school_students` in the target group;
-- when a roster is available, the current implementation requires meaningful overlap, including a minimum match count and at least a 60% match ratio under its denominator rule;
-- if the IDs differ from the stored mapping and no roster can be validated, the function refuses the replacement;
-- if the mapping is unchanged, an empty roster does not force an unnecessary failure;
+- the matching roster must cover at least 60% of the expected active Gestion group and at least 80% of the detected school-email roster must belong to that group;
+- when the detected IDs differ from the stored mapping, the discovered school-email roster must also contain at least 70% of the expected group size, with a minimum safeguard for small groups;
+- if the IDs differ from the stored mapping and no sufficiently complete/valid roster can be verified, the function refuses the replacement;
+- if the mapping is unchanged, an empty roster does not force an unnecessary replacement failure;
 - official first/last names are only updated for recognized active students in that exact group;
 - fiche numbers are not part of this discovery write path.
 
