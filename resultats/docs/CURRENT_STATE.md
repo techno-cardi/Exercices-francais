@@ -17,17 +17,17 @@ The production system is usable today for:
 - deleting an assignment from Gestion des notes without deleting the external Formative/Mozaïk item;
 - group-specific average and median display.
 
-The **next development goal is NOT another backend connector**. It is a simple ChatGPT correction bridge inside the existing Chrome extension.
+The preferred Formative architecture is:
 
-Desired end-user flow:
+`Formative question -> ChatGPT-assisted correction when needed -> results back into that Formative question -> global Formative evaluation result -> Gestion des notes -> Mozaïk`
 
-`Formative question -> ChatGPT correction -> results back into that Formative question -> when evaluation is complete, global Formative result -> Gestion des notes -> Mozaïk`
+Formative remains the source of truth for question-level grading, including its auto-corrected questions. Gestion des notes should normally contain one final/global result for a Formative evaluation, not one assignment per question.
 
 ## Extension status
 
-### Known-good baseline
+### Known-good production baseline
 
-**v0.8.2 is the last extension version verified in real use.**
+**v0.8.2 is still the last extension version verified in real use.**
 
 Exact archived ZIP:
 
@@ -36,8 +36,6 @@ Exact archived ZIP:
 SHA-256:
 
 `aeb96f880da6c25d744ad52eca676c961c6d192990ccca5c5ab2ec5964708721`
-
-That ZIP contains the exact verified code, including the full fixed `background-v081.js` used in the working build.
 
 Real behaviors confirmed with this baseline:
 
@@ -48,21 +46,61 @@ Real behaviors confirmed with this baseline:
 - Mozaïk sync works after the non-bulletin `ponderation:null` fix.
 - Dilemme du collier was successfully sent from Gestion des notes to Mozaïk.
 
-### Important source-directory warning
+### v0.9.3 beta, current test candidate
 
-The checked-in directory:
+Exact archived beta ZIP:
 
-`resultats/mozaik/extension/`
+`resultats/mozaik/releases/experimental/cardinal-mozaik-extension-v0.9.3-beta.zip`
 
-currently still identifies itself as **0.8.1** and its checked-in `background-v081.js` is an older overlay that imports `background-v08.js`.
+SHA-256:
 
-It is **not an exact textual mirror of the verified v0.8.2 ZIP**.
+`52c422480b3b3c8fa77f67223970c6b555c56588e324345b87a9995e1cfeaf7d`
 
-Therefore, when starting the next stable extension version, unpack/use the archived v0.8.2 ZIP as the baseline and compare deliberately. Do not assume the current `/extension/` directory is the known-good source merely because it is in `main`.
+Git blob SHA:
 
-Only replace/synchronize the public `/extension/` source and installer after the new version passes controlled end-to-end tests.
+`97d7c2b2aa34e7429d5a55c60617afa0169e3719`
 
-### Experimental archive
+Companion source/notes:
+
+`resultats/mozaik/releases/experimental/v0.9.3-source/`
+
+This beta is **implemented but not yet verified end-to-end in real use**. Do not call it the stable version until controlled tests pass.
+
+Important v0.9.3 behavior:
+
+- **Formative receives no Cardinal content script on ordinary page load.** Opening or projecting Formative should look completely normal.
+- Teacher actions are launched from the Chrome extension popup.
+- Only when the teacher explicitly chooses `Préparer une correction` or `Envoyer le résultat global dans Gestion` does the extension inject the Formative helper UI.
+- Injected Formative UI is immediately put in stealth mode: no persistent launcher, no visible ChatGPT branding, and correction wording is neutral.
+- Formative class and selected question are detected automatically from live Formative state/URL when possible; otherwise the actual Formative classes/questions are offered for selection.
+- The correction prompt carries the question, points and responses so Kevin can calibrate naturally in ChatGPT with a rubric, examples, stricter/looser expectations or individual adjustments.
+- A ChatGPT-side button appears only while a Formative correction context exists.
+- The final human-readable `Élève | Note | Commentaire` table is parsed by the extension, with paste fallback if ChatGPT DOM detection ever changes.
+- Before any write, Formative gets a local preview. Ambiguous/unmatched names and invalid grades are not silently accepted.
+- Notes and comments remain independent choices.
+- Structured-rubric note writes remain blocked until rubric-level writes are explicitly supported.
+- Media-dependent questions/responses are not graded blindly.
+- The active correction context is stored locally in the extension, so switching ChatGPT accounts does not invalidate the Formative mapping.
+
+### Mozaïk automatic discovery in v0.9.3
+
+The goal is that annual/group IDs should not need manual hardcoding when the portal exposes the current values.
+
+v0.9.3 now:
+
+- observes real Mozaïk portal/API traffic to learn current group/course/matter identifiers;
+- currentizes a previously known group ID only as a navigation hint when needed;
+- can open the official group roster page during a requested sync if passive discovery is incomplete;
+- reads the official roster through the Mozaïk members API using the browser-local bearer;
+- never sends the Mozaïk bearer to GitHub, Supabase or ChatGPT;
+- does not persist student fiche numbers through this discovery flow;
+- sends the discovered group configuration plus school-email roster to the authenticated `school-roster` backend;
+- requires backend roster validation before a changed Mozaïk group mapping can replace the stored configuration;
+- falls back to the existing stored configuration if discovery cannot be validated.
+
+Automatic discovery runs as part of an intentional Gestion -> Mozaïk synchronization. It should not randomly open Mozaïk while Kevin is teaching.
+
+### Older experimental archive
 
 Historical prototype only:
 
@@ -72,100 +110,17 @@ SHA-256:
 
 `094bc156559e62cb6954f4e07ea134f73c6fa9f2a5f5f2b3c5eff80f20b77aa4`
 
-This beta explored automatic batching, ChatGPT correction sessions, rubric guards and retry logic. Its correction UX became too complicated and was superseded by the simpler design below.
+That beta explored a more complex batching/session workflow and was superseded. Do not promote it just because its version number is above v0.8.2.
 
-**Do not promote or install it as the production baseline just because its version number is higher.**
+## Important source-directory warning
 
-## Next extension design to implement
+The public checked-in directory:
 
-The new version should start from the v0.8.2 known-good archive and add the smallest possible correction workflow.
+`resultats/mozaik/extension/`
 
-### On Formative
+is not yet the promoted v0.9.3 source. Do not overwrite production from an experimental folder until v0.9.3 passes real tests.
 
-Provide a simple action such as:
-
-`Corriger avec ChatGPT`
-
-or
-
-`Copier les réponses pour ChatGPT`
-
-For the selected/open question, the extension should prepare/copy:
-
-- Formative/evaluation context needed to avoid writing to the wrong place;
-- question number/text;
-- maximum points;
-- student responses;
-- enough hidden/included instructions that any ChatGPT knows to return a consistent, human-readable import table.
-
-Kevin must be free to discuss/calibrate normally in ChatGPT afterward. No extension form should force him to define a rubric ahead of time.
-
-Examples of normal calibration Kevin may do in chat:
-
-- “Je trouve que tu es trop généreux.”
-- “Cette réponse devrait avoir 6,5.”
-- “Voici mon barème.”
-- “Voici trois exemples de réponses et les notes que je donnerais.”
-- “Revois tout le groupe avec cette logique.”
-- “Notes seulement, pas de commentaires.”
-
-### On ChatGPT
-
-Use the **same Chrome extension**, not a second connector/plugin.
-
-Preferred UX: detect a compatible assistant correction response and offer a button such as:
-
-`Envoyer les résultats dans Formative`
-
-A simple copy/paste fallback must remain available if ChatGPT DOM/UI changes.
-
-Do not require visible technical identifiers like `R001`, `batchId`, raw JSON, or a special command from Kevin.
-
-A human-readable final response table such as `Élève | Note | Commentaire` is appropriate. Comments may be absent.
-
-### Before writing Formative
-
-The extension must locally validate and preview:
-
-- correct Formative/evaluation;
-- correct question;
-- recognized students;
-- ambiguous/unmatched students;
-- old score -> proposed score;
-- score in the valid `0..possiblePoints` range;
-- which comments will be added if comments were requested.
-
-Never silently guess an ambiguous student match.
-
-Nothing is written until Kevin confirms the preview.
-
-Notes and comments are separate choices. Comments are optional.
-
-### After the evaluation is fully corrected
-
-Do **not** create one Gestion assignment per Formative question.
-
-Formative is the source of truth for all question-level grading, including Formative auto-corrected questions.
-
-Add a simple action:
-
-`Envoyer le résultat global dans Gestion des notes`
-
-This should import/create one Gestion assignment representing the full evaluation and each student's final Formative total.
-
-The exact reliable Formative overall-result query/mapping must be confirmed against live Formative data before implementation. Do not invent a total field.
-
-Then use the existing Gestion -> Mozaïk workflow.
-
-## Manual work remains first-class
-
-`+ Nouveau travail` in Gestion des notes must stay available.
-
-Manual work such as a paper dictation does not need Formative:
-
-`Nouveau travail -> Dictée -> enter grades in Gestion -> Mozaïk`
-
-`Dictée` is already one of the frontend activity types.
+For recovery, the exact archived ZIPs are authoritative for their respective builds.
 
 ## Production frontend state
 
@@ -173,7 +128,7 @@ Main page:
 
 `resultats/index.html`
 
-It currently loads:
+It directly loads:
 
 ```text
 app.js
@@ -182,9 +137,18 @@ app-patch-v05.js?v=7
 app-patch-v06.js?v=2
 ```
 
-`app-patch-v06.js` currently adds/preserves:
+`app-patch-v05.js` now also loads `app-patch-v07.js?v=3` dynamically.
 
-- post-Mozaïk-sync teacher-data refresh so cards do not show a stale error/sync state;
+`app-patch-v07.js` adds:
+
+- safe automatic Mozaïk group/roster discovery before sync when extension >= 0.9.3;
+- retrieval of the currently stored Mozaïk group mapping only as a fallback/navigation hint;
+- backend validation through `school-roster` before changed IDs are saved;
+- loading of `formative-global-v01.js` for global Formative import defaults.
+
+`app-patch-v06.js` preserves:
+
+- post-Mozaïk-sync teacher-data refresh so cards do not show stale state;
 - teacher-data refresh on navigation;
 - work statistics loader;
 - assignment deletion UI;
@@ -192,7 +156,61 @@ app-patch-v06.js?v=2
 
 `work-stats-v01.js` displays mean and median for the selected group and updates after grade edits/group changes.
 
-`formative-feedback-bridge-v01.js` was added during the question-level feedback experiment. Keep it optional. The product should not be forced to duplicate every Formative question comment into Gestion des notes.
+## Backend status
+
+Supabase project:
+
+`ojyswaxuqwnqilrvtjll`
+
+The live deployed function remains authoritative when changing backend behavior.
+
+### `school-roster`
+
+Function ID:
+
+`0f7a3f03-325b-4b47-a9f4-123b16165d83`
+
+Live version:
+
+`3`
+
+Live deployment SHA-256:
+
+`6996eb8ac6ae30c3cc7310a0b49a319d18312040eae5ed8285ed9eab3d747696`
+
+Important v3 behavior:
+
+- custom teacher-session + publishable-key authentication remains in place;
+- `discoveryConfig` returns the existing stored mapping for one known Gestion group;
+- `syncDiscovery` validates discovered school-email roster membership against active `school_students` before changed IDs can replace `school_mozaik_groups`;
+- when a roster is supplied, discovery requires meaningful overlap, including at least 60% match ratio under the implemented denominator rule;
+- if IDs are changing and no roster can be validated, the backend refuses the replacement;
+- official first/last names are only updated for recognized active students in that group.
+
+See `BACKEND_AND_DB.md` for the rest of the functions/schema/auth boundaries.
+
+## Global Formative result
+
+`formative-global-v01.js` and the v0.9.3 beta include a beta path for importing a whole Formative evaluation as one Gestion assignment.
+
+The intended rule remains:
+
+- Formative handles all question-level points, including auto-corrected questions;
+- the full evaluation is sent to Gestion only after correction is complete;
+- Gestion stores the one global assessment result for each student;
+- then the existing Gestion -> Mozaïk workflow is used.
+
+This path is **not yet considered verified** until it is tested on real Formative data. Do not claim production reliability yet.
+
+## Manual work remains first-class
+
+`+ Nouveau travail` in Gestion des notes remains available.
+
+For work that does not come from Formative, for example a paper dictation:
+
+`Nouveau travail -> Dictée -> enter grades in Gestion -> Mozaïk`
+
+`Dictée` is already one of the frontend activity types.
 
 ## Assignment deletion
 
@@ -215,11 +233,11 @@ Title:
 Important history:
 
 - Gestion des notes contained the real grades.
-- Early Formative values were used as development/test data and must not be treated as authoritative historical grades.
+- Early Formative values were development/test data and must not be treated as authoritative historical grades.
 - Kevin later successfully pushed the real Gestion grades to Formative.
 - The assignment successfully synchronized to Mozaïk after fixing the non-bulletin weighting payload.
 
-Use this assignment as a regression reference, but do not overwrite its grades casually during development.
+Use this assignment as a regression reference, but do not overwrite its real grades casually during development.
 
 ## Mozaïk regression rule
 
@@ -229,11 +247,9 @@ For `reportCardEnabled=false`, the official portal behavior proved:
 
 Do not regress this.
 
-See `MOZAIK_PROTOCOL.md` for the authoritative observed object and endpoint behavior.
-
 ## Formative regression rules
 
-Known working numeric grade mutation and feedback mutations are documented in `FORMATIVE_PROTOCOL.md`.
+Known working numeric-grade and feedback mutations are documented in `FORMATIVE_PROTOCOL.md`.
 
 Do not invent a Formative edit-feedback mutation.
 
@@ -241,36 +257,32 @@ Do not assume empty `rubricLevels` is safe for rubric-enabled questions.
 
 Do not turn unanswered/incomplete responses into zero automatically.
 
-## Backend status
+Do not expose Formative Authorization headers/cookies outside the local browser extension.
 
-Supabase project:
+## What is implemented but still needs real testing
 
-`ojyswaxuqwnqilrvtjll`
+The following now exist in v0.9.3 beta but are **not yet promoted as stable**:
 
-See `BACKEND_AND_DB.md` for the current function IDs, schema, auth boundaries and API behaviors.
+- discreet extension-popup launch from Formative with no automatic visible Formative UI;
+- automatic Formative class/question detection;
+- Formative answer export to ChatGPT for natural calibration;
+- ChatGPT result-table recognition and return to the original Formative question;
+- local preview and guarded Formative publication;
+- optional comments;
+- global Formative evaluation import into Gestion;
+- automatic Mozaïk group/course/matter discovery plus official-roster validation.
 
-The live Supabase function is authoritative when deploying a backend change. Fetch it first with the Supabase connector.
+## Safe test sequence before promotion
 
-## What is NOT implemented yet
-
-As of this update, the following desired features are **design decisions, not production features**:
-
-- a ChatGPT-page button that sends correction results directly back to Formative;
-- the final simplified `Corriger avec ChatGPT` workflow described above;
-- robust parsing/matching of a ChatGPT human-readable grade table into the selected Formative question;
-- one-click import of the **global Formative evaluation result** into Gestion des notes.
-
-Do not tell Kevin these are already live until they have actually been built and tested.
-
-## Safe next development sequence
-
-1. Start from the archived v0.8.2 source, not the stale checked-in 0.8.1 overlay.
-2. Add only the simple Formative -> ChatGPT copy/export step first.
-3. Test on one harmless Formative question.
-4. Add ChatGPT response recognition/import with preview, preserving the copy/paste fallback.
-5. Test notes-only on one question.
-6. Test comments separately.
-7. Confirm/read the full-evaluation Formative totals from the real API.
-8. Implement global-result -> Gestion import.
-9. Regression-test Gestion -> Mozaïk, including Dilemme/non-bulletin behavior.
-10. Only then promote a new extension version as stable and synchronize `resultats/mozaik/extension/` + installer.
+1. Keep v0.8.2 available as rollback.
+2. Install v0.9.3 beta on a test browser/profile or controlled Chrome extension load.
+3. Open Formative and verify **nothing Cardinal/ChatGPT appears on the page before opening the extension popup**.
+4. Test `Préparer une correction` on one harmless text question with known answers.
+5. Verify the correct class and question are auto-selected.
+6. Correct/calibrate in ChatGPT and return notes only.
+7. Confirm preview, student matching and grade range validation before publishing.
+8. Test comments separately.
+9. Test global evaluation -> Gestion on a non-critical Formative assessment and compare every global total before accepting it.
+10. Test Gestion -> Mozaïk on a disposable/safe assignment and verify group + roster autodetection.
+11. Regression-test a non-bulletin activity so `ponderation:null` is preserved.
+12. Only after these tests, synchronize/promote `resultats/mozaik/extension/` and installer, then mark v0.9.3 stable.
