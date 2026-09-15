@@ -44,5 +44,8 @@
       "run_at": "document_idle"
     }
   ],
-  "action": {"default_title": "Gestion des notes"}
+  "action": {
+    "default_title": "Cardinal",
+    "default_popup": "popup.html"
+  }
 }
