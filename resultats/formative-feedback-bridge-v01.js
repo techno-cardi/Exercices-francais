@@ -4,6 +4,8 @@
 
   const FEEDBACK_ENDPOINT = 'https://ojyswaxuqwnqilrvtjll.supabase.co/functions/v1/school-formative-feedback';
   const FORMATIVE_EXT_SOURCE = 'cardinal-formative-extension';
+  let teacherFeedbackAssignmentId = '';
+  let teacherFeedbackItems = [];
 
   function escFb(v) {
     return String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
@@ -30,6 +32,10 @@
       .formative-student-feedback{padding:10px 12px;border:1px solid #dbe5f3;border-radius:12px;background:#f7f9fd}
       .formative-student-feedback strong{display:block;font-size:.78rem;color:#53657d;margin-bottom:4px}
       .formative-student-feedback p{margin:0;white-space:pre-wrap;line-height:1.45}
+      .formative-teacher-feedbacks{display:grid;gap:8px;margin-top:6px}
+      .formative-teacher-feedback{padding:10px 12px;border:1px solid #dbe5f3;border-radius:12px;background:#f7f9fd}
+      .formative-teacher-feedback strong{display:block;font-size:.78rem;color:#53657d;margin-bottom:4px}
+      .formative-teacher-feedback p{margin:0;white-space:pre-wrap;line-height:1.45}
     `;
     document.head.appendChild(style);
   }
@@ -92,6 +98,72 @@
     } catch {}
   }
 
+  function ensureTeacherFeedbackBox() {
+    let box = document.getElementById('dialogFormativeFeedbackBlock');
+    if (box) return box;
+    const body = document.querySelector('#resultDialog .dialog-body');
+    if (!body) return null;
+    box = document.createElement('div');
+    box.id = 'dialogFormativeFeedbackBlock';
+    box.className = 'hidden';
+    box.innerHTML = '<div class="field-label">Rétroactions Formative</div><div id="dialogFormativeFeedbacks" class="formative-teacher-feedbacks"></div>';
+    body.insertBefore(box, body.lastElementChild || null);
+    return box;
+  }
+
+  async function loadTeacherFeedbacks(assignmentId) {
+    if (!assignmentId || typeof state === 'undefined' || !state.teacherToken) return [];
+    if (teacherFeedbackAssignmentId === String(assignmentId)) return teacherFeedbackItems;
+    const d = await api(FEEDBACK_ENDPOINT, { action: 'teacherList', token: state.teacherToken, assignmentId });
+    teacherFeedbackAssignmentId = String(assignmentId);
+    teacherFeedbackItems = d.items || [];
+    return teacherFeedbackItems;
+  }
+
+  async function renderTeacherFeedbackFor(email) {
+    const box = ensureTeacherFeedbackBox();
+    const list = document.getElementById('dialogFormativeFeedbacks');
+    if (!box || !list || !state?.currentAssignment?.id) return;
+    list.innerHTML = '<div class="muted">Chargement...</div>';
+    box.classList.remove('hidden');
+    try {
+      const items = (await loadTeacherFeedbacks(state.currentAssignment.id))
+        .filter(x => String(x.student_email || '').toLowerCase() === String(email || '').toLowerCase());
+      if (!items.length) {
+        box.classList.add('hidden');
+        list.innerHTML = '';
+        return;
+      }
+      list.innerHTML = items.map(item => {
+        const label = item.question_number ? `Question ${escFb(item.question_number)}` : (item.question_label ? escFb(item.question_label) : 'Rétroaction');
+        return `<div class="formative-teacher-feedback"><strong>${label}</strong><p>${escFb(item.feedback || '')}</p></div>`;
+      }).join('');
+    } catch {
+      box.classList.add('hidden');
+      list.innerHTML = '';
+    }
+  }
+
+  function installTeacherDialog() {
+    try {
+      if (typeof openStudentDialog !== 'function' || typeof state === 'undefined' || typeof api !== 'function') {
+        setTimeout(installTeacherDialog, 80);
+        return;
+      }
+      if (window.__cardinalFormativeTeacherDialogWrapped) return;
+      window.__cardinalFormativeTeacherDialogWrapped = true;
+      ensureTeacherFeedbackBox();
+      const originalOpenStudentDialog = openStudentDialog;
+      openStudentDialog = function(email) {
+        const out = originalOpenStudentDialog.apply(this, arguments);
+        setTimeout(() => renderTeacherFeedbackFor(email), 0);
+        return out;
+      };
+    } catch {
+      setTimeout(installTeacherDialog, 80);
+    }
+  }
+
   async function saveIncomingFeedback(payload) {
     if (!payload?.formativeId || !Array.isArray(payload?.items) || !payload.items.length) return;
     if (typeof state === 'undefined' || !state.teacherToken) {
@@ -136,6 +208,8 @@
         formativeId: payload.formativeId,
         items: saveItems
       });
+      teacherFeedbackAssignmentId = '';
+      teacherFeedbackItems = [];
       sessionStorage.removeItem('pending_formative_chatgpt_feedback');
       if (typeof notify === 'function') notify(`${out.savedCount || 0} commentaire${Number(out.savedCount || 0) === 1 ? '' : 's'} Formative copié${Number(out.savedCount || 0) === 1 ? '' : 's'} dans Gestion des notes.`);
     } catch (error) {
@@ -162,6 +236,7 @@
 
   ensureStyles();
   installStudentDashboard();
+  installTeacherDialog();
   setTimeout(refreshRestoredStudentDashboard, 350);
   setInterval(retryPending, 1800);
 })();
