@@ -40,6 +40,36 @@ Current academic-year IDs are generated dynamically by the extension. The curren
 
 Do not hardcode the year forever. Existing extension logic currentizes IDs based on the school-year start.
 
+## Automatic group and roster discovery
+
+v0.9.3 beta adds a safer discovery layer so future academic-year/group identifiers can be learned from the real portal rather than manually rewritten.
+
+The preferred discovery order is:
+
+1. passively observe real Mozaïk portal/API resource URLs already loaded by the teacher;
+2. identify course-group and matter-group IDs whose suffix matches the Gestion group code;
+3. prefer the current academic year and the French course pattern where multiple candidates exist;
+4. if passive discovery is incomplete during an intentional sync, retrieve the last stored Gestion mapping as a navigation hint only;
+5. currentize the old IDs to the current academic year, open the official group roster page, and let Mozaïk reveal the live current identifiers;
+6. read the official roster from the members API locally in the authenticated browser;
+7. send only the discovered group metadata and school-email/name roster to the authenticated `school-roster` backend;
+8. allow the backend to replace `school_mozaik_groups` only if the roster validates against active Gestion students in that target group.
+
+Important boundaries:
+
+- autodiscovery should run as part of an intentional Gestion -> Mozaïk sync, not by randomly opening Mozaïk while Kevin is teaching;
+- previous IDs are a fallback/navigation hint, never sufficient proof by themselves to replace the mapping;
+- if a changed mapping cannot be validated by roster overlap, keep the existing stored mapping;
+- the browser-local bearer remains local and is never sent to GitHub, Supabase or ChatGPT;
+- fiche numbers are not persisted by the autodiscovery flow;
+- `school-roster` v3 is the server-side validation gate for changed identifiers.
+
+The members endpoint pattern used by the extension is:
+
+`GET /api/organisationscolaire/groupes/{establishmentId}/{groupMatterId}/membres`
+
+The roster extraction uses school email plus first/last name where available. Official names may be written back to `school_students` only when the email matches an active student in the exact Gestion group.
+
 ## Critical non-bulletin rule
 
 A real portal-created non-bulletin activity proved that:
