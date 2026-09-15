@@ -9,23 +9,55 @@
 
   function versionAtLeast(v, min) {
     const a=String(v||'0').split('.').map(Number), b=String(min||'0').split('.').map(Number);
-    for(let i=0;i<Math.max(a.length,b.length);i++){const x=a[i]||0,y=b[i]||0;if(x>y)return true;if(x<y)return false;}return true;
+    for(let i=0;i<Math.max(a.length,b.length);i++){
+      const x=a[i]||0,y=b[i]||0;
+      if(x>y)return true;
+      if(x<y)return false;
+    }
+    return true;
   }
 
   window.addEventListener('message', event => {
     if (event.source !== window || event.origin !== location.origin || event.data?.source !== EXT_SOURCE) return;
-    if (event.data.type !== 'MOZAIK_EXTENSION_DISCOVERY_RESULT') return;
-    const id=String(event.data.requestId||'');const p=pendingDiscovery.get(id);if(!p)return;
-    pendingDiscovery.delete(id);clearTimeout(p.timer);p.resolve(event.data.result||{ok:false,message:'Aucune réponse de détection.'});
+    if (event.data.type !== 'MOZAIK_EXTENSION_DISCOVERY_RESULT_V2') return;
+    const id=String(event.data.requestId||'');
+    const p=pendingDiscovery.get(id);
+    if(!p)return;
+    pendingDiscovery.delete(id);
+    clearTimeout(p.timer);
+    p.resolve(event.data.result||{ok:false,message:'Aucune réponse de détection.'});
   });
 
-  function discoverGroup(groupCode) {
+  function discoverGroup(groupCode, fallbackGroup) {
     return new Promise((resolve,reject)=>{
       const requestId=crypto.randomUUID();
-      const timer=setTimeout(()=>{pendingDiscovery.delete(requestId);reject(new Error('La détection automatique Mozaïk a expiré.'));},90000);
+      const timer=setTimeout(()=>{
+        pendingDiscovery.delete(requestId);
+        reject(new Error('La détection automatique Mozaïk a expiré.'));
+      },120000);
       pendingDiscovery.set(requestId,{resolve,reject,timer});
-      window.postMessage({source:PAGE_SOURCE,type:'MOZAIK_EXTENSION_DISCOVER_GROUP',requestId,groupCode:String(groupCode||''),force:false},location.origin);
+      window.postMessage({
+        source:PAGE_SOURCE,
+        type:'MOZAIK_EXTENSION_DISCOVER_GROUP_V2',
+        requestId,
+        groupCode:String(groupCode||''),
+        force:false,
+        fallbackGroup:fallbackGroup||null
+      },location.origin);
     });
+  }
+
+  async function getFallbackConfig(groupCode) {
+    try {
+      const r=await api(ROSTER_ENDPOINT,{
+        action:'discoveryConfig',
+        teacherToken:state.teacherToken,
+        groupCode:String(groupCode||'')
+      });
+      return r?.group||null;
+    } catch {
+      return null;
+    }
   }
 
   async function syncDiscoveryToBackend(result, groupCode) {
@@ -47,28 +79,34 @@
       if(btn.dataset.cardinalDiscoveryV07==='1')return;
       btn.dataset.cardinalDiscoveryV07='1';
       const original=btn.onclick;
+
       btn.onclick=async function(...args){
         const group=String(state.detailGroup||state.currentAssignment?.groups?.[0]||'');
-        const canDiscover=group && versionAtLeast(state.extensionVersion,'0.9.2');
+        const canDiscover=group && versionAtLeast(state.extensionVersion,'0.9.3');
         if(canDiscover){
-          const oldText=btn.textContent;const syncState=document.getElementById('syncState');
+          const oldText=btn.textContent;
+          const syncState=document.getElementById('syncState');
           try{
-            btn.disabled=true;btn.textContent='Détection Mozaïk...';
+            btn.disabled=true;
+            btn.textContent='Détection Mozaïk...';
             if(syncState)syncState.textContent=`Détection automatique du groupe ${group} et de la liste officielle des élèves…`;
-            const result=await discoverGroup(group);
+            const fallbackGroup=await getFallbackConfig(group);
+            const result=await discoverGroup(group,fallbackGroup);
             if(result?.ok){
               const saved=await syncDiscoveryToBackend(result,group);
               if(syncState&&saved?.ok!==false){
                 const n=Number(saved?.rosterUpdated||0);
-                syncState.textContent=`Groupe ${group} détecté automatiquement${n?` · ${n} nom${n===1?'':'s'} officiel${n===1?'':'s'} vérifié${n===1?'':'s'}`:''}. Préparation de la synchronisation…`;
+                const matched=Number(saved?.rosterMatched||0);
+                syncState.textContent=`Groupe ${group} détecté automatiquement${matched?` · ${matched} élève${matched===1?'':'s'} validé${matched===1?'':'s'}`:''}${n?` · ${n} nom${n===1?'':'s'} officiel${n===1?'':'s'} mis à jour`:''}. Préparation de la synchronisation…`;
               }
             } else if(syncState){
-              syncState.textContent='Détection automatique incomplète. J’utilise la configuration Mozaïk déjà enregistrée.';
+              syncState.textContent='Détection automatique incomplète. La configuration Mozaïk déjà enregistrée sera utilisée.';
             }
           } catch(error){
-            if(syncState)syncState.textContent='Détection automatique indisponible. J’utilise la configuration Mozaïk déjà enregistrée.';
+            if(syncState)syncState.textContent=`Détection automatique non validée. La configuration existante reste inchangée.${error?.message?` ${error.message}`:''}`;
           } finally {
-            btn.disabled=false;btn.textContent=oldText;
+            btn.disabled=false;
+            btn.textContent=oldText;
           }
         }
         return original.apply(this,args);
