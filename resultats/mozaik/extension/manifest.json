@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Cardinal - Gestion des notes",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "Synchronise Gestion des notes avec Mozaïk et Formative.",
   "permissions": [
     "scripting",
@@ -17,7 +17,7 @@
     "https://svc.goformative.com/*"
   ],
   "background": {
-    "service_worker": "background-v08.js"
+    "service_worker": "background-v081.js"
   },
   "content_scripts": [
     {
