@@ -13,6 +13,15 @@
     (document.body || document.documentElement).appendChild(script);
   }
 
+  function ensureFormativeFeedbackBridge() {
+    if (document.getElementById('cardinal-formative-feedback-bridge-v01')) return;
+    const script = document.createElement('script');
+    script.id = 'cardinal-formative-feedback-bridge-v01';
+    script.src = 'formative-feedback-bridge-v01.js?v=1';
+    script.async = false;
+    (document.body || document.documentElement).appendChild(script);
+  }
+
   async function refreshTeacherViews() {
     try {
       if (typeof refreshTeacherData !== 'function' || typeof state === 'undefined' || !state.teacherToken) return;
@@ -202,6 +211,7 @@
   }
 
   ensureWorkStats();
+  ensureFormativeFeedbackBridge();
   installSyncRefresh();
   installDeleteControl();
 })();
