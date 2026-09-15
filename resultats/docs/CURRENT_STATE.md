@@ -172,20 +172,22 @@ Function ID:
 
 Live version:
 
-`3`
+`4`
 
 Live deployment SHA-256:
 
-`6996eb8ac6ae30c3cc7310a0b49a319d18312040eae5ed8285ed9eab3d747696`
+`602fd02a537ae0ee7bf2c4d43631045227219f62f7715525779014e92c92657a`
 
-Important v3 behavior:
+Important v4 behavior:
 
 - custom teacher-session + publishable-key authentication remains in place;
 - `discoveryConfig` returns the existing stored mapping for one known Gestion group;
-- `syncDiscovery` validates discovered school-email roster membership against active `school_students` before changed IDs can replace `school_mozaik_groups`;
-- when a roster is supplied, discovery requires meaningful overlap, including at least 60% match ratio under the implemented denominator rule;
-- if IDs are changing and no roster can be validated, the backend refuses the replacement;
-- official first/last names are only updated for recognized active students in that group.
+- `syncDiscovery` validates the detected IDs against the target group suffix, current school-year prefix and subject code encoded in the matter-group ID;
+- discovered school-email roster membership is compared against active `school_students` before changed IDs can replace `school_mozaik_groups`;
+- when IDs are changing, the detected roster must be reasonably complete, with at least 70% of the expected group size present in the detected school-email list;
+- the matching roster must cover at least 60% of the expected Gestion group and at least 80% of the detected school-email roster must belong to that Gestion group;
+- if IDs are changing and no sufficiently complete/valid roster can be verified, the backend refuses the replacement;
+- official first/last names are only updated for recognized active students in that exact group.
 
 See `BACKEND_AND_DB.md` for the rest of the functions/schema/auth boundaries.
 
