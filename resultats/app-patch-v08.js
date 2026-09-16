@@ -55,10 +55,23 @@
         teacherToken: state.teacherToken,
         groupCode: String(groupCode || ''),
       });
-      return r?.group || null;
-    } catch {
-      return null;
+      return { ok:true, group:r?.group || null };
+    } catch (error) {
+      return { ok:false, group:null, error };
     }
+  }
+
+  function hasUsableStoredMapping(group, groupCode) {
+    const code = String(groupCode || '').trim();
+    if (!group || !code) return false;
+    const establishmentId = String(group.establishmentId || '').trim();
+    const groupCourseId = String(group.groupCourseId || '').trim();
+    const groupMatterId = String(group.groupMatterId || '').trim();
+    const subjectCode = String(group.subjectCode || '').trim();
+    return /^\d+$/.test(establishmentId) &&
+      !!subjectCode &&
+      groupCourseId.endsWith(`-${code}`) &&
+      groupMatterId.endsWith(`-${code}`);
   }
 
   async function syncDiscoveryToBackend(result, groupCode) {
@@ -231,14 +244,26 @@
         const canDiscover = group && versionAtLeast(state.extensionVersion, '0.9.4.0');
         if (!canDiscover) return original.apply(this, args);
 
-        const oldText = btn.textContent;
         const syncState = document.getElementById('syncState');
+        const config = await getFallbackConfig(group);
+
+        // A saved mapping has already passed the backend's roster validation. Do not
+        // reopen Mozaïk and revalidate the same group before every normal sync. The
+        // regular prepare -> claim -> extension flow will use this mapping directly.
+        if (!config.ok || hasUsableStoredMapping(config.group, group)) {
+          if (syncState && config.ok && config.group) {
+            const y = config.group.academicYearStart ? ` · ${config.group.academicYearStart}-${Number(config.group.academicYearStart)+1}` : '';
+            syncState.textContent = `Mapping Mozaïk déjà validé pour le groupe ${group}${y}. Préparation de la synchronisation…`;
+          }
+          return original.apply(this, args);
+        }
+
+        const oldText = btn.textContent;
         try {
           btn.disabled = true;
           btn.textContent = 'Détection Mozaïk...';
-          if (syncState) syncState.textContent = `Validation automatique du groupe ${group} dans Mozaïk…`;
-          const fallbackGroup = await getFallbackConfig(group);
-          const result = await discoverGroup(group, fallbackGroup);
+          if (syncState) syncState.textContent = `Première validation automatique du groupe ${group} dans Mozaïk…`;
+          const result = await discoverGroup(group, config.group);
           if (!result?.ok) throw new Error(result?.message || `Le groupe ${group} n’a pas pu être validé dans Mozaïk.`);
           const saved = await syncDiscoveryToBackend(result, group);
           if (!saved?.groupSaved) throw new Error('La configuration Mozaïk détectée n’a pas été validée par Gestion.');
