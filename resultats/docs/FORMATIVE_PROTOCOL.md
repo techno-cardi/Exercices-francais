@@ -1,6 +1,6 @@
 # Formative protocol
 
-This file documents only facts that have been observed or implemented. Do not invent GraphQL fields or mutation names.
+This document records the current Formative correction contract. Do not invent GraphQL fields, mutation names or text evidence.
 
 ## Role of Formative
 
@@ -10,24 +10,84 @@ For an evaluation containing auto-corrected and teacher-corrected questions, kee
 
 ## Current stable integration
 
-The last known-good extension is v0.8.2.
+Current stable extension: **Cardinal - Gestion des notes v1.0.2**.
 
-It can:
+The correction flow is:
 
-- capture the active Formative results page;
-- read the assignment/class context, roster, questions, answer IDs and current numeric points;
-- send selected Formative question totals into Gestion des notes;
-- link an existing Gestion assignment to one Formative question without necessarily replacing Gestion grades;
-- send grades from Gestion des notes back to a linked single Formative question.
+1. Open/select a Formative results question.
+2. Use the extension popup to prepare the correction.
+3. Cardinal extracts the exact Formative context, question definition, student answers and current points.
+4. Cardinal builds a ChatGPT prompt containing the evaluation protocol and opens/copies it for ChatGPT.
+5. ChatGPT returns a complete Markdown table `Élève | Note | Commentaire`.
+6. The ChatGPT bridge verifies that the table belongs to the active Formative question/session.
+7. Cardinal previews changes before publication.
+8. Cardinal writes notes/comments to Formative.
+9. Cardinal re-reads the server state and verifies the written points before reporting success.
 
-The working service worker in the verified v0.8.2 package is `background-v081.js`, despite the filename.
+## Authentication/session behavior
 
-Important auth behavior in v0.8.2:
+- capture the Formative request headers needed for GraphQL access;
+- keep the active Formative session in `chrome.storage.session` so a service-worker restart/reload can recover without writing the session as a long-lived local secret;
+- never send captured Formative authorization outside the local Chrome extension;
+- if `Préparer une correction` needs a Formative reload, the pending action resumes automatically after reload so the teacher does not have to click twice.
 
-- capture request headers such as `authorization`, `x-user-id`, `x-session-id`, `x-tab-id`, `x-app-version`, `x-anonymous-id`;
-- require a captured Formative `authorization` header before API use;
-- do not use `credentials: 'include'` for the cross-origin Formative GraphQL requests from the extension service worker;
-- never send the captured Formative auth outside the local Chrome extension.
+## Question decoding
+
+Cardinal must prefer the real Formative question definition over visible DOM heuristics.
+
+Observed useful fields include:
+
+- `_id`
+- `questionNumber`
+- `subtype`
+- `details.points`
+- `details.isRubricEnabled`
+- `details.choices`
+- `details.choiceLabels`
+- `details.correctAnswers`
+- `details.blanks`
+- `rubric`
+- rich `text`/DraftJS or Tiptap content
+
+Confirmed QCM decoding rule:
+
+`stored answer token -> index in details.choices -> label at the same index in details.choiceLabels`
+
+For fill-in-the-blank questions, preserve the blank order from the question definition and evaluate each returned field separately.
+
+When rich text contains DraftJS blocks, extract the actual block text so ChatGPT receives the full instruction rather than a generic `Question N` label.
+
+## Cardinal evaluation protocol v1.1
+
+Every prepared correction prompt includes the protocol text so the method does not depend on account memory or conversation history.
+
+The protocol requires ChatGPT to:
+
+1. correct independently of current Formative scores;
+2. establish success criteria from the instruction, detected correction reference and supplied sources before grading students;
+3. never invent text facts, line/page locations, quotations or unsupported evidence;
+4. stop short of definitive grading when a required source is missing;
+5. evaluate meaning rather than exact keyword matching unless exact language is what is being assessed;
+6. treat identical or semantically equivalent answers consistently;
+7. evaluate multi-part answers element by element and never count a duplicate twice;
+8. avoid penalizing students for a reasonable ambiguity in the question itself;
+9. perform a second silent consistency pass before returning the final table;
+10. ensure every final score can be justified from the instruction and available evidence;
+11. when the teacher supplies a corrigé, rubric, expected answer or correction examples, use that material as the primary pedagogical reference. Accept semantically equivalent answers unless exact wording is required. If the teacher reference clearly conflicts with the instruction or a verifiable source, surface the conflict instead of silently choosing one.
+
+## Local consistency guard before publication
+
+Cardinal performs deterministic checks on the returned table before allowing publication.
+
+Examples of conditions that can block publication:
+
+- two identical/equivalent structured responses receive different proposed scores;
+- an objective answer explicitly matching the detected correct reference is not given the expected full score;
+- the table contains a score outside `0..possiblePoints`;
+- the active Formative question/session no longer matches the table context;
+- a student answer changed after the correction was prepared.
+
+The local guard complements, but does not replace, the ChatGPT reasoning pass.
 
 ## Known grade mutation
 
@@ -39,7 +99,7 @@ Operation name:
 
 `ResultsSelectedItemSidebarGradeAnswers`
 
-Observed mutation:
+Observed mutation shape:
 
 ```graphql
 mutation ResultsSelectedItemSidebarGradeAnswers(
@@ -66,40 +126,19 @@ mutation ResultsSelectedItemSidebarGradeAnswers(
 }
 ```
 
-The stable connector groups answers that receive the same points/possiblePoints where useful and writes by exact `answerId`.
+Decimal grades are supported.
 
-Decimal grades have been confirmed to work.
+A write is not considered successful merely because the mutation returned. Cardinal requires `teacherGradeAnswers` to contain all requested answer IDs with the requested points, then performs a separate answer-details re-read and compares server points to the desired points. A short retry is allowed for propagation; a persistent mismatch is an error.
 
-Do not assume `rubricLevels: []` is safe for a question that actively uses a structured rubric. Detect rubric-enabled questions and block automatic grade writes until the exact rubric-level behavior has been verified.
+Do not assume `rubricLevels: []` is safe for a question that actively uses a structured rubric. Detect rubric-enabled questions and block automatic grade writes until exact rubric-level behavior has been verified.
 
-## Known teacher-feedback mutation
-
-Add textual feedback:
-
-Endpoint pattern:
-
-`POST https://svc.goformative.com/graphql/mutation/AddFeedbackMessage`
+## Known textual feedback mutation
 
 Operation name:
 
 `AddFeedbackMessage`
 
-Mutation:
-
-```graphql
-mutation AddFeedbackMessage($input: AddFeedbackMessageInput!) {
-  addFeedbackMessage(input: $input) {
-    feedbackMessage {
-      _id
-      delayed
-      __typename
-    }
-    __typename
-  }
-}
-```
-
-Input requires:
+Input includes:
 
 ```json
 {
@@ -113,113 +152,40 @@ Input requires:
 }
 ```
 
-The `text` field is a JSON string containing a ProseMirror/Tiptap document. Plain text can be wrapped as:
+The `text` field is a JSON string containing a ProseMirror/Tiptap document.
 
-```json
-{
-  "type": "doc",
-  "attrs": { "dir": "auto" },
-  "content": [
-    {
-      "type": "paragraph",
-      "attrs": { "dir": "auto", "textAlign": null },
-      "content": [
-        { "type": "text", "text": "COMMENT HERE" }
-      ]
-    }
-  ]
-}
-```
-
-The mutation returns a `feedbackMessage._id`. Store that ID if the app needs idempotent retry or later removal.
-
-## Known feedback removal mutation
-
-Operation name:
+Known removal operation:
 
 `RemoveFeedbackMessage`
 
-Mutation:
+No separate edit mutation has been confirmed. Do not claim one exists without a captured request.
 
-```graphql
-mutation RemoveFeedbackMessage($input: RemoveFeedbackMessageInput!) {
-  payload: removeFeedbackMessage(input: $input)
-}
-```
+## Publication safety rules
 
-Variables:
-
-```json
-{
-  "input": {
-    "feedbackMessageId": "FEEDBACK_MESSAGE_ID"
-  }
-}
-```
-
-No separate edit mutation has been confirmed. The observed UI behavior for changing feedback was compatible with remove + add. Do not claim a formal edit mutation exists until it is captured.
-
-## Question content facts already observed
-
-In Formative item data, a long-answer question was observed with fields including:
-
-- `_id`
-- `questionNumber`
-- `subtype: "longAnswer"`
-- `details.points`
-- `details.isRubricEnabled`
-- `rubric`
-- `text` as Tiptap/ProseMirror JSON string
-
-For example, the observed Q2 test item had `details.points: 10` and `details.isRubricEnabled: null`.
-
-When extracting question text for ChatGPT, parse the rich-text JSON safely instead of sending raw JSON if possible.
-
-## Safety behavior for imports into Gestion des notes
-
-The `school-teacher-api` Formative import currently treats selected questions as follows:
-
-- only students matched to the intended group are imported;
-- if any selected question for a student has no numeric points, that student is left untouched;
-- an incomplete answer must never become zero automatically;
-- when grades are imported into an already Mozaïk-linked assignment, the assignment/link should become dirty so the teacher knows Mozaïk is no longer current.
-
-The frontend safety layer also supports linking an existing Gestion assignment to Formative without overwriting existing Gestion grades by default.
-
-## Target ChatGPT-assisted correction UX
-
-The desired direction is intentionally simple and uses the same Chrome extension, not a second ChatGPT connector.
-
-Kevin should be able to:
-
-1. Open/select a Formative question.
-2. Click `Corriger avec ChatGPT` or `Copier les réponses pour ChatGPT`.
-3. Paste into ChatGPT and discuss the correction normally. He may provide a rubric, examples, adjust grades, say the correction is too generous, ask for a complete regrade, or request comments only when useful.
-4. Receive a human-readable table such as `Élève | Note | Commentaire` without having to request a special export format.
-5. Use the same extension on the ChatGPT page to offer `Envoyer les résultats dans Formative`, or use a simple paste/import fallback.
-6. Preview old -> new grades locally before any Formative write.
-7. Publish notes and comments independently.
-
-Do not require Kevin to manage visible answer codes, batch IDs, JSON, or an extra correction connector.
-
-Robustness must still exist underneath the simple UI:
-
-- no silent match when two students are ambiguous;
-- reject a grade outside `0..possiblePoints`;
+- do not turn unanswered/incomplete responses into zero automatically;
 - leave missing students untouched;
+- reject grades outside the question maximum;
+- preserve exact answer IDs and student matching internally;
 - show unmatched/ambiguous rows before publication;
-- verify the selected Formative and question before writing;
-- preferably map to exact Formative answer IDs internally after local student matching;
-- never publish on first click without a preview/confirmation.
+- verify assignment/section/question/session before writing;
+- preserve the pending-batch recovery path;
+- comments and numeric grades remain independently controllable;
+- never publish on first click without a local preview/confirmation;
+- never report success before server verification;
+- do not use a MutationObserver that rewrites the same Formative DOM it observes.
 
 ## Global result flow
 
-After the selected human-corrected questions are written back to Formative, Formative should contain the complete evaluation, including its own auto-corrected questions.
-
-The intended next action is:
+Once Formative contains the complete evaluation, including its own auto-corrected questions and any teacher/ChatGPT-reviewed questions, use:
 
 `Envoyer le résultat global dans Gestion des notes`
 
-That operation should create or update one Gestion assignment for the whole evaluation, with the evaluation's actual overall maximum and each student's final Formative total. It should not create one Gestion assignment per question.
+That operation creates or updates **one** Gestion assignment for the whole evaluation, using the evaluation's actual total maximum and each student's final Formative total. It must not create one Gestion assignment per question.
 
-Then Gestion des notes sends that global assignment to Mozaïk.
+The selection UI should default to questions that currently have a corrected numeric pointage, while still allowing `Sélectionner tout` and `Sélectionner les questions corrigées`.
+
+Gestion des notes then sends the global assignment to Mozaïk.
+
+## Historical failure that must not return
+
+An experimental v0.9.3 implementation used a MutationObserver that rewrote the DOM it was observing and could self-trigger until Formative froze. Current stable code deliberately avoids that pattern. Any future DOM observer must be read-only with respect to its observed subtree, or preferably avoided entirely.
