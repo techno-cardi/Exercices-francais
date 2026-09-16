@@ -1,8 +1,8 @@
 {
-  "version": "1.0.1",
+  "version": "1.0.2",
   "channel": "stable",
   "releasedAt": "2026-09-15",
-  "sha256": "ed76bc4fd8fc3da52c3e4eb23eefb87a1747c0114715732926ed2c9f0a6386d2",
+  "sha256": "91ca00c93181d6909db66f2ac9cb60a4b70d12ef2b62b02045c4fa34ff4448ef",
   "distribution": "manual-unpacked",
   "chromeWebStoreId": null
 }
