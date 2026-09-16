@@ -3,6 +3,31 @@
   window.__cardinalV06Installed = true;
 
   const DELETE_ASSIGNMENT_ENDPOINT = 'https://ojyswaxuqwnqilrvtjll.supabase.co/functions/v1/school-teacher-delete-assignment';
+  const CARDINAL_BRAND_ICON_URL = 'assets/cardinal-icon-v1.0.2.b64?v=1002';
+
+  async function installCardinalBrandIcon() {
+    try {
+      const response = await fetch(CARDINAL_BRAND_ICON_URL, { cache: 'no-store' });
+      if (!response.ok) return;
+      const b64 = (await response.text()).trim();
+      if (!b64) return;
+      const src = 'data:image/png;base64,' + b64;
+
+      document.querySelectorAll('[data-sync-icon]').forEach(img => {
+        if (img.src !== src) img.src = src;
+      });
+
+      let favicon = document.getElementById('syncFavicon');
+      if (!favicon) {
+        favicon = document.createElement('link');
+        favicon.id = 'syncFavicon';
+        favicon.rel = 'icon';
+        favicon.type = 'image/png';
+        document.head.appendChild(favicon);
+      }
+      favicon.href = src;
+    } catch {}
+  }
 
   function ensureWorkStats() {
     if (document.getElementById('cardinal-work-stats-v01')) return;
@@ -210,6 +235,8 @@
     }
   }
 
+  installCardinalBrandIcon();
+  window.addEventListener('load', installCardinalBrandIcon, { once: true });
   ensureWorkStats();
   ensureFormativeFeedbackBridge();
   installSyncRefresh();
