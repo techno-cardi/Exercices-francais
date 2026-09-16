@@ -81,6 +81,15 @@
     btn.dataset.cardinalImmediateV05 = '1';
     btn.addEventListener('click', () => {
       if (btn.disabled) return;
+      const group = typeof state !== 'undefined'
+        ? String(state.detailGroup || state.currentAssignment?.groups?.[0] || '')
+        : '';
+      const syncState = document.getElementById('syncState');
+      if (syncState) {
+        syncState.textContent = group
+          ? `Vérification du groupe ${group} dans Mozaïk…`
+          : 'Vérification du groupe dans Mozaïk…';
+      }
       window.postMessage({
         source: 'cardinal-mozaik-console',
         type: 'MOZAIK_EXTENSION_SHOW_PROGRESS'
