@@ -1,23 +1,26 @@
 {
   "manifest_version": 3,
   "name": "Cardinal - Gestion des notes",
-  "version": "0.8.1",
-  "description": "Synchronise Gestion des notes avec Mozaïk et Formative.",
+  "version": "0.8.2",
+  "description": "Synchronise Gestion des notes avec Mozaïk et Formative et prépare les imports Formative depuis ChatGPT.",
   "permissions": [
     "scripting",
     "tabs",
     "windows",
-    "webRequest"
+    "webRequest",
+    "storage"
   ],
   "host_permissions": [
     "https://mozaikportail.ca/*",
     "https://apiaffaires.mozaikportail.ca/*",
     "https://techno-cardi.github.io/Exercices-francais/resultats/*",
     "https://app.formative.com/*",
-    "https://svc.goformative.com/*"
+    "https://svc.goformative.com/*",
+    "https://chatgpt.com/*",
+    "https://chat.openai.com/*"
   ],
   "background": {
-    "service_worker": "background-v081.js"
+    "service_worker": "background-v082.js"
   },
   "content_scripts": [
     {
@@ -44,6 +47,16 @@
       ],
       "js": [
         "formative-ui.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://chatgpt.com/*",
+        "https://chat.openai.com/*"
+      ],
+      "js": [
+        "chatgpt-bridge.js"
       ],
       "run_at": "document_idle"
     }
