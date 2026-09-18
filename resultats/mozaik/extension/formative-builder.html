@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Cardinal · Import Formative</title>
+  <link rel="stylesheet" href="formative-builder.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="hero">
+      <div>
+        <div class="eyebrow">Cardinal</div>
+        <h1>Import Formative</h1>
+        <p id="subtitle">Révision du questionnaire généré par ChatGPT.</p>
+      </div>
+      <div class="badge" id="schemaBadge">cardinal.formative/1</div>
+    </header>
+
+    <section class="target card">
+      <div>
+        <h2>Formative cible</h2>
+        <p class="muted">Ouvre le questionnaire Formative dans un autre onglet, puis détecte-le ici.</p>
+      </div>
+      <div class="target-row">
+        <input id="formativeId" class="input" placeholder="ID Formative">
+        <button id="detectTarget" class="button secondary">Détecter l’onglet ouvert</button>
+      </div>
+      <div id="targetState" class="state"></div>
+    </section>
+
+    <section class="card">
+      <div class="section-head">
+        <div>
+          <h2>Révision pédagogique</h2>
+          <p class="muted">Les mots-clés autocorrecteurs doivent être validés avant l’import.</p>
+        </div>
+        <div id="approvalState" class="badge neutral"></div>
+      </div>
+      <div id="items"></div>
+    </section>
+
+    <section class="card">
+      <div class="section-head">
+        <div>
+          <h2>Plan d’import</h2>
+          <p class="muted">Cardinal compare le paquet avec ses imports précédents avant d’écrire.</p>
+        </div>
+        <button id="preparePlan" class="button secondary">Préparer le plan</button>
+      </div>
+      <div id="plan" class="plan muted">Aucun plan préparé.</div>
+    </section>
+
+    <footer class="actions">
+      <div id="globalState" class="state"></div>
+      <button id="apply" class="button primary" disabled>Importer dans Formative</button>
+    </footer>
+  </main>
+  <script src="formative-builder.js"></script>
+</body>
+</html>
