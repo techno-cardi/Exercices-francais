@@ -39,7 +39,7 @@
     if (document.getElementById('cardinal-app-patch-v08') || window.__cardinalV08Installed) return;
     const script = document.createElement('script');
     script.id = 'cardinal-app-patch-v08';
-    script.src = 'app-patch-v08.js?v=4';
+    script.src = 'app-patch-v08.js?v=5';
     script.async = false;
     (document.body || document.documentElement).appendChild(script);
   }
@@ -67,6 +67,15 @@
     const script = document.createElement('script');
     script.id = 'cardinal-app-patch-v11';
     script.src = 'app-patch-v11.js?v=1';
+    script.async = false;
+    (document.body || document.documentElement).appendChild(script);
+  }
+
+  function ensureV12() {
+    if (document.getElementById('cardinal-app-patch-v12') || window.__cardinalV12Installed) return;
+    const script = document.createElement('script');
+    script.id = 'cardinal-app-patch-v12';
+    script.src = 'app-patch-v12.js?v=1';
     script.async = false;
     (document.body || document.documentElement).appendChild(script);
   }
@@ -219,6 +228,7 @@
   ensureV09();
   ensureV10();
   ensureV11();
+  ensureV12();
   installImmediateMozaikFeedback();
   waitForAppNavigation();
 })();
