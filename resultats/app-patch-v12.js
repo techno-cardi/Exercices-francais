@@ -82,6 +82,12 @@
     } catch {}
   }
 
+  function expectedGradeCount(group) {
+    return state.currentStudents.filter(student =>
+      student.group === group && student.grade !== null && student.grade !== undefined
+    ).length;
+  }
+
   async function directSync(btn) {
     if (!state.currentAssignment?.id) return;
 
@@ -105,9 +111,12 @@
       if (!group) throw new Error('Choisis un groupe.');
       validateMozaikGrades();
 
+      const expectedCount = expectedGradeCount(group);
+      if (!expectedCount) throw new Error(`Aucune note à synchroniser pour le groupe ${group}.`);
+
       if (syncState) syncState.textContent = `Groupe ${group} déjà validé. Préparation du lot Mozaïk...`;
 
-      await api(SYNC_ENDPOINT, {
+      const prepared = await api(SYNC_ENDPOINT, {
         action: 'prepare',
         teacherToken: state.teacherToken,
         assignmentId: state.currentAssignment.id,
@@ -125,15 +134,30 @@
         }
       });
 
+      if (!prepared?.code) {
+        throw new Error('Le serveur n’a pas retourné le code du lot Mozaïk préparé.');
+      }
+      if (Number(prepared.resultCount || 0) !== expectedCount) {
+        throw new Error(`Le lot préparé contient ${Number(prepared.resultCount || 0)} note${Number(prepared.resultCount || 0) === 1 ? '' : 's'}, mais Gestion en attend ${expectedCount}. Rien n’a été envoyé.`);
+      }
+
       job = await api(SYNC_ENDPOINT, {
-        action: 'claimLatest',
-        teacherToken: state.teacherToken
+        action: 'claim',
+        code: prepared.code
       });
 
       btn.textContent = 'Synchronisation...';
       if (syncState) syncState.textContent = 'Envoi des notes dans Mozaïk...';
 
       const result = await sendToExtension(job.payload);
+      const syncedCount = Number(result?.syncedCount || 0);
+
+      if (result?.success === true && syncedCount !== expectedCount) {
+        throw new Error(`Mozaïk a confirmé ${syncedCount} note${syncedCount === 1 ? '' : 's'}, mais Gestion en attendait ${expectedCount}. La synchronisation n’est pas considérée comme complète.`);
+      }
+      if (result?.success === true && !String(result?.activityId || '').trim()) {
+        throw new Error('Mozaïk a répondu succès sans identifiant d’activité. La synchronisation n’est pas considérée comme complète.');
+      }
 
       let completeResponse;
       try {
@@ -144,7 +168,7 @@
           success: result?.success === true,
           activityId: result?.activityId || '',
           competenceCode: result?.competenceCode || '',
-          syncedCount: result?.syncedCount || 0,
+          syncedCount,
           message: result?.message || ''
         });
         completed = true;
@@ -157,15 +181,6 @@
 
       if (!result?.success) {
         throw new Error(result?.message || completeResponse?.message || 'La synchronisation a échoué.');
-      }
-
-      const expectedCount = state.currentStudents.filter(student =>
-        student.group === group && student.grade !== null && student.grade !== undefined
-      ).length;
-      const syncedCount = Number(result.syncedCount || 0);
-
-      if (syncedCount !== expectedCount) {
-        throw new Error(`Mozaïk a confirmé ${syncedCount} note${syncedCount === 1 ? '' : 's'}, mais Gestion en attendait ${expectedCount}. La synchronisation n’est pas considérée comme complète.`);
       }
 
       const label = result.competenceLabel || competenceLabel(state.currentAssignment.competenceKind);
@@ -207,7 +222,9 @@
         typeof api !== 'function' ||
         typeof sendToExtension !== 'function' ||
         typeof saveAssignmentSettings !== 'function' ||
-        typeof validateMozaikGrades !== 'function'
+        typeof validateMozaikGrades !== 'function' ||
+        !window.__cardinalV08Installed ||
+        !window.__cardinalV11Installed
       ) {
         setTimeout(install, 100);
         return;
@@ -241,17 +258,25 @@
           if (syncState) syncState.textContent = `Validation rapide du groupe ${group}...`;
 
           let config = null;
+          let configLookupFailed = false;
           try {
             config = await discoveryConfig(group);
-          } catch {}
+          } catch {
+            configLookupFailed = true;
+          }
 
           if (hasCurrentStoredMapping(config?.group, group)) {
             if (syncState) syncState.textContent = `Groupe ${group} déjà validé. Synchronisation directe...`;
             return await directSync(btn);
           }
 
-          // Aucun mapping courant et validé: on conserve le mécanisme de découverte
-          // existant pour la toute première association ou un changement d’année scolaire.
+          if (configLookupFailed) {
+            if (syncState) syncState.textContent = `Validation rapide indisponible pour le groupe ${group}. Tentative directe...`;
+            return await directSync(btn);
+          }
+
+          // Aucun mapping courant: on conserve le mécanisme de découverte existant
+          // pour une première association ou un changement d’année scolaire.
           btn.disabled = false;
           return await previousHandler.apply(this, args);
         } catch (error) {
