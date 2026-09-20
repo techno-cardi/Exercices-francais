@@ -88,6 +88,26 @@
     ).length;
   }
 
+  async function waitForPendingGradeSaves(timeout = 10000) {
+    const active = document.activeElement;
+    if (active instanceof HTMLInputElement && active.classList.contains('grade-input')) {
+      await commitGrade(active);
+      try { active.blur(); } catch {}
+    }
+
+    const started = Date.now();
+    while (document.querySelector('.grade-input.saving')) {
+      if (Date.now() - started > timeout) {
+        throw new Error('Une note est encore en cours d’enregistrement. Attends qu’elle soit enregistrée puis réessaie.');
+      }
+      await sleep(80);
+    }
+
+    if (document.querySelector('.grade-input.error')) {
+      throw new Error('Une note contient une erreur. Corrige-la avant la synchronisation Mozaïk.');
+    }
+  }
+
   async function directSync(btn) {
     if (!state.currentAssignment?.id) return;
 
@@ -105,6 +125,7 @@
         throw new Error('Extension Chrome non détectée. Recharge l’extension puis cette page.');
       }
 
+      await waitForPendingGradeSaves();
       await saveAssignmentSettings({ quiet: true });
 
       const group = String(state.detailGroup || '');
@@ -223,6 +244,7 @@
         typeof sendToExtension !== 'function' ||
         typeof saveAssignmentSettings !== 'function' ||
         typeof validateMozaikGrades !== 'function' ||
+        typeof commitGrade !== 'function' ||
         !window.__cardinalV08Installed ||
         !window.__cardinalV11Installed
       ) {
