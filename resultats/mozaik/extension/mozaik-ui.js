@@ -55,16 +55,10 @@
   let current = {};
   const hide = () => box.classList.remove('show');
 
-  document.addEventListener('pointerdown', event => {
-    if (!box.classList.contains('show')) return;
-    const path = event.composedPath();
-    if (path.includes(host)) return;
-    hide();
-  }, true);
-
+  // Le panneau reste visible pendant toute la synchronisation. Un clic dans
+  // Mozaïk ne doit jamais masquer un état de travail, de succès ou d’erreur.
   closeBtn.addEventListener('click', () => {
     hide();
-    chrome.runtime.sendMessage({ type: 'CLOSE_MOZAIK_TAB' });
   });
 
   openBtn.addEventListener('click', () => {
