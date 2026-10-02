@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#17243c">
+    <meta name="description" content="Exercices de français de secondaire 3, assignés par groupe et corrigés en ligne.">
+    <meta property="og:title" content="Atelier de français | Secondaire 3">
+    <meta property="og:description" content="Un espace simple pour retrouver ses activités de français et suivre sa progression.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://techno-cardi.github.io/Exercices-francais/">
+    <meta property="og:image" content="https://techno-cardi.github.io/Exercices-francais/assets/og.png">
+    <title>Atelier de français | Secondaire 3</title>
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="assets/styles.css">
+    <script src="config.js"></script>
+    <script type="module" src="assets/app.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Aller au contenu</a>
+
+    <header class="topbar">
+      <a class="brand" href="./" aria-label="Accueil de l’Atelier de français">
+        <span class="brand-mark" aria-hidden="true">fr</span>
+        <span>
+          <strong>Atelier de français</strong>
+          <small>Secondaire 3</small>
+        </span>
+      </a>
+      <div class="topbar-meta">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span id="connection-label">Portail scolaire</span>
+      </div>
+    </header>
+
+    <main id="main" class="app-shell">
+      <section class="welcome-panel" aria-labelledby="welcome-title">
+        <div class="eyebrow">Cardinal-Roy · Français</div>
+        <h1 id="welcome-title">Tes exercices,<br>au même endroit.</h1>
+        <p class="welcome-copy">
+          Connecte-toi avec ton adresse scolaire. Tu verras seulement les exercices assignés à ton groupe.
+        </p>
+
+        <div class="topic-ribbon" id="topic-ribbon" aria-label="Notions disponibles">
+          <span>Grammaire</span>
+          <span>Lecture</span>
+          <span>Écriture</span>
+        </div>
+      </section>
+
+      <section class="login-panel" aria-labelledby="login-title">
+        <div class="panel-heading">
+          <span class="step-number">01</span>
+          <div>
+            <p class="kicker">Connexion</p>
+            <h2 id="login-title">Entre ton courriel scolaire</h2>
+          </div>
+        </div>
+
+        <form id="email-form" class="login-form" novalidate>
+          <label for="email">Adresse courriel</label>
+          <div class="input-row">
+            <input id="email" name="email" type="email" autocomplete="email" inputmode="email" placeholder="prenom.nom@ecole.ca" required>
+            <button class="button button-primary" type="submit">
+              Entrer
+              <span aria-hidden="true">→</span>
+            </button>
+          </div>
+          <p class="field-help">Utilise l’adresse inscrite par ton enseignant.</p>
+        </form>
+
+        <form id="code-form" class="login-form" hidden novalidate>
+          <label id="code-label" for="code">Mot de passe enseignant</label>
+          <div class="input-row password-row">
+            <input id="code" name="code" type="password" autocomplete="current-password" placeholder="Mot de passe" required>
+            <button class="button button-primary" type="submit">
+              <span id="code-submit-label">Ouvrir mon espace</span>
+              <span aria-hidden="true">→</span>
+            </button>
+          </div>
+          <div id="setup-fields" class="setup-fields" hidden>
+            <div>
+              <label for="confirm-code">Confirme ton mot de passe</label>
+              <input id="confirm-code" name="confirm-code" type="password" autocomplete="new-password" placeholder="Répète le mot de passe">
+            </div>
+            <div>
+              <label for="setup-code">Code temporaire</label>
+              <input id="setup-code" name="setup-code" type="text" autocomplete="one-time-code" spellcheck="false" placeholder="Code de première connexion">
+            </div>
+          </div>
+          <button class="text-button" id="change-email" type="button">Changer de courriel</button>
+        </form>
+
+        <div id="form-message" class="form-message" role="status" aria-live="polite"></div>
+
+        <div id="preview-actions" class="preview-actions" hidden>
+          <p>Aperçu local sans connexion</p>
+          <div>
+            <a class="button button-secondary" href="eleve.html?apercu=1">Entrer comme élève</a>
+            <a class="button button-secondary" href="enseignant.html?apercu=1&role=enseignant">Entrer comme enseignant</a>
+          </div>
+        </div>
+
+        <div class="privacy-note">
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+            <path d="M7 10V8a5 5 0 0 1 10 0v2m-11 0h12v10H6V10Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <p><strong>Ton espace est privé.</strong> Tes activités et tes résultats sont accessibles seulement à toi et à ton enseignant.</p>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <span>Atelier de français</span>
+      <span aria-hidden="true">·</span>
+      <span>Secondaire 3</span>
+    </footer>
+  </body>
+</html>

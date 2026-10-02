@@ -1,119 +1,17 @@
 <!doctype html>
-<html lang="fr">
-  <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#17243c">
-    <meta name="description" content="Exercices de français de secondaire 3, assignés par groupe et corrigés en ligne.">
-    <meta property="og:title" content="Atelier de français | Secondaire 3">
-    <meta property="og:description" content="Un espace simple pour retrouver ses activités de français et suivre sa progression.">
-    <meta property="og:type" content="website">
-    <meta property="og:url" content="https://techno-cardi.github.io/Exercices-francais/">
-    <meta property="og:image" content="https://techno-cardi.github.io/Exercices-francais/assets/og.png">
-    <title>Atelier de français | Secondaire 3</title>
-    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="assets/styles.css">
-    <script src="config.js"></script>
-    <script type="module" src="assets/app.js"></script>
-  </head>
-  <body>
-    <a class="skip-link" href="#main">Aller au contenu</a>
-
-    <header class="topbar">
-      <a class="brand" href="./" aria-label="Accueil de l’Atelier de français">
-        <span class="brand-mark" aria-hidden="true">fr</span>
-        <span>
-          <strong>Atelier de français</strong>
-          <small>Secondaire 3</small>
-        </span>
-      </a>
-      <div class="topbar-meta">
-        <span class="status-dot" aria-hidden="true"></span>
-        <span id="connection-label">Portail scolaire</span>
-      </div>
-    </header>
-
-    <main id="main" class="app-shell">
-      <section class="welcome-panel" aria-labelledby="welcome-title">
-        <div class="eyebrow">Cardinal-Roy · Français</div>
-        <h1 id="welcome-title">Tes exercices,<br>au même endroit.</h1>
-        <p class="welcome-copy">
-          Connecte-toi avec ton adresse scolaire. Tu verras seulement les exercices assignés à ton groupe.
-        </p>
-
-        <div class="topic-ribbon" id="topic-ribbon" aria-label="Notions disponibles">
-          <span>Grammaire</span>
-          <span>Lecture</span>
-          <span>Écriture</span>
-        </div>
-      </section>
-
-      <section class="login-panel" aria-labelledby="login-title">
-        <div class="panel-heading">
-          <span class="step-number">01</span>
-          <div>
-            <p class="kicker">Connexion</p>
-            <h2 id="login-title">Entre ton courriel scolaire</h2>
-          </div>
-        </div>
-
-        <form id="email-form" class="login-form" novalidate>
-          <label for="email">Adresse courriel</label>
-          <div class="input-row">
-            <input id="email" name="email" type="email" autocomplete="email" inputmode="email" placeholder="prenom.nom@ecole.ca" required>
-            <button class="button button-primary" type="submit">
-              Entrer
-              <span aria-hidden="true">→</span>
-            </button>
-          </div>
-          <p class="field-help">Utilise l’adresse inscrite par ton enseignant.</p>
-        </form>
-
-        <form id="code-form" class="login-form" hidden novalidate>
-          <label id="code-label" for="code">Mot de passe enseignant</label>
-          <div class="input-row password-row">
-            <input id="code" name="code" type="password" autocomplete="current-password" placeholder="Mot de passe" required>
-            <button class="button button-primary" type="submit">
-              <span id="code-submit-label">Ouvrir mon espace</span>
-              <span aria-hidden="true">→</span>
-            </button>
-          </div>
-          <div id="setup-fields" class="setup-fields" hidden>
-            <div>
-              <label for="confirm-code">Confirme ton mot de passe</label>
-              <input id="confirm-code" name="confirm-code" type="password" autocomplete="new-password" placeholder="Répète le mot de passe">
-            </div>
-            <div>
-              <label for="setup-code">Code temporaire</label>
-              <input id="setup-code" name="setup-code" type="text" autocomplete="one-time-code" spellcheck="false" placeholder="Code de première connexion">
-            </div>
-          </div>
-          <button class="text-button" id="change-email" type="button">Changer de courriel</button>
-        </form>
-
-        <div id="form-message" class="form-message" role="status" aria-live="polite"></div>
-
-        <div id="preview-actions" class="preview-actions" hidden>
-          <p>Aperçu local sans connexion</p>
-          <div>
-            <a class="button button-secondary" href="eleve.html?apercu=1">Entrer comme élève</a>
-            <a class="button button-secondary" href="enseignant.html?apercu=1&role=enseignant">Entrer comme enseignant</a>
-          </div>
-        </div>
-
-        <div class="privacy-note">
-          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-            <path d="M7 10V8a5 5 0 0 1 10 0v2m-11 0h12v10H6V10Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          <p><strong>Ton espace est privé.</strong> Tes activités et tes résultats sont accessibles seulement à toi et à ton enseignant.</p>
-        </div>
-      </section>
-    </main>
-
-    <footer>
-      <span>Atelier de français</span>
-      <span aria-hidden="true">·</span>
-      <span>Secondaire 3</span>
-    </footer>
-  </body>
-</html>
+<html lang="fr-CA"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#9d1b2d"><title>Retour sur la dictée - Marianne</title>
+<style>
+:root{--red:#a71930;--ink:#17202a;--muted:#64707d;--bg:#f4f6f8;--card:#fff;--line:#dce1e6;--good:#217346}
+*{box-sizing:border-box} body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.55}
+.wrap{width:min(880px,calc(100% - 24px));margin:24px auto 60px} .hero,.panel{background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:0 12px 32px rgba(0,0,0,.06)}
+.hero{padding:24px;margin-bottom:16px} .eyebrow{font-weight:800;color:var(--red);text-transform:uppercase;letter-spacing:.06em;font-size:.78rem} h1{margin:5px 0 8px;font-size:clamp(1.8rem,5vw,2.7rem);line-height:1.1} .sub{margin:0;color:var(--muted)}
+.panel{padding:22px} label{font-weight:750;display:block;margin-bottom:7px} .row{display:flex;gap:8px} input{flex:1;min-width:0;padding:13px 14px;border:1px solid #bfc6ce;border-radius:10px;font-size:1rem} button{border:0;border-radius:10px;padding:13px 17px;background:var(--red);color:#fff;font-weight:800;font-size:1rem;cursor:pointer} button:disabled{opacity:.6}
+.msg{min-height:24px;margin-top:10px;color:#a00} #result{margin-top:18px} .score{font-weight:800;color:var(--red)} .error-card{border:1px solid var(--line);border-radius:13px;padding:15px 16px;margin:11px 0;background:#fff} .cat{font-size:.76rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:800} .term{font-size:1.08rem;font-weight:850;margin:3px 0 5px;text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:3px} .explain{margin:0} .perfect{padding:16px;border-radius:12px;background:#edf8f1;color:#145a32;font-weight:700} .foot{margin-top:18px;color:var(--muted);font-size:.9rem}
+@media(max-width:560px){.wrap{margin-top:10px}.hero,.panel{border-radius:14px}.row{display:block}input,button{width:100%}button{margin-top:8px}}
+</style></head><body><main class="wrap"><section class="hero"><div class="eyebrow">École secondaire Cardinal-Roy - Groupe 51</div><h1>Retour sur la dictée « Marianne »</h1><p class="sub">Lis d'abord la page de commentaires de ton PDF. Un petit mot est caché à l'envers au bas de la page. Entre-le ici pour revoir uniquement tes erreurs.</p></section>
+<section class="panel"><form id="form"><label for="code">Mot caché dans ta page de commentaires</label><div class="row"><input id="code" autocomplete="off" autocapitalize="none" spellcheck="false" required placeholder="Entre ton mot"><button id="go">Voir mes erreurs</button></div></form><div class="msg" id="msg" role="status"></div><div id="result" hidden></div><p class="foot">Les explications servent à comprendre la règle. Si ton erreur était simplement une virgule ou un mot oublié, le conseil sera surtout de mieux écouter et de relire la phrase complète.</p></section></main>
+<script>
+const ENDPOINT="https://ojyswaxuqwnqilrvtjll.supabase.co/functions/v1/marianne-dictee"; const ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qeXN3YXh1cXducWlscnZ0amxsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4MDI0MTksImV4cCI6MjEwNDM3ODQxOX0.zKiE9TgFhH0W0Y_4qL_o16csdDqq9TiacHiCcf6ES3Q'; const form=document.querySelector('#form'), code=document.querySelector('#code'), msg=document.querySelector('#msg'), result=document.querySelector('#result'), go=document.querySelector('#go');
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+form.addEventListener('submit',async e=>{e.preventDefault();go.disabled=true;msg.textContent='Vérification…';result.hidden=true;try{const r=await fetch(ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json','apikey':ANON,'Authorization':'Bearer '+ANON},body:JSON.stringify({action:'student',code:code.value})});const d=await r.json();if(!d.ok)throw new Error(d.message||'Mot invalide.');msg.textContent='';let html=`<h2>Salut ${esc(d.first)}!</h2><p>Voici uniquement les éléments que j'ai corrigés dans ta copie. Ta note est <span class="score">${d.note}/30</span>.</p>`;if(!d.errors.length)html+=`<div class="perfect">Aucune faute à revoir : 30/30. Excellent travail.</div>`;else html+=d.errors.map(x=>`<article class="error-card"><div class="cat">${esc(x.category)}</div><div class="term">${esc(x.term)}</div><p class="explain">${esc(x.explanation)}</p></article>`).join('');result.innerHTML=html;result.hidden=false;result.scrollIntoView({behavior:'smooth',block:'start'})}catch(err){msg.textContent=err.message}finally{go.disabled=false}});
+</script></body></html>
