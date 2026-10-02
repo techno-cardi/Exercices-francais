@@ -165,7 +165,6 @@ body.mode-errors .listen-marker.personal,body.mode-all .listen-marker.personal{d
           <span class="case" data-keys="murmura_t_elle">murmura-t-elle</span>.
           Elle <span class="case" data-keys="a_jamais">n’avait jamais</span>
           <span class="case" data-keys="vu">vu</span> cet endroit aussi étrange.
-          <button class="listen-marker" data-keys="ecoute" type="button">⚑ Mot ou signe oublié</button>
         </p>
         <p class="para">
           Soudain, <span class="case" data-keys="voix">deux voix</span>
@@ -310,7 +309,6 @@ function exerciseRecommendations(){
   if(count('homophone')>=2) out.push(['Homophones','Fais une série de 10 phrases sur a/à, ce/se, ces/ses, et/est, la/là/l’a. Pour chaque réponse, écris ton test de remplacement.']);
   if(count("traits d’union")>=1) out.push(["Traits d'union et inversion","Transforme 6 phrases : « Il y a… » → « Y a-t-il…? », « Elle murmura » → « murmura-t-elle », puis 4 autres inversions du même type."]);
   if(count("orthographe")>=3) out.push(["Orthographe d’usage","Fais une petite liste personnelle des mots que tu as manqués. Vérifie-les dans Usito, recopie leur forme correcte et surligne les consonnes doubles ou les accents difficiles."]);
-  if(state.errorKeys.includes('ecoute')) out.push(['Écoute et relecture','À la prochaine dictée, garde 30 secondes pour relire chaque phrase au complet afin de repérer un mot, une virgule ou un signe oublié.']);
   if(!out.length) out.push(['Consolidation','Aucun exercice ciblé n’est nécessaire pour cette dictée. Continue d’appliquer la même stratégie de correction.']);
   $('#exercises').innerHTML=out.slice(0,4).map(([t,d])=>'<div class="exercise"><strong>'+esc(t)+'</strong><span>'+esc(d)+'</span></div>').join('');
 }
