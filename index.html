@@ -78,6 +78,33 @@ body.mode-errors .listen-marker.personal,body.mode-all .listen-marker.personal{d
 .understand label{display:flex;gap:10px;align-items:flex-start;margin:0;cursor:pointer}
 .understand input{width:20px;height:20px;flex:0 0 auto;margin-top:2px}
 .mini{color:var(--muted);font-size:.9rem}
+
+.journey{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:20px}
+.journey-step{border:1px solid var(--line);border-radius:13px;padding:11px;background:#f7f9fa;color:#596673;min-height:72px}
+.journey-step strong{display:block;color:var(--ink);font-size:.9rem;margin-top:3px}
+.journey-step.done{background:var(--green-soft);border-color:#b8ddc6;color:#226943}
+.journey-step.active{background:var(--red-soft);border-color:#e3a8b2;color:var(--red-dark)}
+.journey-num{font-size:.72rem;font-weight:900;text-transform:uppercase;letter-spacing:.05em}
+.copy-note{margin-top:10px;font-size:.88rem;color:var(--muted)}
+.copy-link.done{background:var(--green-soft);border-color:#a9d5ba;color:#1e633d}
+.bilan{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin:14px 0 18px}
+.bilan-item{padding:14px;border:1px solid var(--line);border-radius:13px;background:#fbfcfd}
+.bilan-item strong{display:block;margin-bottom:4px}
+.modal-progress{font-size:.8rem;font-weight:850;color:var(--muted);margin-bottom:7px}
+.modal-copy{display:inline-flex;align-items:center;gap:7px;margin:3px 0 15px;text-decoration:none;color:var(--red-dark);font-weight:800}
+.strategy-box{margin-top:14px;padding:14px;border:1px solid #d9e0e6;border-radius:13px;background:#f8fafb}
+.strategy-box>strong{display:block;margin-bottom:4px}
+.strategy-options{display:grid;gap:7px;margin-top:10px}
+.strategy-choice{width:100%;text-align:left;border:1px solid #cfd6dd;border-radius:10px;background:#fff;color:#27313c;padding:10px 11px;font-weight:700;cursor:pointer}
+.strategy-choice.selected{border-color:#5b7897;background:#edf4fb}
+.strategy-choice.correct{border-color:#7db993;background:#edf8f1;color:#195d37}
+.strategy-choice.wrong{border-color:#e2b0b8;background:#fff3f4;color:#812133}
+.strategy-feedback{font-size:.9rem;margin-top:8px;color:#536170;min-height:20px}
+.rule-panel{margin-top:14px;padding:15px;border-radius:13px;background:#fff;border:1px solid var(--line)}
+.rule-panel[hidden]{display:none}
+.modal-actions{display:flex;justify-content:space-between;gap:8px;margin-top:16px}
+.modal-actions .btn{flex:1}
+.optional{font-size:.8rem;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
 @media(max-width:680px){
   .shell{width:calc(100% - 14px);margin-top:7px}
   .topbar{border-radius:14px;padding:12px}
@@ -87,6 +114,8 @@ body.mode-errors .listen-marker.personal,body.mode-all .listen-marker.personal{d
   .card{border-radius:14px;padding:17px 14px}
   .field-row{display:block}.field-row .btn{width:100%;margin-top:8px}
   .student-head{display:block}.student-actions{align-items:flex-start;margin-top:12px}.score{margin-top:0}.copy-link{width:100%}
+  .journey{grid-template-columns:1fr 1fr}
+  .journey-step{min-height:66px}
   .modal{align-self:flex-end;border-radius:18px 18px 10px 10px;max-height:86vh}
   .overlay{align-items:flex-end;padding:7px}
 }
@@ -123,15 +152,24 @@ body.mode-errors .listen-marker.personal,body.mode-all .listen-marker.personal{d
         <div>
           <div class="kicker">Retour individuel</div>
           <div class="student-name" id="studentName"></div>
-          <p class="lead">Clique chacune de tes erreurs, lis l'explication et coche <strong>« J'ai compris »</strong>.</p>
+          <p class="lead">Travaille tes erreurs une par une, compare avec ma correction, puis valide ta lecture à la toute fin.</p>
         </div>
         <div class="student-actions">
           <div class="score" id="studentScore"></div>
-          <a id="copyLink" class="copy-link hidden" href="#" target="_blank" rel="noopener">📄 Voir ma copie corrigée</a>
+          <a id="copyLink" class="copy-link hidden" href="#" target="_blank" rel="noopener">📄 Ouvrir ma copie corrigée</a>
+          <div class="copy-note">Mot de passe du PDF : ton numéro de fiche.</div>
         </div>
       </div>
+
+      <div class="journey" aria-label="Étapes du devoir">
+        <div class="journey-step" id="journey1"><span class="journey-num">Étape 1</span><strong>Ouvrir ma copie</strong></div>
+        <div class="journey-step active" id="journey2"><span class="journey-num">Étape 2</span><strong>Comprendre mes erreurs</strong></div>
+        <div class="journey-step" id="journey3"><span class="journey-num">Étape 3</span><strong>Voir mon bilan</strong></div>
+        <div class="journey-step" id="journey4"><span class="journey-num">Étape 4</span><strong>Valider avec le mot caché</strong></div>
+      </div>
+
       <div class="progress-wrap">
-        <div class="progress-line"><span>Erreurs lues et comprises</span><span id="progressText">0 / 0</span></div>
+        <div class="progress-line"><span>Erreurs travaillées et comprises</span><span id="progressText">0 / 0</span></div>
         <div class="progress"><div id="progressBar"></div></div>
       </div>
       <div class="modebar">
@@ -199,18 +237,20 @@ body.mode-errors .listen-marker.personal,body.mode-all .listen-marker.personal{d
     </section>
 
     <section class="card" id="exerciseCard">
-      <div class="kicker">Pour t'améliorer</div>
-      <h2>Exercices que je te recommande</h2>
+      <div class="kicker">Étape 3 - Mon bilan</div>
+      <h2>Ce que je dois surtout surveiller</h2>
+      <div id="bilanSummary" class="bilan"></div>
+      <div class="optional">Exercices conseillés - ils ne remplacent pas la révision de tes erreurs</div>
       <div id="exercises" class="exercises"></div>
     </section>
 
     <section class="card">
       <div id="secretLocked" class="secret locked">
         <strong>Dernière étape verrouillée</strong>
-        <div class="mini" id="secretLockedText">Lis et coche toutes tes erreurs avant d'entrer le mot caché dans ton PDF.</div>
+        <div class="mini" id="secretLockedText">Pour déverrouiller cette étape, ouvre ta copie corrigée et travaille toutes tes erreurs.</div>
       </div>
       <div id="secretReady" class="secret hidden">
-        <strong>Tu as tout lu.</strong>
+        <strong>Tu as terminé les étapes précédentes.</strong>
         <p>Entre maintenant le mot caché à l'envers au bas de ta page de commentaires. C'est ce qui confirme que tu as lu ton retour.</p>
         <form id="secretForm">
           <label for="secretInput">Mot caché</label>
@@ -229,11 +269,29 @@ body.mode-errors .listen-marker.personal,body.mode-all .listen-marker.personal{d
 <div class="overlay" id="overlay" aria-hidden="true">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
     <button class="modal-close" id="modalClose" aria-label="Fermer">×</button>
+    <div class="modal-progress" id="modalProgress"></div>
     <div class="pill" id="modalCategory"></div>
     <h3 id="modalTitle"></h3>
-    <div class="rule" id="modalRule"></div>
-    <div class="understand hidden" id="understandBox">
-      <label><input type="checkbox" id="understandCheck"><span><strong>J'ai compris cette erreur.</strong><br><span class="mini">Je sais maintenant quoi vérifier la prochaine fois.</span></span></label>
+    <a id="modalCopyLink" class="modal-copy hidden" href="#" target="_blank" rel="noopener">📄 Retrouver cet endroit dans ma copie corrigée</a>
+
+    <div class="strategy-box" id="strategyBox">
+      <strong>Avant de lire l'explication</strong>
+      <div class="mini">Quelle vérification aurait le plus pu t'aider à éviter cette erreur?</div>
+      <div class="strategy-options" id="strategyOptions"></div>
+      <div class="strategy-feedback" id="strategyFeedback"></div>
+      <button class="btn secondary" id="revealRule" type="button" disabled>Voir l'explication</button>
+    </div>
+
+    <div class="rule-panel" id="rulePanel" hidden>
+      <div class="rule" id="modalRule"></div>
+      <div class="understand hidden" id="understandBox">
+        <label><input type="checkbox" id="understandCheck"><span><strong>J'ai compris cette erreur.</strong><br><span class="mini">Je sais maintenant quoi vérifier la prochaine fois.</span></span></label>
+      </div>
+    </div>
+
+    <div class="modal-actions" id="modalActions">
+      <button class="btn secondary" id="prevError" type="button">← Erreur précédente</button>
+      <button class="btn" id="nextError" type="button">Erreur suivante →</button>
     </div>
   </div>
 </div>
@@ -242,7 +300,7 @@ body.mode-errors .listen-marker.personal,body.mode-all .listen-marker.personal{d
 const BASE='https://ojyswaxuqwnqilrvtjll.supabase.co';
 const KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qeXN3YXh1cXducWlscnZ0amxsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4MDI0MTksImV4cCI6MjEwNDM3ODQxOX0.zKiE9TgFhH0W0Y_4qL_o16csdDqq9TiacHiCcf6ES3Q';
 const HEAD={'Content-Type':'application/json','apikey':KEY,'Authorization':'Bearer '+KEY};
-let state={student:null,errorKeys:[],errors:new Map(),rules:new Map(),understood:new Set(),activeKey:null,activeEl:null};
+let state={student:null,errorKeys:[],errors:new Map(),rules:new Map(),understood:new Set(),activeKey:null,activeEl:null,copyOpened:false,completed:false,strategyChosen:false};
 
 const $=s=>document.querySelector(s);
 const $$=s=>[...document.querySelectorAll(s)];
@@ -255,19 +313,49 @@ async function rpc(name,payload){
 }
 function keyForElement(el,personalOnly=false){
   const keys=(el.dataset.keys||'').split(/\s+/).filter(Boolean);
+  const personal=keys.filter(k=>state.errorKeys.includes(k));
   if(personalOnly){
-    return keys.find(k=>state.errorKeys.includes(k))||null;
+    return personal.find(k=>!state.understood.has(k))||personal[0]||null;
   }
-  return keys.find(k=>state.errorKeys.includes(k))||keys.find(k=>state.rules.has(k))||null;
+  return personal.find(k=>!state.understood.has(k))||personal[0]||keys.find(k=>state.rules.has(k))||null;
+}
+function elementForKey(key){
+  return $$('.case').find(el=>(el.dataset.keys||'').split(/\s+/).includes(key))||null;
 }
 function applyHighlights(){
-  $$('.case,.listen-marker').forEach(el=>{
+  $$('.case').forEach(el=>{
     const keys=(el.dataset.keys||'').split(/\s+/).filter(Boolean);
     const personal=keys.some(k=>state.errorKeys.includes(k));
     el.classList.toggle('personal',personal);
-    const done=keys.some(k=>state.understood.has(k));
-    el.classList.toggle('done',done);
+    const done=keys.filter(k=>state.errorKeys.includes(k)).every(k=>state.understood.has(k));
+    el.classList.toggle('done',personal&&done);
   });
+}
+async function syncProgress(){
+  if(!state.student)return;
+  try{
+    const d=await rpc('marianne_update_progress',{
+      p_fiche:state.student.studentKey,
+      p_copy_opened:state.copyOpened,
+      p_understood_keys:[...state.understood]
+    });
+    if(d?.ok) state.copyOpened=!!d.copyOpened;
+  }catch(_e){}
+}
+function updateJourney(){
+  const total=state.errorKeys.length;
+  const done=state.errorKeys.filter(k=>state.understood.has(k)).length;
+  const errorsDone=done===total;
+  $('#journey1').classList.toggle('done',state.copyOpened);
+  $('#journey1').classList.toggle('active',!state.copyOpened);
+  $('#journey2').classList.toggle('done',errorsDone);
+  $('#journey2').classList.toggle('active',!errorsDone);
+  $('#journey3').classList.toggle('done',errorsDone);
+  $('#journey3').classList.toggle('active',errorsDone&&!state.completed);
+  $('#journey4').classList.toggle('done',state.completed);
+  $('#journey4').classList.toggle('active',state.copyOpened&&errorsDone&&!state.completed);
+  $('#copyLink').classList.toggle('done',state.copyOpened);
+  if(state.copyOpened) $('#copyLink').textContent='✓ Copie corrigée ouverte';
 }
 function updateProgress(){
   const total=state.errorKeys.length;
@@ -275,42 +363,127 @@ function updateProgress(){
   $('#progressText').textContent=done+' / '+total;
   $('#progressBar').style.width=(total?done/total*100:100)+'%';
   applyHighlights();
-  const complete=done===total;
-  $('#secretLocked').classList.toggle('hidden',complete);
-  $('#secretReady').classList.toggle('hidden',!complete);
+  const complete=state.copyOpened&&done===total&&!state.completed;
+  $('#secretLocked').classList.toggle('hidden',complete||state.completed);
+  $('#secretReady').classList.toggle('hidden',!complete||state.completed);
+  updateJourney();
+}
+function strategyProfile(rule){
+  const c=(rule?.category||'').toLowerCase();
+  const options={
+    accord:['accord','Je repère le noyau ou le sujet, j’indique son genre et son nombre, puis je vérifie les mots qui s’accordent avec lui.'],
+    verbe:['verbe','Je souligne le verbe, je trouve son sujet avec « qui est-ce qui? / qu’est-ce qui? », puis je vérifie la terminaison.'],
+    homophone:['homophone','J’applique un test de remplacement et je consulte OPUS p. 240 à 242 si nécessaire.'],
+    dico:['dico','Je marque le mot douteux et je vérifie sa graphie dans Usito avant de remettre ma copie.'],
+    trait:['trait','Je vérifie s’il y a inversion verbe-pronom et si un -t- euphonique est nécessaire.'],
+    syntaxe:['syntaxe','Je relis la phrase complète et je vérifie sa construction, notamment la négation ou la place des mots.']
+  };
+  let correct='syntaxe';
+  if(c.includes('traits')) correct='trait';
+  else if(c.includes('homophone')) correct='homophone';
+  else if(c.includes('accord')) correct='accord';
+  else if(c.includes('conjugaison')||c.includes('verbe')) correct='verbe';
+  else if(c.includes('orthographe')) correct='dico';
+  const pool=[options[correct]];
+  const distractors=Object.values(options).filter(x=>x[0]!==correct);
+  const preferred=correct==='accord'?['dico','homophone']:correct==='verbe'?['accord','dico']:correct==='homophone'?['verbe','dico']:correct==='dico'?['accord','verbe']:correct==='trait'?['homophone','verbe']:['verbe','dico'];
+  preferred.forEach(k=>pool.push(options[k]));
+  return {correct,options:pool.slice(0,3)};
+}
+function renderStrategy(rule,isPersonal){
+  const box=$('#strategyBox'), panel=$('#rulePanel');
+  state.strategyChosen=false;
+  $('#strategyFeedback').textContent='';
+  $('#revealRule').disabled=true;
+  panel.hidden=true;
+  if(!isPersonal){
+    box.classList.add('hidden');
+    panel.hidden=false;
+    $('#understandBox').classList.add('hidden');
+    $('#modalActions').classList.add('hidden');
+    return;
+  }
+  box.classList.remove('hidden');
+  $('#modalActions').classList.remove('hidden');
+  const profile=strategyProfile(rule);
+  $('#strategyOptions').innerHTML=profile.options.map(([k,label])=>'<button type="button" class="strategy-choice" data-strategy="'+k+'">'+esc(label)+'</button>').join('');
+  $$('#strategyOptions .strategy-choice').forEach(btn=>btn.addEventListener('click',()=>{
+    $$('#strategyOptions .strategy-choice').forEach(b=>b.classList.remove('selected','correct','wrong'));
+    btn.classList.add('selected');
+    const good=btn.dataset.strategy===profile.correct;
+    btn.classList.add(good?'correct':'wrong');
+    $('#strategyFeedback').textContent=good?'Oui. C’est la vérification la plus utile ici.':'Cette vérification peut aider, mais ce n’est pas la plus directe pour cette erreur. Lis maintenant l’explication.';
+    state.strategyChosen=true;
+    $('#revealRule').disabled=false;
+  }));
+}
+function openRuleForKey(key,el=null){
+  const rule=state.rules.get(key);
+  if(!rule)return;
+  state.activeKey=key;
+  state.activeEl=el||elementForKey(key);
+  const isPersonal=state.errorKeys.includes(key);
+  const idx=isPersonal?state.errorKeys.indexOf(key):-1;
+  $('#modalProgress').textContent=isPersonal?'Erreur '+(idx+1)+' sur '+state.errorKeys.length:'Cas expliqué dans la dictée';
+  $('#modalCategory').textContent=rule.category;
+  $('#modalTitle').textContent=rule.term;
+  $('#modalRule').textContent=rule.explanation;
+  const mcopy=$('#modalCopyLink');
+  if(state.student?.copyUrl){mcopy.href=state.student.copyUrl;mcopy.classList.remove('hidden')}else mcopy.classList.add('hidden');
+  $('#understandBox').classList.toggle('hidden',!isPersonal);
+  $('#understandCheck').checked=state.understood.has(key);
+  renderStrategy(rule,isPersonal);
+  if(isPersonal&&state.understood.has(key)){
+    $('#rulePanel').hidden=false;
+    $('#revealRule').disabled=false;
+  }
+  $('#prevError').disabled=!isPersonal||idx<=0;
+  $('#nextError').disabled=!isPersonal||idx>=state.errorKeys.length-1;
+  $('#overlay').classList.add('open');
+  $('#overlay').setAttribute('aria-hidden','false');
 }
 function openRule(el){
   const personalMode=document.body.classList.contains('mode-errors');
   const key=keyForElement(el,personalMode);
-  if(!key) return;
-  const rule=state.rules.get(key);
-  if(!rule) return;
-  state.activeKey=key; state.activeEl=el;
-  $('#modalCategory').textContent=rule.category;
-  $('#modalTitle').textContent=rule.term;
-  $('#modalRule').textContent=rule.explanation;
-  const isPersonal=state.errorKeys.includes(key);
-  $('#understandBox').classList.toggle('hidden',!isPersonal);
-  $('#understandCheck').checked=state.understood.has(key);
-  $('#overlay').classList.add('open');
-  $('#overlay').setAttribute('aria-hidden','false');
+  if(key)openRuleForKey(key,el);
 }
 function closeRule(){
   $('#overlay').classList.remove('open');
   $('#overlay').setAttribute('aria-hidden','true');
   state.activeKey=null;state.activeEl=null;
 }
+function categorySummary(){
+  const groups={};
+  for(const k of state.errorKeys){
+    const c=(state.rules.get(k)?.category||'Autre');
+    let label='Autres éléments';
+    if(/accord/i.test(c))label='Accords';
+    else if(/conjugaison|verbe/i.test(c))label='Verbes et conjugaison';
+    else if(/homophone/i.test(c))label='Homophones';
+    else if(/traits/i.test(c))label="Traits d'union et inversion";
+    else if(/orthographe/i.test(c))label="Orthographe d'usage";
+    else if(/syntaxe/i.test(c))label='Syntaxe';
+    groups[label]=(groups[label]||0)+1;
+  }
+  const sorted=Object.entries(groups).sort((a,b)=>b[1]-a[1]);
+  if(!sorted.length){
+    $('#bilanSummary').innerHTML='<div class="bilan-item"><strong>Aucune erreur</strong>Continue la même stratégie de correction.</div>';
+    return;
+  }
+  $('#bilanSummary').innerHTML=sorted.slice(0,3).map(([label,n])=>'<div class="bilan-item"><strong>'+esc(label)+'</strong>'+n+' élément'+(n>1?'s':'')+' à surveiller dans cette dictée.</div>').join('');
+}
 function exerciseRecommendations(){
   const cats=state.errorKeys.map(k=>(state.rules.get(k)?.category||'').toLowerCase());
   const count=needle=>cats.filter(c=>c.includes(needle)).length;
   const out=[];
-  if(count('accord')>=2) out.push(['Accords','Fais 8 phrases où tu dois repérer le donneur d’accord, souligner le sujet ou le nom, puis justifier la terminaison choisie.']);
-  if(count('conjugaison')>=2) out.push(['Temps du récit','Conjugue apercevoir, résonner, décider, apparaître, parcourir et comprendre au passé simple, puis écris une phrase narrative avec chacun.']);
-  if(count('homophone')>=2) out.push(['Homophones','Fais une série de 10 phrases sur a/à, ce/se, ces/ses, et/est, la/là/l’a. Pour chaque réponse, écris ton test de remplacement.']);
-  if(count("traits d’union")>=1) out.push(["Traits d'union et inversion","Transforme 6 phrases : « Il y a… » → « Y a-t-il…? », « Elle murmura » → « murmura-t-elle », puis 4 autres inversions du même type."]);
-  if(count("orthographe")>=3) out.push(["Orthographe d’usage","Fais une petite liste personnelle des mots que tu as manqués. Vérifie-les dans Usito, recopie leur forme correcte et surligne les consonnes doubles ou les accents difficiles."]);
-  if(!out.length) out.push(['Consolidation','Aucun exercice ciblé n’est nécessaire pour cette dictée. Continue d’appliquer la même stratégie de correction.']);
+  if(count('accord')>=2) out.push(['Accords','Fais 6 groupes du nom : entoure le noyau, écris son genre et son nombre, puis trace les flèches vers le déterminant et les adjectifs.']);
+  if(count('conjugaison')>=2||count('verbe')>=2) out.push(['Verbes et sujets','Prends 6 verbes de la dictée : souligne le verbe, pose « qui est-ce qui? / qu’est-ce qui? », remplace le sujet par un pronom et vérifie la terminaison.']);
+  if(count('homophone')>=2) out.push(['Homophones','Fais 8 phrases sur a/à, ce/se, ces/ses, et/est, la/là/l’a. Pour chaque réponse, écris ton test de remplacement. Revois OPUS p. 240 à 242.']);
+  if(count("traits d’union")>=1) out.push(["Traits d'union","Transforme 6 phrases avec inversion : « Il y a… » → « Y a-t-il…? », « Elle murmura » → « murmura-t-elle », puis quatre autres exemples."]);
+  if(count("orthographe")>=3) out.push(["Usito - orthographe d’usage","Fais la liste de tes mots manqués, vérifie chacun dans Usito, puis recopie la forme correcte en mettant en évidence les accents ou consonnes doubles."]);
+  if(!out.length) out.push(['Consolidation','Aucun exercice supplémentaire particulier n’est nécessaire. Continue d’appliquer la même méthode de correction.']);
   $('#exercises').innerHTML=out.slice(0,4).map(([t,d])=>'<div class="exercise"><strong>'+esc(t)+'</strong><span>'+esc(d)+'</span></div>').join('');
+  categorySummary();
 }
 $('#loginForm').addEventListener('submit',async e=>{
   e.preventDefault();
@@ -322,13 +495,16 @@ $('#loginForm').addEventListener('submit',async e=>{
     state.student=d;state.errorKeys=d.errorKeys||[];
     state.errors=new Map((d.errors||[]).map(x=>[x.key,x]));
     state.rules=new Map((d.allRules||[]).map(x=>[x.key,x]));
-    state.understood=new Set();
+    state.understood=new Set(d.progress?.understoodKeys||[]);
+    state.copyOpened=!!d.progress?.copyOpened;
+    state.completed=!!d.progress?.completed;
     $('#studentName').textContent='Salut '+d.first+'.';
     $('#studentScore').textContent=d.note+'/30';
     const copyLink=$('#copyLink');
     if(d.copyUrl){
       copyLink.href=d.copyUrl;
       copyLink.classList.remove('hidden');
+      copyLink.onclick=()=>{state.copyOpened=true;updateProgress();syncProgress();};
     }else{
       copyLink.classList.add('hidden');
       copyLink.removeAttribute('href');
@@ -339,6 +515,12 @@ $('#loginForm').addEventListener('submit',async e=>{
       $('#modeNotice').textContent='Aucune erreur à corriger. Tu peux quand même consulter toute la dictée expliquée.';
     }
     applyHighlights();updateProgress();exerciseRecommendations();
+    if(state.completed){
+      $('#secretLocked').classList.add('hidden');
+      $('#secretReady').classList.add('hidden');
+      $('#success').textContent='Lecture déjà confirmée. Merci, '+d.first+'.';
+      $('#success').classList.remove('hidden');
+    }
     window.scrollTo({top:0,behavior:'smooth'});
   }catch(err){$('#loginMsg').textContent=err.message}
 });
@@ -353,10 +535,24 @@ $('#allMode').addEventListener('click',()=>{
   $('#modeNotice').textContent='Tous les cas intéressants de la dictée sont soulignés. Tes erreurs restent en rouge; les autres explications sont en bleu.';
 });
 $$('.case,.listen-marker').forEach(el=>el.addEventListener('click',()=>openRule(el)));
+$('#revealRule').addEventListener('click',()=>{
+  $('#rulePanel').hidden=false;
+});
+$('#modalCopyLink').addEventListener('click',()=>{
+  state.copyOpened=true;updateProgress();syncProgress();
+});
 $('#understandCheck').addEventListener('change',e=>{
   if(!state.activeKey)return;
   if(e.target.checked)state.understood.add(state.activeKey); else state.understood.delete(state.activeKey);
-  updateProgress();
+  updateProgress();syncProgress();
+});
+$('#prevError').addEventListener('click',()=>{
+  const i=state.errorKeys.indexOf(state.activeKey);
+  if(i>0){const k=state.errorKeys[i-1];openRuleForKey(k,elementForKey(k));}
+});
+$('#nextError').addEventListener('click',()=>{
+  const i=state.errorKeys.indexOf(state.activeKey);
+  if(i>=0&&i<state.errorKeys.length-1){const k=state.errorKeys[i+1];openRuleForKey(k,elementForKey(k));}
 });
 $('#modalClose').addEventListener('click',closeRule);
 $('#overlay').addEventListener('click',e=>{if(e.target===$('#overlay'))closeRule()});
@@ -370,7 +566,9 @@ $('#secretForm').addEventListener('submit',async e=>{
     const d=await rpc('marianne_confirm',{p_fiche:state.student.studentKey,p_code:code});
     if(!d.ok)throw new Error(d.message||'Mot incorrect.');
     $('#secretReady').classList.add('hidden');
-    $('#success').textContent='Lecture confirmée. Merci, '+d.first+'.';
+    state.completed=true;
+    updateProgress();
+    $('#success').textContent='Lecture confirmée. Merci, '+d.first+'. Le devoir est complété.';
     $('#success').classList.remove('hidden');
     $('#secretMsg').textContent='';
   }catch(err){$('#secretMsg').textContent=err.message}
