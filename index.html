@@ -1,17 +1,368 @@
 <!doctype html>
-<html lang="fr-CA"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#9d1b2d"><title>Retour sur la dictée - Marianne</title>
+<html lang="fr-CA">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#a61d2d">
+<title>Dictée Marianne - Retour personnalisé</title>
 <style>
-:root{--red:#a71930;--ink:#17202a;--muted:#64707d;--bg:#f4f6f8;--card:#fff;--line:#dce1e6;--good:#217346}
-*{box-sizing:border-box} body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.55}
-.wrap{width:min(880px,calc(100% - 24px));margin:24px auto 60px} .hero,.panel{background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:0 12px 32px rgba(0,0,0,.06)}
-.hero{padding:24px;margin-bottom:16px} .eyebrow{font-weight:800;color:var(--red);text-transform:uppercase;letter-spacing:.06em;font-size:.78rem} h1{margin:5px 0 8px;font-size:clamp(1.8rem,5vw,2.7rem);line-height:1.1} .sub{margin:0;color:var(--muted)}
-.panel{padding:22px} label{font-weight:750;display:block;margin-bottom:7px} .row{display:flex;gap:8px} input{flex:1;min-width:0;padding:13px 14px;border:1px solid #bfc6ce;border-radius:10px;font-size:1rem} button{border:0;border-radius:10px;padding:13px 17px;background:var(--red);color:#fff;font-weight:800;font-size:1rem;cursor:pointer} button:disabled{opacity:.6}
-.msg{min-height:24px;margin-top:10px;color:#a00} #result{margin-top:18px} .score{font-weight:800;color:var(--red)} .error-card{border:1px solid var(--line);border-radius:13px;padding:15px 16px;margin:11px 0;background:#fff} .cat{font-size:.76rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:800} .term{font-size:1.08rem;font-weight:850;margin:3px 0 5px;text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:3px} .explain{margin:0} .perfect{padding:16px;border-radius:12px;background:#edf8f1;color:#145a32;font-weight:700} .foot{margin-top:18px;color:var(--muted);font-size:.9rem}
-@media(max-width:560px){.wrap{margin-top:10px}.hero,.panel{border-radius:14px}.row{display:block}input,button{width:100%}button{margin-top:8px}}
-</style></head><body><main class="wrap"><section class="hero"><div class="eyebrow">École secondaire Cardinal-Roy - Groupe 51</div><h1>Retour sur la dictée « Marianne »</h1><p class="sub">Lis d'abord la page de commentaires de ton PDF. Un petit mot est caché à l'envers au bas de la page. Entre-le ici pour revoir uniquement tes erreurs.</p></section>
-<section class="panel"><form id="form"><label for="code">Mot caché dans ta page de commentaires</label><div class="row"><input id="code" autocomplete="off" autocapitalize="none" spellcheck="false" required placeholder="Entre ton mot"><button id="go">Voir mes erreurs</button></div></form><div class="msg" id="msg" role="status"></div><div id="result" hidden></div><p class="foot">Les explications servent à comprendre la règle. Si ton erreur était simplement une virgule ou un mot oublié, le conseil sera surtout de mieux écouter et de relire la phrase complète.</p></section></main>
+:root{
+  --red:#b51f32;--red-dark:#861524;--red-soft:#fff0f2;--ink:#1e2430;--muted:#66717f;
+  --bg:#f4f5f7;--card:#fff;--line:#dde2e7;--blue:#2b64a8;--blue-soft:#edf4fc;
+  --green:#247447;--green-soft:#eaf7ef;--amber:#9a6500;--shadow:0 16px 44px rgba(20,28,38,.09)
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;line-height:1.55}
+button,input{font:inherit}
+.shell{width:min(980px,calc(100% - 24px));margin:18px auto 64px}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:18px;background:#fff;border:1px solid var(--line);border-radius:20px;padding:16px 18px;box-shadow:var(--shadow)}
+.brand{display:flex;align-items:center;gap:14px;min-width:0}
+.brand img{width:210px;max-width:40vw;height:auto;display:block}
+.teacher{text-align:right;font-size:.92rem;color:var(--muted)}
+.teacher strong{display:block;color:var(--ink);font-size:1rem}
+.card{background:#fff;border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);padding:clamp(18px,3vw,30px);margin-top:16px}
+.login{max-width:650px;margin:16px auto 0}
+.kicker{font-weight:850;letter-spacing:.06em;text-transform:uppercase;color:var(--red);font-size:.78rem}
+h1{font-size:clamp(1.9rem,5vw,3rem);line-height:1.08;margin:7px 0 10px}
+h2{font-size:1.25rem;margin:0 0 8px}
+.lead{font-size:1.04rem;color:var(--muted);margin:0}
+.login-box{margin-top:24px;padding:20px;border-radius:16px;background:linear-gradient(145deg,#fff7f8,#fff);border:1px solid #f0cfd5}
+label{display:block;font-weight:800;margin-bottom:7px}
+.field-row{display:flex;gap:9px}
+input{width:100%;padding:13px 14px;border:1px solid #bfc7d0;border-radius:11px;background:#fff;outline:none}
+input:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(181,31,50,.12)}
+.btn{border:0;border-radius:11px;padding:12px 17px;background:var(--red);color:#fff;font-weight:850;cursor:pointer;transition:.15s transform,.15s background}
+.btn:hover{background:var(--red-dark);transform:translateY(-1px)}
+.btn.secondary{background:#eef1f4;color:#27313c}
+.btn.secondary.active{background:#202a35;color:#fff}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none}
+.msg{min-height:23px;margin:10px 0 0;color:#a01829;font-weight:650}
+.hidden{display:none!important}
+.student-head{display:flex;justify-content:space-between;gap:18px;align-items:flex-start}
+.student-name{font-size:clamp(1.4rem,4vw,2rem);font-weight:900}
+.score{display:inline-flex;align-items:center;justify-content:center;min-width:98px;padding:10px 14px;border-radius:999px;background:var(--red-soft);color:var(--red-dark);font-weight:900}
+.progress-wrap{margin-top:18px}
+.progress-line{display:flex;justify-content:space-between;gap:12px;font-size:.92rem;font-weight:750}
+.progress{height:10px;background:#e9edf1;border-radius:999px;overflow:hidden;margin-top:7px}
+.progress>div{height:100%;width:0;background:var(--green);transition:width .25s ease}
+.modebar{display:flex;gap:8px;flex-wrap:wrap;margin-top:22px;padding-top:18px;border-top:1px solid var(--line)}
+.notice{margin:16px 0 0;padding:12px 14px;border-radius:12px;background:#f8f9fb;color:#4c5967;font-size:.94rem}
+.dictee{font-family:Georgia,"Times New Roman",serif;font-size:clamp(1.16rem,2.6vw,1.36rem);line-height:2.02;margin:0;color:#24282e}
+.para+.para{margin-top:1.15em}
+.case{border-radius:4px;padding:0 1px;transition:.15s;background:none}
+body.mode-errors .case.personal{color:var(--red-dark);text-decoration:underline 3px var(--red);text-underline-offset:5px;cursor:pointer;background:linear-gradient(transparent 67%,rgba(181,31,50,.11) 67%)}
+body.mode-errors .case:not(.personal){text-decoration:none;color:inherit}
+body.mode-all .case{color:#214f84;text-decoration:underline 2px #4b86c4;text-underline-offset:5px;cursor:pointer;background:linear-gradient(transparent 69%,rgba(75,134,196,.12) 69%)}
+body.mode-all .case.personal{color:var(--red-dark);text-decoration-color:var(--red);text-decoration-thickness:3px;background:linear-gradient(transparent 67%,rgba(181,31,50,.11) 67%)}
+.case.done{color:var(--green)!important;text-decoration-color:var(--green)!important;background:linear-gradient(transparent 67%,rgba(36,116,71,.12) 67%)!important}
+.listen-marker{display:none;border:0;background:#fff4dc;color:#805300;font-family:system-ui,sans-serif;font-size:.82rem;font-weight:800;border-radius:999px;padding:5px 9px;margin-left:5px;cursor:pointer}
+body.mode-errors .listen-marker.personal,body.mode-all .listen-marker.personal{display:inline-block}
+.exercises{display:grid;grid-template-columns:repeat(auto-fit,minmax(235px,1fr));gap:11px;margin-top:14px}
+.exercise{border:1px solid var(--line);border-radius:13px;padding:14px;background:#fbfcfd}
+.exercise strong{display:block;margin-bottom:5px}
+.secret{margin-top:18px;padding:18px;border-radius:16px;background:var(--green-soft);border:1px solid #b9dec7}
+.secret.locked{background:#f6f7f9;border-color:var(--line);color:#65717e}
+.success{padding:17px;border-radius:14px;background:var(--green-soft);color:#185a35;font-weight:800}
+.overlay{position:fixed;inset:0;background:rgba(14,19,26,.52);display:none;align-items:center;justify-content:center;padding:18px;z-index:50}
+.overlay.open{display:flex}
+.modal{width:min(590px,100%);max-height:min(82vh,720px);overflow:auto;background:#fff;border-radius:18px;box-shadow:0 24px 70px rgba(0,0,0,.25);padding:22px;position:relative}
+.modal-close{position:absolute;right:12px;top:10px;border:0;background:#f0f2f4;border-radius:999px;width:34px;height:34px;font-size:1.25rem;cursor:pointer}
+.pill{display:inline-flex;padding:4px 9px;border-radius:999px;background:var(--blue-soft);color:#275d97;text-transform:uppercase;letter-spacing:.04em;font-size:.72rem;font-weight:850;margin-bottom:10px}
+.modal h3{font-size:1.35rem;margin:0 38px 8px 0}
+.rule{font-size:1.01rem}
+.understand{margin-top:16px;padding:13px;border-radius:12px;background:#f7f9fa;border:1px solid var(--line)}
+.understand label{display:flex;gap:10px;align-items:flex-start;margin:0;cursor:pointer}
+.understand input{width:20px;height:20px;flex:0 0 auto;margin-top:2px}
+.mini{color:var(--muted);font-size:.9rem}
+@media(max-width:680px){
+  .shell{width:calc(100% - 14px);margin-top:7px}
+  .topbar{border-radius:14px;padding:12px}
+  .brand img{width:175px;max-width:55vw}
+  .teacher{font-size:.8rem}
+  .teacher strong{font-size:.88rem}
+  .card{border-radius:14px;padding:17px 14px}
+  .field-row{display:block}.field-row .btn{width:100%;margin-top:8px}
+  .student-head{display:block}.score{margin-top:10px}
+  .modal{align-self:flex-end;border-radius:18px 18px 10px 10px;max-height:86vh}
+  .overlay{align-items:flex-end;padding:7px}
+}
+</style>
+</head>
+<body class="mode-errors">
+<div class="shell">
+  <header class="topbar">
+    <div class="brand">
+      <img src="https://ecole-cardinal-roy.cssc.gouv.qc.ca/wp-content/uploads/2022/03/sans-titre-1-1440x811.png" alt="École Cardinal-Roy">
+    </div>
+    <div class="teacher"><strong>Kevin Tremblay</strong>Français - 5e secondaire</div>
+  </header>
+
+  <section id="login" class="card login">
+    <div class="kicker">Dictée du 2 octobre 2026</div>
+    <h1>Retour personnalisé - « Marianne »</h1>
+    <p class="lead">Entre ton numéro de fiche pour voir ta copie expliquée. Tes erreurs apparaîtront directement dans la dictée.</p>
+    <div class="login-box">
+      <form id="loginForm">
+        <label for="fiche">Numéro de fiche</label>
+        <div class="field-row">
+          <input id="fiche" inputmode="numeric" pattern="[0-9]{7}" maxlength="7" autocomplete="off" required placeholder="7 chiffres">
+          <button class="btn" type="submit">Ouvrir mon retour</button>
+        </div>
+      </form>
+      <div id="loginMsg" class="msg" role="status"></div>
+    </div>
+  </section>
+
+  <main id="app" class="hidden">
+    <section class="card">
+      <div class="student-head">
+        <div>
+          <div class="kicker">Retour individuel</div>
+          <div class="student-name" id="studentName"></div>
+          <p class="lead">Clique chacune de tes erreurs, lis l'explication et coche <strong>« J'ai compris »</strong>.</p>
+        </div>
+        <div class="score" id="studentScore"></div>
+      </div>
+      <div class="progress-wrap">
+        <div class="progress-line"><span>Erreurs lues et comprises</span><span id="progressText">0 / 0</span></div>
+        <div class="progress"><div id="progressBar"></div></div>
+      </div>
+      <div class="modebar">
+        <button class="btn secondary active" id="errorsMode" type="button">Voir mes erreurs</button>
+        <button class="btn secondary" id="allMode" type="button">Voir toute la dictée expliquée</button>
+      </div>
+      <div class="notice" id="modeNotice">Tes erreurs sont soulignées en rouge. Clique-les une par une.</div>
+    </section>
+
+    <section class="card">
+      <div class="kicker">La dictée</div>
+      <h2>Marianne</h2>
+      <div class="dictee" id="dictee">
+        <p class="para">
+          La pluie <span class="case" data-keys="tombait">tombait</span> depuis des heures lorsque Marianne
+          <span class="case" data-keys="apercut">aperçut</span>,
+          <span class="case" data-keys="derriere">derrière</span> la vieille gare, une
+          <span class="case" data-keys="silhouette">silhouette</span>
+          <span class="case" data-keys="immobile">immobile</span>. Elle
+          <span class="case" data-keys="ralentit">ralentit</span>, mais
+          <span class="case" data-keys="personne_ne semblait">personne ne semblait</span>
+          <span class="case" data-keys="remarquee">l’avoir remarquée</span>. Pourtant, quelque chose
+          <span class="case" data-keys="inquietait">l’inquiétait</span> : les
+          <span class="case" data-keys="fenetres">fenêtres</span> du
+          <span class="case" data-keys="batiment">bâtiment</span>,
+          <span class="case" data-keys="habituellement">habituellement</span>
+          <span class="case" data-keys="condamnees">condamnées</span>,
+          <span class="case" data-keys="etaient_entrouvertes entrouvertes">étaient entrouvertes</span>.
+          « <span class="case" data-keys="y_a_t_il">Pourquoi y a-t-il</span> de la lumière
+          <span class="case" data-keys="interieur">à l’intérieur</span>? »
+          <span class="case" data-keys="murmura_t_elle">murmura-t-elle</span>.
+          Elle <span class="case" data-keys="a_jamais">n’avait jamais</span>
+          <span class="case" data-keys="vu">vu</span> cet endroit aussi étrange.
+          <button class="listen-marker" data-keys="ecoute" type="button">⚑ Mot ou signe oublié</button>
+        </p>
+        <p class="para">
+          Soudain, <span class="case" data-keys="voix">deux voix</span>
+          <span class="case" data-keys="etouffees">étouffées</span>
+          <span class="case" data-keys="resonnerent">résonnèrent</span> dans le
+          <span class="case" data-keys="corridor">corridor</span>, puis
+          <span class="case" data-keys="claqua">une porte claqua</span>
+          <span class="case" data-keys="violemment">violemment</span>.
+          <span class="case" data-keys="ce_ces">Ce sont ces bruits</span> qui la
+          <span class="case" data-keys="deciderent">décidèrent</span>
+          <span class="case" data-keys="a_avancer">à avancer</span>.
+          <span class="case" data-keys="ses_possessif">Ses mains</span>
+          <span class="case" data-keys="tremblaient">tremblaient</span>, ses épaules
+          <span class="case" data-keys="crispees">étaient crispées</span>, mais elle continua.
+          <span class="case" data-keys="a_peine">À peine</span>
+          <span class="case" data-keys="avait_elle">avait-elle</span>
+          <span class="case" data-keys="franchi">franchi</span> le seuil qu’
+          <span class="case" data-keys="apparut">une femme apparut</span> devant elle,
+          <span class="case" data-keys="essoufflee">essoufflée</span>
+          <span class="case" data-keys="et_est">et couverte</span> de
+          <span class="case" data-keys="poussiere">poussière</span>. Marianne recula brusquement.
+          <span class="case" data-keys="parcourut">Un frisson parcourut</span>
+          <span class="case" data-keys="son_possessif">son dos</span>;
+          <span class="case" data-keys="apparemment">apparemment</span>,
+          <span class="case" data-keys="quelquun">quelqu’un</span> l’attendait depuis longtemps.
+          <span class="case" data-keys="comprit">Elle comprit</span> alors qu’elle
+          <span class="case" data-keys="arrivee">n’était pas arrivée</span>
+          <span class="case" data-keys="la_la">là</span> par
+          <span class="case" data-keys="hasard">hasard</span>.
+        </p>
+      </div>
+    </section>
+
+    <section class="card" id="exerciseCard">
+      <div class="kicker">Pour t'améliorer</div>
+      <h2>Exercices que je te recommande</h2>
+      <div id="exercises" class="exercises"></div>
+    </section>
+
+    <section class="card">
+      <div id="secretLocked" class="secret locked">
+        <strong>Dernière étape verrouillée</strong>
+        <div class="mini" id="secretLockedText">Lis et coche toutes tes erreurs avant d'entrer le mot caché dans ton PDF.</div>
+      </div>
+      <div id="secretReady" class="secret hidden">
+        <strong>Tu as tout lu.</strong>
+        <p>Entre maintenant le mot caché à l'envers au bas de ta page de commentaires. C'est ce qui confirme que tu as lu ton retour.</p>
+        <form id="secretForm">
+          <label for="secretInput">Mot caché</label>
+          <div class="field-row">
+            <input id="secretInput" autocomplete="off" autocapitalize="none" spellcheck="false" required>
+            <button class="btn" type="submit">Confirmer ma lecture</button>
+          </div>
+        </form>
+        <div id="secretMsg" class="msg"></div>
+      </div>
+      <div id="success" class="success hidden"></div>
+    </section>
+  </main>
+</div>
+
+<div class="overlay" id="overlay" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <button class="modal-close" id="modalClose" aria-label="Fermer">×</button>
+    <div class="pill" id="modalCategory"></div>
+    <h3 id="modalTitle"></h3>
+    <div class="rule" id="modalRule"></div>
+    <div class="understand hidden" id="understandBox">
+      <label><input type="checkbox" id="understandCheck"><span><strong>J'ai compris cette erreur.</strong><br><span class="mini">Je sais maintenant quoi vérifier la prochaine fois.</span></span></label>
+    </div>
+  </div>
+</div>
+
 <script>
-const ENDPOINT="https://ojyswaxuqwnqilrvtjll.supabase.co/functions/v1/marianne-dictee"; const ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qeXN3YXh1cXducWlscnZ0amxsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4MDI0MTksImV4cCI6MjEwNDM3ODQxOX0.zKiE9TgFhH0W0Y_4qL_o16csdDqq9TiacHiCcf6ES3Q'; const form=document.querySelector('#form'), code=document.querySelector('#code'), msg=document.querySelector('#msg'), result=document.querySelector('#result'), go=document.querySelector('#go');
-function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-form.addEventListener('submit',async e=>{e.preventDefault();go.disabled=true;msg.textContent='Vérification…';result.hidden=true;try{const r=await fetch(ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json','apikey':ANON,'Authorization':'Bearer '+ANON},body:JSON.stringify({action:'student',code:code.value})});const d=await r.json();if(!d.ok)throw new Error(d.message||'Mot invalide.');msg.textContent='';let html=`<h2>Salut ${esc(d.first)}!</h2><p>Voici uniquement les éléments que j'ai corrigés dans ta copie. Ta note est <span class="score">${d.note}/30</span>.</p>`;if(!d.errors.length)html+=`<div class="perfect">Aucune faute à revoir : 30/30. Excellent travail.</div>`;else html+=d.errors.map(x=>`<article class="error-card"><div class="cat">${esc(x.category)}</div><div class="term">${esc(x.term)}</div><p class="explain">${esc(x.explanation)}</p></article>`).join('');result.innerHTML=html;result.hidden=false;result.scrollIntoView({behavior:'smooth',block:'start'})}catch(err){msg.textContent=err.message}finally{go.disabled=false}});
-</script></body></html>
+const BASE='https://ojyswaxuqwnqilrvtjll.supabase.co';
+const KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qeXN3YXh1cXducWlscnZ0amxsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4MDI0MTksImV4cCI6MjEwNDM3ODQxOX0.zKiE9TgFhH0W0Y_4qL_o16csdDqq9TiacHiCcf6ES3Q';
+const HEAD={'Content-Type':'application/json','apikey':KEY,'Authorization':'Bearer '+KEY};
+let state={student:null,errorKeys:[],errors:new Map(),rules:new Map(),understood:new Set(),activeKey:null,activeEl:null};
+
+const $=s=>document.querySelector(s);
+const $$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+async function rpc(name,payload){
+  const r=await fetch(BASE+'/rest/v1/rpc/'+name,{method:'POST',headers:HEAD,body:JSON.stringify(payload)});
+  if(!r.ok) throw new Error('Impossible de joindre le service pour le moment.');
+  return await r.json();
+}
+function keyForElement(el,personalOnly=false){
+  const keys=(el.dataset.keys||'').split(/\s+/).filter(Boolean);
+  if(personalOnly){
+    return keys.find(k=>state.errorKeys.includes(k))||null;
+  }
+  return keys.find(k=>state.errorKeys.includes(k))||keys.find(k=>state.rules.has(k))||null;
+}
+function applyHighlights(){
+  $$('.case,.listen-marker').forEach(el=>{
+    const keys=(el.dataset.keys||'').split(/\s+/).filter(Boolean);
+    const personal=keys.some(k=>state.errorKeys.includes(k));
+    el.classList.toggle('personal',personal);
+    const done=keys.some(k=>state.understood.has(k));
+    el.classList.toggle('done',done);
+  });
+}
+function updateProgress(){
+  const total=state.errorKeys.length;
+  const done=state.errorKeys.filter(k=>state.understood.has(k)).length;
+  $('#progressText').textContent=done+' / '+total;
+  $('#progressBar').style.width=(total?done/total*100:100)+'%';
+  applyHighlights();
+  const complete=done===total;
+  $('#secretLocked').classList.toggle('hidden',complete);
+  $('#secretReady').classList.toggle('hidden',!complete);
+}
+function openRule(el){
+  const personalMode=document.body.classList.contains('mode-errors');
+  const key=keyForElement(el,personalMode);
+  if(!key) return;
+  const rule=state.rules.get(key);
+  if(!rule) return;
+  state.activeKey=key; state.activeEl=el;
+  $('#modalCategory').textContent=rule.category;
+  $('#modalTitle').textContent=rule.term;
+  $('#modalRule').textContent=rule.explanation;
+  const isPersonal=state.errorKeys.includes(key);
+  $('#understandBox').classList.toggle('hidden',!isPersonal);
+  $('#understandCheck').checked=state.understood.has(key);
+  $('#overlay').classList.add('open');
+  $('#overlay').setAttribute('aria-hidden','false');
+}
+function closeRule(){
+  $('#overlay').classList.remove('open');
+  $('#overlay').setAttribute('aria-hidden','true');
+  state.activeKey=null;state.activeEl=null;
+}
+function exerciseRecommendations(){
+  const cats=state.errorKeys.map(k=>(state.rules.get(k)?.category||'').toLowerCase());
+  const count=needle=>cats.filter(c=>c.includes(needle)).length;
+  const out=[];
+  if(count('accord')>=2) out.push(['Accords','Fais 8 phrases où tu dois repérer le donneur d’accord, souligner le sujet ou le nom, puis justifier la terminaison choisie.']);
+  if(count('conjugaison')>=2) out.push(['Temps du récit','Conjugue apercevoir, résonner, décider, apparaître, parcourir et comprendre au passé simple, puis écris une phrase narrative avec chacun.']);
+  if(count('homophone')>=2) out.push(['Homophones','Fais une série de 10 phrases sur a/à, ce/se, ces/ses, et/est, la/là/l’a. Pour chaque réponse, écris ton test de remplacement.']);
+  if(count("traits d’union")>=1) out.push(["Traits d'union et inversion","Transforme 6 phrases : « Il y a… » → « Y a-t-il…? », « Elle murmura » → « murmura-t-elle », puis 4 autres inversions du même type."]);
+  if(count("orthographe")>=3) out.push(["Orthographe d’usage","Fais une petite liste personnelle des mots que tu as manqués. Vérifie-les dans Usito, recopie leur forme correcte et surligne les consonnes doubles ou les accents difficiles."]);
+  if(state.errorKeys.includes('ecoute')) out.push(['Écoute et relecture','À la prochaine dictée, garde 30 secondes pour relire chaque phrase au complet afin de repérer un mot, une virgule ou un signe oublié.']);
+  if(!out.length) out.push(['Consolidation','Aucun exercice ciblé n’est nécessaire pour cette dictée. Continue d’appliquer la même stratégie de correction.']);
+  $('#exercises').innerHTML=out.slice(0,4).map(([t,d])=>'<div class="exercise"><strong>'+esc(t)+'</strong><span>'+esc(d)+'</span></div>').join('');
+}
+$('#loginForm').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const fiche=$('#fiche').value.trim();
+  $('#loginMsg').textContent='Chargement de ton retour…';
+  try{
+    const d=await rpc('marianne_identify',{p_fiche:fiche});
+    if(!d.ok) throw new Error(d.message||'Accès impossible.');
+    state.student=d;state.errorKeys=d.errorKeys||[];
+    state.errors=new Map((d.errors||[]).map(x=>[x.key,x]));
+    state.rules=new Map((d.allRules||[]).map(x=>[x.key,x]));
+    state.understood=new Set();
+    $('#studentName').textContent='Salut '+d.first+'.';
+    $('#studentScore').textContent=d.note+'/30';
+    $('#login').classList.add('hidden');
+    $('#app').classList.remove('hidden');
+    if(state.errorKeys.length===0){
+      $('#modeNotice').textContent='Aucune erreur à corriger. Tu peux quand même consulter toute la dictée expliquée.';
+    }
+    applyHighlights();updateProgress();exerciseRecommendations();
+    window.scrollTo({top:0,behavior:'smooth'});
+  }catch(err){$('#loginMsg').textContent=err.message}
+});
+$('#errorsMode').addEventListener('click',()=>{
+  document.body.classList.remove('mode-all');document.body.classList.add('mode-errors');
+  $('#errorsMode').classList.add('active');$('#allMode').classList.remove('active');
+  $('#modeNotice').textContent=state.errorKeys.length?'Tes erreurs sont soulignées en rouge. Clique-les une par une.':'Aucune erreur à corriger.';
+});
+$('#allMode').addEventListener('click',()=>{
+  document.body.classList.remove('mode-errors');document.body.classList.add('mode-all');
+  $('#allMode').classList.add('active');$('#errorsMode').classList.remove('active');
+  $('#modeNotice').textContent='Tous les cas intéressants de la dictée sont soulignés. Tes erreurs restent en rouge; les autres explications sont en bleu.';
+});
+$$('.case,.listen-marker').forEach(el=>el.addEventListener('click',()=>openRule(el)));
+$('#understandCheck').addEventListener('change',e=>{
+  if(!state.activeKey)return;
+  if(e.target.checked)state.understood.add(state.activeKey); else state.understood.delete(state.activeKey);
+  updateProgress();
+});
+$('#modalClose').addEventListener('click',closeRule);
+$('#overlay').addEventListener('click',e=>{if(e.target===$('#overlay'))closeRule()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeRule()});
+$('#secretForm').addEventListener('submit',async e=>{
+  e.preventDefault();
+  if(state.errorKeys.some(k=>!state.understood.has(k))) return;
+  const code=$('#secretInput').value.trim();
+  $('#secretMsg').textContent='Vérification…';
+  try{
+    const d=await rpc('marianne_confirm',{p_fiche:state.student.studentKey,p_code:code});
+    if(!d.ok)throw new Error(d.message||'Mot incorrect.');
+    $('#secretReady').classList.add('hidden');
+    $('#success').textContent='Lecture confirmée. Merci, '+d.first+'.';
+    $('#success').classList.remove('hidden');
+    $('#secretMsg').textContent='';
+  }catch(err){$('#secretMsg').textContent=err.message}
+});
+</script>
+</body>
+</html>
