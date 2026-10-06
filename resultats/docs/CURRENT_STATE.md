@@ -1,6 +1,6 @@
 # Current state
 
-Last updated: **2026-09-15**
+Last updated: **2026-10-06**
 
 This is the first status file a future ChatGPT should read after the project instructions.
 
@@ -136,6 +136,12 @@ The browser-local Mozaïk bearer must never be sent to GitHub, Supabase or ChatG
 `resultats/mozaik/extension/` contains older historical source files and its old manifest is not the release-version authority. Before using that directory as a build source, compare it against `cardinal-extension-latest.json` and the current installed/stable package. Do not accidentally rebuild a current release from a legacy 0.8.x manifest.
 
 Historical files are being retained rather than aggressively deleted because several old cache paths and rollback references still exist. Prefer making active entry points explicit over deleting history during a stability pass.
+
+## Dictée Marianne - groupe 51
+
+The current student feedback page is the repository root `index.html`; teacher progress tracking is in `controle.html`.
+
+On 2026-10-06, the metacognitive verification choices were corrected so the right strategy is no longer always the first option. The correct position is now deterministic from the student fiche and error key: it varies across errors/students but stays stable when the same student reopens the same error. The pedagogical category mapping and the three-choice format are unchanged.
 
 ## Regression checklist before any future stable release
 
