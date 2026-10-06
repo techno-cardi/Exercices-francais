@@ -380,7 +380,16 @@ function updateProgress(){
   $('#secretReady').classList.toggle('hidden',!complete||state.completed);
   updateJourney();
 }
-function strategyProfile(rule){
+function stableChoiceIndex(seed,count){
+  let hash=2166136261;
+  const text=String(seed||'');
+  for(let i=0;i<text.length;i++){
+    hash^=text.charCodeAt(i);
+    hash=Math.imul(hash,16777619);
+  }
+  return (hash>>>0)%count;
+}
+function strategyProfile(rule,key=''){
   const c=(rule?.category||'').toLowerCase();
   const options={
     accord:['accord','Je repère le noyau ou le sujet, j’indique son genre et son nombre, puis je vérifie les mots qui s’accordent avec lui.'],
@@ -396,13 +405,14 @@ function strategyProfile(rule){
   else if(c.includes('accord')) correct='accord';
   else if(c.includes('conjugaison')||c.includes('verbe')) correct='verbe';
   else if(c.includes('orthographe')) correct='dico';
-  const pool=[options[correct]];
-  const distractors=Object.values(options).filter(x=>x[0]!==correct);
   const preferred=correct==='accord'?['dico','homophone']:correct==='verbe'?['accord','dico']:correct==='homophone'?['verbe','dico']:correct==='dico'?['accord','verbe']:correct==='trait'?['homophone','verbe']:['verbe','dico'];
-  preferred.forEach(k=>pool.push(options[k]));
+  const pool=preferred.map(k=>options[k]).slice(0,2);
+  const seed=(state.student?.studentKey||'preview')+'|'+(key||rule?.term||correct);
+  const correctIndex=stableChoiceIndex(seed,3);
+  pool.splice(correctIndex,0,options[correct]);
   return {correct,options:pool.slice(0,3)};
 }
-function renderStrategy(rule,isPersonal){
+function renderStrategy(rule,isPersonal,key=''){
   const box=$('#strategyBox'), panel=$('#rulePanel');
   state.strategyChosen=false;
   $('#strategyFeedback').textContent='';
@@ -417,7 +427,7 @@ function renderStrategy(rule,isPersonal){
   }
   box.classList.remove('hidden');
   $('#modalActions').classList.remove('hidden');
-  const profile=strategyProfile(rule);
+  const profile=strategyProfile(rule,key);
   $('#strategyOptions').innerHTML=profile.options.map(([k,label])=>'<button type="button" class="strategy-choice" data-strategy="'+k+'">'+esc(label)+'</button>').join('');
   $$('#strategyOptions .strategy-choice').forEach(btn=>btn.addEventListener('click',()=>{
     $$('#strategyOptions .strategy-choice').forEach(b=>b.classList.remove('selected','correct','wrong'));
@@ -478,7 +488,7 @@ function openRuleForKey(key,el=null){
   if(isPersonal) renderPersonalCrop(key); else $('#cropBlock').classList.add('hidden');
   $('#understandBox').classList.toggle('hidden',!isPersonal);
   $('#understandCheck').checked=state.understood.has(key);
-  renderStrategy(rule,isPersonal);
+  renderStrategy(rule,isPersonal,key);
   if(isPersonal&&state.understood.has(key)){
     $('#rulePanel').hidden=false;
     $('#revealRule').disabled=false;
