@@ -191,3 +191,11 @@ When a stable flow passes, avoid changing the core engine without a concrete bug
 - L'assignation académique `school_assignments.published=false` reste séparée de l'activation pédagogique de `fr_dictee_feedback.released=true`. Ne pas modifier la publication de Gestion des notes sans demande explicite.
 - Les contrôles de schéma, correspondances PDF/codes et JavaScript ont été vérifiés. L'ouverture réelle par un élève avec son compte, la vérification du secret en situation de classe et les performances du site GitHub Pages n'ont pas été testées depuis cette session. Un test de bout en bout réel demeure requis.
 - **Confidentialité** : ne mettre aucun nom, numéro de fiche, note nominative, secret ou URL de copie privée dans le dépôt public. Conserver ces données exclusivement dans Supabase et Drive avec accès individuel.
+
+
+## Accès unifié au portail - 8 octobre 2026
+- Tous les élèves des groupes 31, 32 et 51 entrent **courriel scolaire et numéro de fiche à sept chiffres** dans `index.html`. L'option d'accès par fiche seule a été supprimée du portail.
+- Le service `school-results/studentLogin` vérifie la correspondance courriel/fiche pour les trois groupes et délivre une session éphémère. Le groupe détermine le niveau : 31/32 → 3e, 51 → 5e.
+- `dictee-marianne.html` exige une session scolaire valable (courriel, jeton, groupe 51) et reprend automatiquement la fiche validée sur le portail. Le deuxième formulaire visible de saisie a été retiré. Le service RPC historique de Marianne est encore utilisé pour les corrections et la progression; toute migration future devra conserver le fonctionnement des élèves et la confidentialité.
+- Ce changement ne modifie pas les notes, les partages de PDF, les codes secrets ou la publication des dictées.
+- Vérification : les scripts JavaScript des pages `index.html`, `dictee-marianne.html` et `dictee-eleonore.html` ont été analysés sans erreur de syntaxe. Essai de bout en bout réel sur GitHub Pages encore nécessaire, le site public n'étant pas accessible à cet outil.
