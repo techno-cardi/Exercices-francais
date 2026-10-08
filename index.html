@@ -46,15 +46,15 @@ footer{text-align:center;color:var(--muted);font-size:.78rem;margin-top:27px}
   <h1>Mes travaux de français<span style="color:var(--red)">.</span></h1>
   <p class="lead">Retrouve les travaux de ton niveau et les explications qui t'aideront à progresser à ton rythme.</p>
   <form class="login-panel" id="loginForm">
-    <label for="fiche">Ton numéro de fiche</label>
+    <label for="schoolEmail">Ton courriel scolaire</label>
+    <input type="email" id="schoolEmail" autocomplete="username" inputmode="email" placeholder="Ton adresse @educ.cscapitale.qc.ca" aria-describedby="email-help" style="display:block;width:100%;max-width:500px;padding:12px;border:1px solid #ccd2d9;border-radius:9px;margin:8px 0" required>
+    <p class="help" id="email-help">Pour les élèves de 3e et de 5e secondaire. Utilise ton adresse scolaire complète.</p>
+    <label for="fiche" style="display:block;margin-top:16px">Ton numéro de fiche</label>
     <div class="inputline">
       <input type="text" id="fiche" inputmode="numeric" pattern="[0-9]{7}" maxlength="7" autocomplete="off" spellcheck="false" placeholder="7 chiffres" aria-describedby="fiche-help" required>
       <button class="btn" id="loginButton" type="submit">Accéder à mes travaux →</button>
     </div>
-    <label for="schoolEmail" style="display:block;margin-top:14px">3e secondaire : ton courriel scolaire</label>
-    <input type="email" id="schoolEmail" autocomplete="username" placeholder="prenom.nom@educ.cscapitale.qc.ca" style="width:100%;max-width:420px;padding:12px;border:1px solid #ccd2d9;border-radius:9px">
-    <p class="help">Ce champ est nécessaire pour ouvrir une dictée personnelle de 3e secondaire. Laisse-le vide pour Marianne en 5e.</p>
-    <p class="help" id="fiche-help">Entre les sept chiffres de ta fiche, y compris un zéro au début s'il y en a un.</p>
+    <p class="help" id="fiche-help">Entre les sept chiffres de ta fiche, y compris le zéro au début s'il y en a un.</p>
     <p class="message" id="loginMsg" role="status" aria-live="polite"></p>
   </form>
   <div class="divider"></div>
@@ -93,7 +93,7 @@ const SESSION_TTL=20*60*1000;
 function loadSession(){
   try{
     const d=JSON.parse(sessionStorage.getItem(SESSION_KEY)||'null');
-    if(d&&[3,5].includes(Number(d.level))&&(Number(d.level)===3 ? (typeof d.schoolToken==='string'&&d.schoolToken.length>30&&/^\S+@educ\.cscapitale\.qc\.ca$/.test(d.schoolEmail||'')) : /^[0-9]{7}$/.test(d.fiche))&&Number.isFinite(d.started)&&Date.now()>=d.started&&Date.now()-d.started<SESSION_TTL){
+    if(d&&[3,5].includes(Number(d.level))&&typeof d.schoolToken==='string'&&d.schoolToken.length>30&&/^\S+@educ\.cscapitale\.qc\.ca$/.test(d.schoolEmail||'')&&(Number(d.level)!==5||/^[0-9]{7}$/.test(d.fiche))&&Number.isFinite(d.started)&&Date.now()>=d.started&&Date.now()-d.started<SESSION_TTL){
       return {first:d.first,level:Number(d.level),group:d.group,fiche:Number(d.level)===5?d.fiche:undefined,progress:d.progress||{},schoolToken:d.schoolToken||null,schoolEmail:d.schoolEmail||null};
     }
   }catch(e){}
@@ -107,33 +107,15 @@ const works={
   3:[{id:'eleonore',type:'Dictée',title:'Le livre magique et les vœux d’Éléonore',desc:'Relis le texte, comprends les accords du participe passé et découvre des stratégies de correction.',page:'dictee-eleonore.html'}],
   5:[{id:'marianne',type:'Dictée',title:'Marianne',desc:'Reprends ta copie corrigée, étudie tes erreurs et suis ta progression.',page:'dictee-marianne.html'}]
 };
-async function rpc(name,payload){
-  const response=await fetch(BASE+'/rest/v1/rpc/'+name,{method:'POST',headers:{'Content-Type':'application/json','apikey':KEY,'Authorization':'Bearer '+KEY},body:JSON.stringify(payload),cache:'no-store'});
-  const data=await response.json().catch(()=>null);
-  if(!response.ok){const err=new Error(data?.message || 'Service temporairement indisponible.');err.code=data?.code;err.status=response.status;throw err;}
-  return data;
-}
 async function identifySecure(email,fiche){
+  if(!/^[^\s@]+@educ\.cscapitale\.qc\.ca$/.test(email))throw new Error('Entre ton adresse scolaire complète.');
   const r=await fetch(BASE+'/functions/v1/school-results',{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json',apikey:KEY},body:JSON.stringify({action:'studentLogin',email,fiche})});
   const d=await r.json().catch(()=>null);
-  if(!r.ok||!d?.ok||!d?.token)throw new Error('Connexion scolaire refusée.');
-  if(!['31','32'].includes(String(d.user?.group)))throw new Error('Ce travail ne correspond pas à ton groupe.');
-  return {first:String(d.user.name||'élève').split(' ')[0],level:3,group:String(d.user.group),schoolToken:d.token,schoolEmail:email,progress:{}};
-}
-async function identify(fiche){
-  // Contrat futur: fr_portal_identify renvoie {ok,first,level,group}.
-  // Ne jamais utiliser un niveau déclaré par le navigateur pour autoriser l'accès.
-  try{
-    const d=await rpc('fr_portal_identify',{p_fiche:fiche});
-    if(d?.ok && [3,5].includes(Number(d.level)))return {first:d.first||'élève',level:Number(d.level),group:d.group||'',fiche,progress:d.progress||{}};
-    if(d?.ok === false)throw new Error(d.message || 'Numéro de fiche non reconnu.');
-  }catch(e){
-    // Déploiement progressif: maintenir l'accès existant au retour Marianne.
-    if(e.code !== 'PGRST202' && e.status !== 404)throw e;
-  }
-  const d=await rpc('marianne_identify',{p_fiche:fiche});
-  if(!d?.ok)throw new Error('Ce numéro de fiche n’est pas encore associé à un espace élève disponible.');
-  return {first:d.first||'élève',level:5,group:'51',fiche,progress:d.progress||{}};
+  if(!r.ok||!d?.ok||!d?.token)throw new Error(d?.message||'Courriel scolaire ou numéro de fiche invalide.');
+  const group=String(d.user?.group||'');
+  if(!['31','32','51'].includes(group))throw new Error('Aucun travail disponible pour ton groupe.');
+  const level=group==='51'?5:3;
+  return {first:String(d.user.name||'élève').split(' ')[0],level,group,schoolToken:d.token,schoolEmail:email,fiche:level===5?fiche:undefined,progress:{}};
 }
 function showDashboard(){
   $('#login').classList.add('hidden');
@@ -165,15 +147,13 @@ $('#loginForm').addEventListener('submit',async event=>{
   $('#loginButton').disabled=true;$('#loginMsg').textContent='Vérification en cours…';
   try{
     const schoolEmail=String($('#schoolEmail').value||'').trim().toLowerCase();
-    student=schoolEmail?await identifySecure(schoolEmail,fiche):await identify(fiche);
-    if(student.level===3&&!student.schoolToken)throw new Error('Le courriel scolaire est requis pour ouvrir ce travail.');
+    student=await identifySecure(schoolEmail,fiche);
     saveSession(student);
     $('#fiche').value='';$('#schoolEmail').value='';
     $('#loginMsg').textContent='';
     showDashboard();
   }catch(err){
-    const fallback=err.code==='PGRST202'||err.status===404;
-    $('#loginMsg').textContent=fallback?'Cet espace n’est pas encore activé pour ta fiche.':'Impossible de te connecter avec ce numéro pour le moment.';
+    $('#loginMsg').textContent=err?.message||'Connexion impossible pour le moment. Réessaie.';
   }finally{$('#loginButton').disabled=false;}
 });
 $('#logout').addEventListener('click',()=>{
@@ -183,7 +163,7 @@ $('#logout').addEventListener('click',()=>{
     sessionStorage.removeItem('francais.portail.marianne');
     sessionStorage.removeItem('francais.portail.eleonore');
   }catch(e){}
-  $('#dashboard').classList.add('hidden');$('#login').classList.remove('hidden');$('#fiche').value='';$('#fiche').focus();
+  $('#dashboard').classList.add('hidden');$('#login').classList.remove('hidden');$('#fiche').value='';$('#schoolEmail').value='';$('#schoolEmail').focus();
 });
 student=loadSession();
 if(student)showDashboard();
