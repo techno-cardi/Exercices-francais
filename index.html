@@ -124,8 +124,9 @@ function showDashboard(){
   $('#works').querySelectorAll('[data-work]').forEach(button=>button.addEventListener('click',()=>{
     const work=allowed.find(item=>item.id===button.dataset.work);
     if(!work)return;
-    if(work.id==='marianne'){
-      try{sessionStorage.setItem('francais.portail.marianne',JSON.stringify({fiche:student.fiche,date:Date.now()}));}catch(e){}
+    if(work.id==='marianne'||work.id==='eleonore'){
+      // Transmission limitée au même onglet, consommée et effacée sur la page du travail.
+      try{sessionStorage.setItem('francais.portail.'+work.id,JSON.stringify({fiche:student.fiche,date:Date.now()}));}catch(e){}
     }
     location.assign('./'+work.page);
   }));
