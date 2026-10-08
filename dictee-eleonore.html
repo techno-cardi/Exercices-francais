@@ -161,12 +161,12 @@ body.mode-errors .word.personal,body.mode-all .word.personal{color:#99243a;backg
 </section>
 
 <section class="card">
-  <p class="kicker">Le texte intégral</p>
+  <p class="kicker">Texte de référence - ce n'est pas ta copie</p>
   <h2>La dictée</h2>
   <p class="dictee" id="dictee">
     Il <span class="word" data-rule="etait">était</span> une fois, dans un village <span class="word" data-rule="lointain">lointain</span>, une jeune fille <span class="word" data-rule="nommee">nommée</span> Éléonore. Un matin, elle <span class="word" data-rule="avait-trouve">avait trouvé</span> un vieux livre <span class="word" data-rule="poussiereux">poussiéreux</span> dans le <span class="word" data-rule="grenier">grenier</span> de sa <span class="word" data-rule="grand-mere">grand-mère</span>. <span class="word" data-rule="curieuse">Curieuse</span>, elle <span class="word" data-rule="avait-ouvert">l'avait ouvert</span> <span class="word" data-rule="et">et</span>, <span class="word" data-rule="a-sa-surprise">à sa grande surprise</span>, une lumière <span class="word" data-rule="eclatante">éclatante</span> en <span class="word" data-rule="sortit">sortit</span>. Un génie <span class="word" data-rule="avait-pris">avait pris forme</span> devant elle et lui <span class="word" data-rule="avait-offert">avait offert</span> trois <span class="word" data-rule="voeux">vœux</span>. Elle <span class="word" data-rule="avait-souhaite">avait souhaité</span> <span class="word" data-rule="dabord">d’abord</span> que sa famille <span class="word" data-rule="soit-guerie">soit guérie</span> de la maladie <span class="word" data-rule="qui-la-rongeait">qui la rongeait</span>. Le génie <span class="word" data-rule="avait-exauce">avait exaucé</span> <span class="word" data-rule="son-voeu">son vœu</span> avec un sourire.
   </p>
-  <div class="legend"><span><i></i> Explication grammaticale</span><span><i class="red"></i> Mon erreur (après publication)</span></div>
+  <p class="small">Les expressions de ce texte servent uniquement aux explications de grammaire. Elles ne constituent pas la liste de tes erreurs. Seuls les mots encerclés sur ta copie manuscrite et les corrections vérifiées du parcours font référence.</p>
 </section>
 
 <section class="card">
@@ -402,7 +402,7 @@ const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
 const BASE='https://ojyswaxuqwnqilrvtjll.supabase.co';
 const KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qeXN3YXh1cXducWlscnZ0amxsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4MDI0MTksImV4cCI6MjEwNDM3ODQxOX0.zKiE9TgFhH0W0Y_4qL_o16csdDqq9TiacHiCcf6ES3Q';
-let personalised=false,student=null,errorKeys=[],errorInfo={},understood=new Set(),activeKey=null,lastFocused=null,mode='all';
+let personalised=false,student=null,errorKeys=[],errorInfo={},understood=new Set(),activeKey=null,lastFocused=null,mode='plain';
 const keys=Object.keys(RULES);
 function setMode(next){
   if(next==='errors'&&!personalised)return;
@@ -522,9 +522,10 @@ function activatePersonal(d){
   errorKeys=(Array.isArray(d.errorKeys)?d.errorKeys:[]).filter(k=>typeof k==='string'&&k.length<130);
   errorInfo=Object.fromEntries((d.errors||[]).filter(x=>typeof x.key==='string').map(x=>[x.key,x]));
   understood=new Set((d.progress?.understoodKeys||[]).filter(k=>errorKeys.includes(k)));
-  $$('.word').forEach(el=>el.classList.toggle('personal',errorKeys.includes(el.dataset.rule)));
-  $('#availability').textContent='Bonjour '+(d.first||'')+'! Ton retour individuel est disponible. Les marques rouges indiquent les éléments à revoir dans ta copie.';
-  $('#modeErrors').disabled=false;$('#progressArea').classList.remove('hidden');
+  // Ne jamais faire passer une notion grammaticale générique pour une faute personnelle.
+  $('.word').forEach(el=>{el.classList.remove('personal','seen');});
+  $('#availability').textContent='Bonjour '+(d.first||'')+'! Consulte ton PDF annoté et le relevé individuel ci-dessous. Les soulignements grammaticaux du texte de référence ne représentent pas tes fautes.';
+  $('#modeErrors').disabled=true;$('#modeErrors').title='Les fautes personnelles se trouvent dans le parcours, après vérification de ta copie.';$('#progressArea').classList.add('hidden');
   $('#copyPlaceholder').classList.add('hidden');
   $('#copyStatus').textContent=d.copyUrl?'Compare ta copie avec le texte corrigé et repère les règles que tu veux mieux comprendre.':'Ta copie numérisée n’est pas encore disponible.';
   const link=$('#copyLink');
@@ -533,7 +534,7 @@ function activatePersonal(d){
     if(url.protocol==='https:'){link.href=url.href;link.classList.remove('hidden');}
   }catch(e){}
   if(!d.copyUrl)$('#copyPlaceholder').classList.remove('hidden');
-  updateProgress();setMode('errors');
+  updateProgress();setMode('plain');
 }
 async function tryPersonalData(){
   // Les fiches des élèves ne sont ni dans ce fichier ni dans l'URL.
