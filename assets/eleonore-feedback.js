@@ -1,0 +1,123 @@
+/* Projet Cardinal. Complément chargé APRÈS dictee-eleonore.html.
+   Aucune identité, note, copie, mot secret ni solution personnelle en code public. */
+(()=>{
+'use strict';
+const base='https://ojyswaxuqwnqilrvtjll.supabase.co';
+const key='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qeXN3YXh1cXducWlscnZ0amxsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4MDI0MTksImV4cCI6MjEwNDM3ODQxOX0.zKiE9TgFhH0W0Y_4qL_o16csdDqq9TiacHiCcf6ES3Q';
+const assignment='dictee-eleonore-2026-10-08';
+const $=s=>document.querySelector(s);
+let session;try{session=JSON.parse(sessionStorage.getItem('francais.portail.session')||'null');}catch{}
+if(!session||Number(session.level)!==3)return;
+const token=String(session.schoolToken||'');
+const status=$('#availability');
+const wrap=document.createElement('section');wrap.className='card';wrap.id='monParcours';
+const title=document.createElement('h2');title.textContent='Mon parcours de correction';wrap.append(title);
+const msg=document.createElement('p');msg.className='small';msg.setAttribute('role','status');wrap.append(msg);
+const steps=document.createElement('div');wrap.append(steps);
+const ref=$('#copyTitle')?.closest('section');if(ref)ref.before(wrap);
+let info=null;
+function el(tag,content,cls){const n=document.createElement(tag);if(cls)n.className=cls;if(content!==undefined)n.textContent=content;return n;}
+function line(node,tag,content,cls){const n=el(tag,content,cls);node.append(n);return n;}
+function btn(node,content,action){const b=line(node,'button',content,'btn');b.type='button';b.addEventListener('click',action);return b;}
+async function action(name,args={}){
+ const r=await fetch(base+'/functions/v1/fr-dictee-feedback',{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json','apikey':key},body:JSON.stringify({action:name,token,workSlug:assignment,...args})});
+ let result=null;try{result=await r.json();}catch{}
+ if(!r.ok||result?.ok!==true)throw new Error(result?.message||'Le suivi ne répond pas. Réessaie.');
+ return result;
+}
+function strategy(key){
+ const category=(typeof RULES==='object' ? RULES[key]?.category : '')||'';
+ if(/homophone/i.test(category))return ['Vérifier le sens de la phrase et essayer un remplacement.','Choisir la forme qui ressemble au mot précédent.','Ajouter un accent à chaque mot prononcé de la même façon.'];
+ if(/participe passé avec avoir/i.test(category))return ['Trouver le CD, sa position, puis son genre et son nombre.','Accorder systématiquement le participe passé avec le sujet.','Regarder uniquement la terminaison de l’auxiliaire.'];
+ if(/accord|adjectif|participe/i.test(category))return ['Relier le mot au nom ou au sujet qu’il décrit, puis vérifier le genre et le nombre.','Ajouter toujours un -s à la fin du mot.','Se fier uniquement à la façon dont le mot se prononce.'];
+ if(/verbe|imparfait|temps|subjonctif/i.test(category))return ['Repérer le sujet, le temps du récit et vérifier la terminaison.','Accorder le verbe avec le dernier nom écrit.','Remplacer toutes les terminaisons par -é.'];
+ return ['Vérifier d’abord le sens et la structure de la phrase, puis confirmer les mots difficiles dans Usito.','Remplacer le mot au hasard par un autre mot qui sonne pareil.','Ajouter une lettre muette pour être certain.'];
+}
+function mixed(key){
+ // Positions stables, sans données privées persistées : hash de l'identifiant de session et clé de règle.
+ const s=String(session.schoolEmail||'')+'|'+key;let h=0;
+ for(let i=0;i<s.length;i++)h=((h*33)^s.charCodeAt(i))>>>0;
+ const correct=h%3;
+ const choices=strategy(key);const ordered=[null,null,null];ordered[correct]=choices[0];ordered[(correct+1)%3]=choices[1];ordered[(correct+2)%3]=choices[2];
+ return {correct,ordered};
+}
+function render(){
+ steps.replaceChildren();
+ if(!info)return;
+ if(info.unreleased){line(steps,'p','Ce travail n’est pas encore publié. Ton enseignant validera les corrections avant de l’ouvrir.');return;}
+ const prog=info.progress||{};
+ const top=line(steps,'p',`Groupe ${info.group} · Note : ${info.grade===null?'à confirmer':info.grade+' / '+info.maxScore}`,'small');
+ top.style.fontWeight='bold';
+ if(prog.completedAt){line(steps,'h3','Travail terminé');line(steps,'p','Ta vérification est enregistrée. Tu peux revoir les explications à tout moment.');return;}
+ const first=line(steps,'div',undefined,'exercise');
+ line(first,'h3','1. Ouvrir ma copie');
+ line(first,'p','Lis ton commentaire à la page 1, puis regarde la copie corrigée à la page 2 et ta feuille de vérification à la page 3.');
+ if(/^https:\/\/drive\.google\.com\/file\/d\/[a-zA-Z0-9_-]+\/view(?:[?#].*)?$/.test(info.copyUrl||'')){const link=line(first,'a','Ouvrir mon PDF personnel ↗','btn');link.href=info.copyUrl;link.target='_blank';link.rel='noopener noreferrer';link.style.textDecoration='none';link.addEventListener('click',()=>{action('copyOpened').then(()=>reload()).catch(e=>msg.textContent=e.message);});}
+ line(first,'p',prog.copyOpened?'Lien vers la copie activé : oui':'Lien vers la copie à activer','small');
+ const second=line(steps,'div',undefined,'exercise');line(second,'h3','2. Comprendre mes erreurs');
+ if(!info.ready){line(second,'p','Les erreurs individuelles sont en cours de vérification par ton enseignant. Les explications générales restent accessibles plus haut.');}
+ else if(!info.errors?.length){line(second,'p','Bravo! Aucune erreur personnelle à corriger dans cette dictée.');}
+ else{
+   const understood=new Set(prog.understoodKeys||[]);
+   line(second,'p',`${understood.size} / ${info.errors.length} difficultés comprises.`,'small');
+   info.errors.forEach((error,i)=>{
+     const card=line(second,'div',undefined,'exercise');
+     line(card,'h3',(i+1)+'. '+(error.title||error.correct||'Point à revoir'));
+     if(error.written)line(card,'p','Dans ta copie : « '+error.written+' ».');
+     if(error.correct)line(card,'p','On écrit : « '+error.correct+' ».');
+     if(error.comment)line(card,'p',error.comment);
+     const rule=(typeof RULES==='object' ? RULES[error.key]?.rule : '')||'';
+     if(rule)line(card,'p',rule);
+     if(understood.has(error.key)){line(card,'p','Compris et enregistré.','small');return;}
+     const passed=new Set(prog.strategyKeys||[]);
+     line(card,'p','Quelle stratégie utiliserais-tu pour éviter cette erreur?');
+     const {correct,ordered}=mixed(error.key);
+     const feedback=line(card,'p','', 'feedback');
+     const confirm=()=>{
+       if(card.querySelector('[data-understood]'))return;
+       const button=btn(card,'J’ai compris cette erreur',async()=>{
+         button.disabled=true;
+         try{await action('understood',{key:error.key,understood:true});await reload();}
+         catch(e){button.disabled=false;msg.textContent=e.message;}
+       });
+       button.dataset.understood='true';
+     };
+     if(passed.has(error.key)) {line(card,'p','Bonne stratégie déjà trouvée. Confirme ce que tu as compris.');confirm();}
+     else ordered.forEach((text,index)=>btn(card,`${index+1}. ${text}`,async()=>{
+       try{
+         const result=await action('strategy',{key:error.key,choice:index});
+         if(!result.correct){feedback.textContent='Ce n’est pas la meilleure méthode. Essaie une autre stratégie.';return;}
+         feedback.textContent='Bonne stratégie! Tu peux maintenant confirmer ta compréhension.';
+         card.querySelectorAll('button').forEach(b=>{if(b!==card.querySelector('[data-understood]'))b.disabled=true;});
+         confirm();
+       }catch(e){feedback.textContent=e.message;}
+     }));
+   });
+ }
+ const third=line(steps,'div',undefined,'exercise');line(third,'h3','3. Consulter mon bilan');
+ line(third,'p','Relis la première page de ton PDF. Pour la prochaine dictée : repère les noms, vérifie les verbes, les homophones, puis termine par Usito.');
+ btn(third,prog.bilanSeen?'Bilan consulté':'J’ai lu mon bilan',async()=>{try{await action('bilanSeen');await reload();}catch(e){msg.textContent=e.message;}}).disabled=!!prog.bilanSeen;
+ const done=(info.errors||[]).every(e=>(prog.understoodKeys||[]).includes(e.key));
+ const fourth=line(steps,'div',undefined,'exercise');line(fourth,'h3','4. Valider mon travail');
+ if(!info.ready)line(fourth,'p','Validation disponible une fois les erreurs personnelles vérifiées.');
+ else if(!prog.copyOpened||!prog.bilanSeen||!done)line(fourth,'p','Ouvre ta copie, vérifie tes erreurs et consulte ton bilan avant de valider.');
+ else{
+   const f=line(fourth,'form');
+   const label=line(f,'label','Mot secret imprimé à la page 1');label.htmlFor='validationMot';
+   const input=line(f,'input');input.id='validationMot';input.required=true;input.maxLength=9;input.autocomplete='off';input.placeholder='XXXX-XXXX';input.style.padding='12px';
+   const send=line(f,'button','Terminer mon travail','btn');send.type='submit';
+   f.addEventListener('submit',async e=>{e.preventDefault();send.disabled=true;try{await action('finish',{secret:input.value});input.value='';await reload();}catch(err){msg.textContent=err.message;send.disabled=false;}});
+ }
+}
+async function reload(){try{info=await action('load');
+ if(info.ready && typeof activatePersonal==='function'){
+   window.eleonoreExternalTracking=true;
+   activatePersonal({ok:true,first:info.first,note:info.grade,copyUrl:info.copyUrl,errorKeys:(info.errors||[]).map(e=>e.key),errors:info.errors,progress:{understoodKeys:info.progress?.understoodKeys||[]}});
+   // La validation des stratégies est exclusivement gérée par le parcours ci-dessus.
+ }
+ msg.textContent=info.unreleased?'Le travail individuel n’est pas encore publié.':info.ready?'Ton suivi est enregistré automatiquement.':'Les erreurs personnalisées restent en vérification.';render();}catch(err){msg.textContent=err.message;}}
+// Le portail ne transfère jamais une fiche dans le code public. Le jeton est éphémère dans sessionStorage.
+$('#copyLink')?.addEventListener('click',()=>{action('copyOpened').then(reload).catch(err=>msg.textContent=err.message);});
+if(!token)msg.textContent='Accès personnel indisponible : reconnecte-toi depuis le portail avec ton courriel scolaire et ta fiche.';
+else reload();
+})();
