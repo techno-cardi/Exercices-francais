@@ -31,7 +31,7 @@ async function action(name,args={}){
 }
 function strategy(key, categoryOverride=''){
  const category=categoryOverride||(typeof RULES==='object' ? RULES[key]?.category : '')||(key.startsWith('phrase-')?'Structure de phrase':'');
- if(/Structure de phrase/.test(category))return ['Relire la phrase pour vérifier les parties du verbe.','Ajouter une marque de pluriel à chaque mot.','Choisir le mot qui ressemble le plus à un autre.'];
+ if(/Structure de phrase/.test(category))return ['Écouter la phrase au complet et demander qu’on répète si un mot manque ou semble incertain.','Remplacer les mots entendus par d’autres qui veulent dire la même chose.','Chercher dans Usito les mots qui ont été oubliés.'];
  if(/ponctuation/i.test(category))return ['Relire la phrase et encadrer les groupes détachés avec les virgules nécessaires.','Mettre une virgule après chaque mot difficile.','Retirer toutes les virgules pour lire plus vite.'];
  if(/homophone/i.test(category))return ['Vérifier le sens de la phrase et essayer un remplacement.','Choisir la forme qui ressemble au mot précédent.','Ajouter un accent à chaque mot prononcé de la même façon.'];
  if(/participe passé avec avoir/i.test(category))return ['Trouver le CD, sa position, puis son genre et son nombre.','Accorder systématiquement le participe passé avec le sujet.','Regarder uniquement la terminaison de l’auxiliaire.'];
