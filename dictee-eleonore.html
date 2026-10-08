@@ -468,7 +468,7 @@ function renderVisualLesson(key,rule){
 }
 function openRule(key,el){
   if(mode==='plain'||(mode==='errors'&&!errorKeys.includes(key)))return;
-  const r=RULES[key];if(!r)return;
+  const r=RULES[key]||errorInfo[key];if(!r)return;
   lastFocused=el||document.activeElement;activeKey=key;
   const visual=VISUAL_LESSONS[key];
   $('#modalCategory').textContent=r.category;
