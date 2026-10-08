@@ -25,20 +25,21 @@ async function action(name,args={}){
  if(!r.ok||result?.ok!==true)throw new Error(result?.message||'Le suivi ne répond pas. Réessaie.');
  return result;
 }
-function strategy(key){
- const category=(typeof RULES==='object' ? RULES[key]?.category : '')||'';
+function strategy(key, categoryOverride=''){
+ const category=categoryOverride||(typeof RULES==='object' ? RULES[key]?.category : '')||(key.startsWith('phrase-')?'Structure de phrase':'');
+ if(/Structure de phrase/.test(category))return ['Relire la phrase pour vérifier les parties du verbe.','Ajouter une marque de pluriel à chaque mot.','Choisir le mot qui ressemble le plus à un autre.'];
  if(/homophone/i.test(category))return ['Vérifier le sens de la phrase et essayer un remplacement.','Choisir la forme qui ressemble au mot précédent.','Ajouter un accent à chaque mot prononcé de la même façon.'];
  if(/participe passé avec avoir/i.test(category))return ['Trouver le CD, sa position, puis son genre et son nombre.','Accorder systématiquement le participe passé avec le sujet.','Regarder uniquement la terminaison de l’auxiliaire.'];
  if(/accord|adjectif|participe/i.test(category))return ['Relier le mot au nom ou au sujet qu’il décrit, puis vérifier le genre et le nombre.','Ajouter toujours un -s à la fin du mot.','Se fier uniquement à la façon dont le mot se prononce.'];
  if(/verbe|imparfait|temps|subjonctif/i.test(category))return ['Repérer le sujet, le temps du récit et vérifier la terminaison.','Accorder le verbe avec le dernier nom écrit.','Remplacer toutes les terminaisons par -é.'];
  return ['Vérifier d’abord le sens et la structure de la phrase, puis confirmer les mots difficiles dans Usito.','Remplacer le mot au hasard par un autre mot qui sonne pareil.','Ajouter une lettre muette pour être certain.'];
 }
-function mixed(key){
+function mixed(key,error){
  // Positions stables, sans données privées persistées : hash de l'identifiant de session et clé de règle.
  const s=String(session.schoolEmail||'')+'|'+key;let h=0;
  for(let i=0;i<s.length;i++)h=((h*33)^s.charCodeAt(i))>>>0;
  const correct=h%3;
- const choices=strategy(key);const ordered=[null,null,null];ordered[correct]=choices[0];ordered[(correct+1)%3]=choices[1];ordered[(correct+2)%3]=choices[2];
+ const choices=strategy(key,error?.category||'');const ordered=[null,null,null];ordered[correct]=choices[0];ordered[(correct+1)%3]=choices[1];ordered[(correct+2)%3]=choices[2];
  return {correct,ordered};
 }
 function render(){
@@ -71,7 +72,7 @@ function render(){
      if(understood.has(error.key)){line(card,'p','Compris et enregistré.','small');return;}
      const passed=new Set(prog.strategyKeys||[]);
      line(card,'p','Quelle stratégie utiliserais-tu pour éviter cette erreur?');
-     const {correct,ordered}=mixed(error.key);
+     const {correct,ordered}=mixed(error.key,error);
      const feedback=line(card,'p','', 'feedback');
      const confirm=()=>{
        if(card.querySelector('[data-understood]'))return;
