@@ -1,0 +1,44 @@
+<!doctype html><html lang="fr-CA"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Contrôle des dictées - Cardinal-Roy</title><style>
+:root{font-family:Inter,system-ui,sans-serif;color:#243042;background:#f6f7f9}*{box-sizing:border-box}body{margin:0}.shell{max-width:1240px;margin:24px auto;padding:0 16px}.panel{background:white;border:1px solid #e2e6eb;border-radius:16px;padding:24px;margin:14px 0;box-shadow:0 8px 30px #1924390a}h1{margin:0;color:#a71930}p{line-height:1.5}input,select,button{font:inherit;padding:10px;border-radius:8px;border:1px solid #c6cbd3}button{background:#a71930;color:#fff;border-color:#a71930;cursor:pointer}button:disabled{opacity:.6}label{display:block;font-size:.9rem;font-weight:700;margin:12px 0 4px}.controls{display:flex;gap:12px;flex-wrap:wrap;align-items:end}.controls label{margin:0}.muted{color:#637185;font-size:.9rem}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin:18px 0}.cards>div{background:#f4f6f8;border-radius:12px;padding:14px}.cards strong{display:block;font-size:1.6rem}.cards span{font-size:.84rem;color:#637185}.scroll{overflow:auto}table{border-collapse:collapse;width:100%;font-size:.9rem}th,td{border-bottom:1px solid #e7eaef;padding:10px;text-align:left;white-space:nowrap}th{background:#fafbfc}td:nth-child(1){font-weight:600}.tag{border-radius:20px;background:#e5eff8;color:#234c70;padding:3px 8px}.tag.done{background:#e2f4e8;color:#1b6339}.tag.wait{background:#f6ecdf;color:#82521b}.hidden{display:none!important}@media(max-width:600px){input{width:100%}}
+</style></head><body><div class="shell"><section class="panel"><h1>Suivi des dictées</h1><p class="muted">Cardinal-Roy · Progression conservée par élève, groupe et travail</p><p>Pour les anciennes données de 5e secondaire : <a href="controle.html">suivi de Marianne</a>.</p><form id="login"><label for="email">Courriel enseignant</label><input required type="email" id="email" autocomplete="username"><label for="pwd">Mot de passe</label><input type="password" id="pwd" autocomplete="current-password" required><p><button>Ouvrir la console</button></p></form><div id="tools" class="controls hidden"><div><label for="work">Travail</label><select id="work"><option value="">Chargement…</option></select></div><div><label for="group">Groupe</label><select id="group"><option value="all">Tous les groupes</option><option value="31">31</option><option value="32">32</option></select></div><button id="refresh" type="button">Actualiser</button><button id="csv" type="button">Exporter CSV</button><button id="logout" type="button">Déconnexion</button></div><p id="msg" role="status"></p></section><section class="panel hidden" id="report"><div class="cards" id="cards"></div><div class="scroll"><table><thead><tr><th>Élève</th><th>Groupe</th><th>Note</th><th>Lien PDF activé</th><th>Erreurs comprises</th><th>Bilan</th><th>Statut</th><th>Début</th><th>Fin du travail</th></tr></thead><tbody id="students"></tbody></table></div></section></div><script>
+'use strict';
+const BASE='https://ojyswaxuqwnqilrvtjll.supabase.co';
+const KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qeXN3YXh1cXducWlscnZ0amxsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4MDI0MTksImV4cCI6MjEwNDM3ODQxOX0.zKiE9TgFhH0W0Y_4qL_o16csdDqq9TiacHiCcf6ES3Q';
+const $=q=>document.querySelector(q), safe=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let token=null,last=[],works=[];
+async function api(path,data){const response=await fetch(BASE+'/functions/v1/'+path,{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json',apikey:KEY},body:JSON.stringify(data)});const body=await response.json().catch(()=>null);if(!response.ok||!body?.ok)throw new Error(body?.message||'Service indisponible.');return body;}
+function stamp(iso){return iso?new Intl.DateTimeFormat('fr-CA',{dateStyle:'short',timeStyle:'short',timeZone:'America/Toronto'}).format(new Date(iso)):'-';}
+function item(n,label){return `<div><strong>${n}</strong><span>${label}</span></div>`;}
+function report(rows){last=rows;
+  const started=rows.filter(x=>x.startedAt).length, copies=rows.filter(x=>x.copyOpenedAt).length;
+  const allErrors=rows.filter(x=>x.ready&&x.totalErrors!==null&&x.totalErrors===x.understoodCount).length;
+  const bilan=rows.filter(x=>x.bilanSeenAt).length,complete=rows.filter(x=>x.completedAt).length;
+  $('#cards').innerHTML=item(`${rows.length}`,'élèves concernés')+item(`${started}`,'ont commencé')+item(`${copies}`,'liens PDF activés')+item(`${allErrors}`,'erreurs comprises')+item(`${bilan}`,'bilans consultés')+item(`${complete}`,'travaux terminés');
+  $('#students').innerHTML=rows.map(x=>{const statut=x.completedAt?'Terminé':!x.released?'Non publié':x.startedAt?'En cours':'Non commencé';const cell=x.ready?`${x.understoodCount}/${x.totalErrors}`:'À vérifier';return `<tr><td>${safe(x.name)}</td><td>${safe(x.group)}</td><td>${x.grade===null?'-':safe(x.grade)+'/20'}</td><td>${x.copyOpenedAt?'Oui':'Non'}</td><td>${safe(cell)}</td><td>${x.bilanSeenAt?'Oui':'Non'}</td><td><span class="tag ${x.completedAt?'done':x.ready&&x.released?'':'wait'}">${statut}</span></td><td>${stamp(x.startedAt)}</td><td>${stamp(x.completedAt)}</td></tr>`;}).join('');
+  $('#report').classList.remove('hidden');$('#msg').textContent=`${complete} / ${rows.length} travaux terminés.`;
+}
+function selectGroups(){
+  const work=works.find(w=>w.slug===$('#work').value);const current=$('#group').value;
+  $('#group').replaceChildren(new Option('Tous les groupes','all'));
+  for(const group of work?.groups||[])$('#group').add(new Option('Groupe '+group,String(group)));
+  $('#group').value=(work?.groups||[]).includes(current)?current:'all';
+}
+async function loadWorks(){
+  const response=await api('fr-dictee-feedback',{action:'teacherCatalog',token});
+  works=response.works||[];
+  const selector=$('#work');selector.replaceChildren();
+  for(const work of works)selector.add(new Option(work.title+(work.date?' ('+work.date+')':''),work.slug));
+  if(!works.length){selector.add(new Option('Aucune dictée disponible',''));$('#msg').textContent='Aucune dictée disponible.';}
+  selectGroups();
+}
+async function refresh(){
+  if(!token||!$('#work').value)return;
+  $('#msg').textContent='Actualisation…';
+  try{const data=await api('fr-dictee-feedback',{action:'teacherStatus',token,workSlug:$('#work').value,group:$('#group').value});report(data.rows||[]);}
+  catch(e){$('#msg').textContent=e.message;}
+}
+$('#login').addEventListener('submit',async e=>{e.preventDefault();$('#msg').textContent='Vérification…';try{const result=await api('school-results',{action:'teacherLogin',email:$('#email').value.trim().toLowerCase(),password:$('#pwd').value});token=result.token;$('#pwd').value='';$('#login').classList.add('hidden');$('#tools').classList.remove('hidden');await loadWorks();await refresh();}catch(err){$('#msg').textContent=err.message;}});
+$('#refresh').addEventListener('click',refresh);$('#group').addEventListener('change',refresh);$('#work').addEventListener('change',()=>{selectGroups();refresh();});
+$('#logout').addEventListener('click',()=>{token=null;last=[];$('#login').classList.remove('hidden');$('#tools').classList.add('hidden');$('#report').classList.add('hidden');$('#msg').textContent='Déconnecté.';});
+$('#csv').addEventListener('click',()=>{const fields=['name','group','grade','ready','startedAt','copyOpenedAt','understoodCount','totalErrors','bilanSeenAt','completedAt'];const quote=s=>'"'+String(s??'').replaceAll('"','""')+'"';const content=[fields.join(';'),...last.map(r=>fields.map(k=>quote(r[k])).join(';'))].join('\r\n');const url=URL.createObjectURL(new Blob(['\ufeff'+content],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download='suivi-'+($('#work').value||'dictee')+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);});
+</script></body></html>
