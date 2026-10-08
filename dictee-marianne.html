@@ -7,16 +7,26 @@
 <style>html:not(.portal-authorized) body{display:none!important}</style>
 <script>
 (function verrouillerAcces(){
-  try{
-    const s=JSON.parse(sessionStorage.getItem('francais.portail.session')||'null');
-    if(s && s.level===5 && /^[0-9]{7}$/.test(s.fiche) &&
-      Number.isFinite(s.started) && Date.now()>=s.started &&
-      Date.now()-s.started<20*60*1000){
-      document.documentElement.classList.add('portal-authorized');
-      return;
+  function estAutorise(){
+    try{
+      const s=JSON.parse(sessionStorage.getItem('francais.portail.session')||'null');
+      return !!(s && s.level===5 && /^[0-9]{7}$/.test(s.fiche) &&
+        Number.isFinite(s.started) && Date.now()>=s.started &&
+        Date.now()-s.started<20*60*1000);
+    }catch(e){return false;}
+  }
+  function verifier(){
+    if(!estAutorise()){
+      document.documentElement.classList.remove('portal-authorized');
+      location.replace('./?connexion=requise');
+      return false;
     }
-  }catch(e){}
-  location.replace('./?connexion=requise');
+    document.documentElement.classList.add('portal-authorized');
+    return true;
+  }
+  verifier();
+  window.addEventListener('pageshow',verifier);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)verifier();});
 })();
 </script>
 <title>Dictée Marianne - Retour personnalisé</title>
