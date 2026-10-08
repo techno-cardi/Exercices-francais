@@ -46,7 +46,9 @@ function mixed(key,error){
  const s=String(preview?session.studentEmail:session.schoolEmail||'')+'|'+key;let h=0;
  for(let i=0;i<s.length;i++)h=((h*33)^s.charCodeAt(i))>>>0;
  const correct=h%3;
- const choices=strategy(key,error?.category||'');const ordered=[null,null,null];ordered[correct]=choices[0];ordered[(correct+1)%3]=choices[1];ordered[(correct+2)%3]=choices[2];
+ const specific=error?.quiz;
+ const choices=(specific&&typeof specific.prompt==='string'&&Array.isArray(specific.choices)&&specific.choices.length===3&&specific.choices.every(x=>typeof x==='string'&&x.trim().length>5)&&new Set(specific.choices).size===3)?specific.choices:strategy(key,error?.category||'');
+ const ordered=[null,null,null];ordered[correct]=choices[0];ordered[(correct+1)%3]=choices[1];ordered[(correct+2)%3]=choices[2];
  return {correct,ordered};
 }
 function render(){
@@ -57,7 +59,7 @@ function render(){
  const prog=info.progress||{};
  const top=line(steps,'p',`Groupe ${info.group} · Note : ${info.grade===null?'à confirmer':Number(info.grade).toLocaleString('fr-CA')+' / '+info.maxScore}`,'small');
  top.style.fontWeight='bold';
- if(prog.completedAt){line(steps,'h3','Travail terminé');line(steps,'p','Ta vérification est enregistrée. Tu peux revoir les explications à tout moment.');return;}
+ if(prog.completedAt){line(steps,'h3','Première vérification enregistrée');line(steps,'p','Tu peux revoir les explications, sans perdre le travail déjà effectué.');}
  const first=line(steps,'div',undefined,'exercise');
  line(first,'h3','1. Ouvrir ma copie');
  line(first,'p','Lis ton commentaire à la page 1, puis regarde la copie corrigée à la page 2 et ta feuille de vérification à la page 3.');
@@ -79,7 +81,7 @@ function render(){
      if(rule)line(card,'p',rule);
      if(understood.has(error.key)){line(card,'p','Compris et enregistré.','small');return;}
      const passed=new Set(prog.strategyKeys||[]);
-     line(card,'p','Quelle stratégie utiliserais-tu pour éviter cette erreur?');
+     line(card,'p',error.quiz?.prompt||'Quelle stratégie utiliserais-tu pour éviter cette erreur?');
      const {correct,ordered}=mixed(error.key,error);
      const feedback=line(card,'p','', 'feedback');
      const confirm=()=>{
