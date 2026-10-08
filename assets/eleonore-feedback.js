@@ -3,7 +3,7 @@
 (()=>{
 'use strict';
 const base='https://ojyswaxuqwnqilrvtjll.supabase.co';
-const key='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qeXN3YXh1cXducWlscnZ0amxsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4MDI0MTksImV4cCI6MjEwNDM3ODQxOX0.zKiE9TgFhH0W0Y_4qL_o16csdDqq9TiacHiCcf6ES3Q';
+const key='sb_publishable_mI94i3exzVPlHveGFX1WOw_1Ucab3_f';
 const preview=window.eleonoreTeacherPreview===true;
 const $=s=>document.querySelector(s);
 let session;try{session=JSON.parse(sessionStorage.getItem(preview?'francais.prof.preview':'francais.portail.session')||'null');}catch{}
