@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="fr-CA">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#a71930">
+<meta name="description" content="Retour pédagogique sur la dictée Le livre magique et les vœux d'Éléonore">
+<title>Le livre magique et les vœux d’Éléonore | Dictée de 3e secondaire</title>
+<style>
+:root{--red:#b42137;--red-deep:#831a2b;--ink:#222b38;--muted:#627183;--bg:#f5f6f9;--line:#e0e5ea;--blue:#215c9f;--blue-soft:#eaf3fc;--green:#267349;--green-soft:#eaf6ee;--shadow:0 15px 44px rgba(28,42,60,.075)}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:var(--ink);line-height:1.56}
+button,input{font:inherit}button{cursor:pointer}button:focus-visible,a:focus-visible,[role="button"]:focus-visible{outline:3px solid rgba(180,33,55,.32);outline-offset:3px}
+.shell{width:min(990px,calc(100% - 26px));margin:18px auto 60px}
+.topbar{border:1px solid var(--line);background:#fff;border-radius:19px;padding:13px 18px;display:flex;align-items:center;justify-content:space-between;gap:16px;box-shadow:var(--shadow)}
+.logo{width:190px;max-width:40vw;height:auto}.brandright{text-align:right;font-size:.86rem;color:var(--muted)}.brandright strong{display:block;font-size:.98rem;color:var(--ink)}
+.card{background:#fff;border:1px solid var(--line);border-radius:19px;box-shadow:var(--shadow);padding:clamp(21px,3.4vw,33px);margin-top:17px}
+.topnav{display:flex;align-items:center;justify-content:space-between;gap:15px;flex-wrap:wrap;margin:17px 0 0}
+.back{color:var(--red-deep);text-decoration:none;font-weight:850;font-size:.91rem}.small{font-size:.9rem;color:var(--muted)}.kicker{color:var(--red);text-transform:uppercase;letter-spacing:.085em;font-weight:850;font-size:.76rem}
+h1{font-size:clamp(1.95rem,4.8vw,2.95rem);line-height:1.15;letter-spacing:-.027em;margin:8px 0 13px}
+h2{font-size:1.33rem;margin:0 0 9px}h3{font-size:1.12rem;margin:0 0 7px}.lead{font-size:1.035rem;color:var(--muted);margin:0}.hidden{display:none!important}
+.btn{border:0;border-radius:11px;background:var(--red);color:#fff;padding:11px 15px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:7px}
+.btn:hover{background:var(--red-deep)}.btn.light{background:#eef1f5;color:#273747}.btn.light:hover{background:#e2e7ec}.btn:disabled{opacity:.52;cursor:not-allowed}
+.warm{border:1px solid #f0d1d7;background:linear-gradient(135deg,#fff4f6,#fff);padding:15px;border-radius:13px;margin-top:19px;color:#6b3240}
+.row{display:flex;gap:13px;flex-wrap:wrap;align-items:center}.pill{display:inline-flex;padding:5px 10px;border-radius:999px;background:#fff1f3;color:#842438;font-size:.75rem;font-weight:850}
+.progress{margin-top:18px}.progress-top{display:flex;justify-content:space-between;gap:9px;font-size:.85rem;color:#485b6b;font-weight:800}
+.progress-track{height:9px;background:#e9edf1;border-radius:999px;overflow:hidden;margin-top:7px}.progress-track>span{display:block;background:var(--green);height:100%;width:0;transition:width .25s}
+.modebar{display:flex;flex-wrap:wrap;gap:9px;margin:19px 0 0}.btn.light.active{background:#263545;color:#fff}.notice{margin-top:13px;padding:12px 14px;border:1px solid #d9e4ec;border-radius:12px;background:#f6f9fb;font-size:.92rem;color:#45596c}
+.dictee{font:clamp(1.19rem,2.45vw,1.38rem)/2.03 Georgia,"Times New Roman",serif;color:#252b31;margin:15px 0 0}
+.word{border-bottom:2px solid transparent;transition:background .15s,color .15s;border-radius:3px}
+body.mode-all .word{background:linear-gradient(transparent 74%,rgba(62,121,186,.13) 74%);border-bottom-color:#86aeda;cursor:pointer}
+body.mode-errors .word.personal,body.mode-all .word.personal{color:#99243a;background:linear-gradient(transparent 72%,rgba(180,33,55,.13) 72%);border-bottom:3px solid #c4344e;cursor:pointer}
+.word.seen.personal{color:var(--green)!important;border-bottom-color:var(--green)!important;background:linear-gradient(transparent 74%,rgba(32,145,75,.12) 74%)!important}
+.legend{display:flex;gap:17px;flex-wrap:wrap;color:var(--muted);font-size:.87rem;margin-top:17px}.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;background:#86aeda}.legend .red{background:#c4344e}
+.focus{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:16px}
+.focus article{padding:17px;border:1px solid var(--line);border-radius:13px;background:#fbfcfd}.focus .tag{font-size:.72rem;text-transform:uppercase;letter-spacing:.07em;color:var(--red);font-weight:850;margin-bottom:5px}.focus p{font-size:.92rem;color:#4d5d6e;margin:5px 0 0}
+.example{padding:13px 15px;border-radius:12px;border:1px solid #b9d8c5;background:#eff9f2;margin:14px 0;font-size:.95rem}
+.example strong{color:#17633a}.copybox{border:1px dashed #c9d2db;border-radius:12px;padding:15px;color:#586a7b;background:#fafbfc;margin-top:15px}
+.exercise-list{display:grid;gap:13px;margin-top:15px}.exercise{padding:15px;border:1px solid var(--line);border-radius:13px;background:#fbfcfd}
+.exercise .question{font-weight:800;margin:0 0 10px}.choice-row{display:flex;flex-wrap:wrap;gap:8px}.choice{background:#fff;border:1px solid #bfcbd6;color:#304052;padding:9px 13px;border-radius:10px;font-weight:750}
+.choice.selected{background:var(--blue-soft);border-color:#367bb9}.choice.correct{background:var(--green-soft);border-color:#6fad84;color:#206943}.choice.incorrect{background:#fff1f3;border-color:#dcaab4;color:#8c233b}.feedback{margin-top:10px;color:#495f70;font-size:.9rem;min-height:22px}.feedback.correct{color:#1a6a3e}.feedback.incorrect{color:#8c233b}
+.modal-layer{position:fixed;inset:0;background:rgba(15,23,35,.55);z-index:40;display:none;align-items:center;justify-content:center;padding:16px}
+.modal-layer.open{display:flex}.modal{background:#fff;width:min(610px,100%);max-height:min(85vh,760px);overflow-y:auto;border-radius:19px;padding:clamp(19px,3vw,28px);box-shadow:0 24px 80px rgba(0,0,0,.25);position:relative}
+.modal-close{position:absolute;right:15px;top:12px;background:#f0f2f4;border:0;width:36px;height:36px;border-radius:50%;font-size:1.5rem}
+.modal .pill{margin-bottom:6px;color:#235a91;background:#ebf4fc}.modal h2{padding-right:29px;margin:4px 0 9px;line-height:1.3}
+.rule-text{margin:10px 0;color:#273949}.rule-step{background:#f5f8fb;border:1px solid #e0e7ed;border-radius:12px;padding:14px;margin-top:14px}.rule-step strong{display:block;color:#203c5b;margin-bottom:4px}
+.personal-box{padding:12px 14px;margin-top:14px;border-radius:11px;background:#fff0f3;border:1px solid #f0c4cc}.personal-box strong{color:#89253b}
+.understand{display:flex;gap:10px;align-items:center;margin-top:18px;font-size:.94rem;font-weight:800;color:#275a3b}
+.understand input{width:19px;height:19px;accent-color:var(--green)}.modalfoot{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;border-top:1px solid var(--line);padding-top:15px;margin-top:19px}
+.stat{font-size:.84rem;color:var(--muted)}.feedbackline{font-size:.87rem;color:var(--muted)}
+@media(max-width:630px){.shell{width:calc(100% - 14px);margin-top:7px}.topbar{padding:11px;border-radius:13px}.logo{width:147px}.brandright{font-size:.72rem}.brandright strong{font-size:.8rem}.card{border-radius:15px;padding:21px 16px}.focus{grid-template-columns:1fr}.modal-layer{align-items:flex-end;padding:7px}.modal{max-height:87vh;border-radius:18px 18px 9px 9px}.modebar .btn{flex:1 1 100%}.dictee{line-height:1.94}.topnav{margin-top:12px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.progress-track>span{transition:none}}
+</style>
+</head>
+<body class="mode-all">
+<div class="shell">
+<header class="topbar">
+  <img class="logo" src="https://ecole-cardinal-roy.cssc.gouv.qc.ca/wp-content/uploads/2022/03/sans-titre-1-1440x811.png" alt="École secondaire Cardinal-Roy">
+  <div class="brandright"><strong>Kevin Tremblay</strong>Français - 3e secondaire</div>
+</header>
+<nav class="topnav" aria-label="Navigation">
+  <a class="back" href="./">← Mes travaux</a>
+  <span class="small">Dictée · 3e secondaire</span>
+</nav>
+<main>
+<section class="card">
+  <p class="kicker">Retour sur la dictée</p>
+  <h1>Le livre magique et les vœux d’Éléonore</h1>
+  <p class="lead">Une dictée pour apprendre à repérer les accords, comprendre ses erreurs et choisir les bonnes stratégies de correction.</p>
+  <div class="warm" id="availability" role="status">Le texte et les explications sont disponibles. Les erreurs individuelles, les notes et les copies corrigées seront ajoutées après la correction.</div>
+  <div class="row" style="margin-top:17px">
+    <span class="pill">Accords des participes passés</span><span class="pill">Temps verbaux</span><span class="pill">Orthographe et accords</span>
+  </div>
+  <div class="progress hidden" id="progressArea">
+    <div class="progress-top"><span>Mes erreurs comprises</span><span id="progressText">0 / 0</span></div>
+    <div class="progress-track"><span id="progressBar"></span></div>
+  </div>
+  <div class="modebar" role="group" aria-label="Choisir la lecture">
+    <button class="btn light" type="button" id="modeErrors" disabled>Voir mes erreurs</button>
+    <button class="btn light active" type="button" id="modeAll">Voir toute la dictée expliquée</button>
+    <button class="btn light" type="button" id="modePlain">Lire la dictée sans annotations</button>
+  </div>
+  <div class="notice" id="modeNotice">Clique sur les expressions soulignées en bleu pour découvrir l'explication et la méthode de correction.</div>
+</section>
+
+<section class="card">
+  <p class="kicker">Le texte intégral</p>
+  <h2>La dictée</h2>
+  <p class="dictee" id="dictee">
+    Il <span class="word" data-rule="etait">était</span> une fois, dans un village <span class="word" data-rule="lointain">lointain</span>, une jeune fille <span class="word" data-rule="nommee">nommée</span> Éléonore. Un matin, elle <span class="word" data-rule="avait-trouve">avait trouvé</span> un vieux livre <span class="word" data-rule="poussiereux">poussiéreux</span> dans le <span class="word" data-rule="grenier">grenier</span> de sa <span class="word" data-rule="grand-mere">grand-mère</span>. <span class="word" data-rule="curieuse">Curieuse</span>, elle <span class="word" data-rule="avait-ouvert">l'avait ouvert</span> et, à sa grande surprise, une lumière <span class="word" data-rule="eclatante">éclatante</span> en <span class="word" data-rule="sortit">sortit</span>. Un génie <span class="word" data-rule="avait-pris">avait pris forme</span> devant elle et lui <span class="word" data-rule="avait-offert">avait offert</span> trois <span class="word" data-rule="voeux">vœux</span>. Elle <span class="word" data-rule="avait-souhaite">avait souhaité</span> <span class="word" data-rule="dabord">d’abord</span> que sa famille <span class="word" data-rule="soit-guerie">soit guérie</span> de la maladie <span class="word" data-rule="qui-la-rongeait">qui la rongeait</span>. Le génie <span class="word" data-rule="avait-exauce">avait exaucé</span> son vœu avec un sourire.
+  </p>
+  <div class="legend"><span><i></i> Explication grammaticale</span><span><i class="red"></i> Mon erreur (après publication)</span></div>
+</section>
+
+<section class="card">
+  <p class="kicker">La notion à maîtriser</p>
+  <h2>Le participe passé employé avec <i>avoir</i></h2>
+  <p>Avec l'auxiliaire <strong>avoir</strong>, le participe passé s'accorde avec le complément direct (CD) <strong>seulement si ce CD est placé avant le verbe</strong>. S'il est placé après le verbe ou s'il n'y a pas de CD, on ne fait pas d'accord.</p>
+  <div class="focus">
+    <article><div class="tag">1. Trouver l'auxiliaire</div><h3>Elle <i>avait</i> ouvert…</h3><p>Le verbe est au plus-que-parfait : auxiliaire <i>avoir</i> à l'imparfait + participe passé.</p></article>
+    <article><div class="tag">2. Trouver le CD</div><h3>Elle <i>l'</i>avait ouvert.</h3><p>Elle avait ouvert quoi? <i>l'</i>, qui remplace <i>un vieux livre</i>. Le CD est avant le verbe.</p></article>
+    <article><div class="tag">3. Vérifier l'accord</div><h3>Le livre est masculin singulier</h3><p>On écrit donc <i>ouvert</i>. Il y a un accord à vérifier, même si la forme ne change pas.</p></article>
+    <article><div class="tag">4. Éviter un piège</div><h3>Le génie <i>lui</i> avait offert…</h3><p><i>Lui</i> répond à « à qui? » : c'est un complément indirect (CI). Il ne commande pas l'accord du participe passé.</p></article>
+  </div>
+  <div class="example"><strong>Pour voir l'accord :</strong> Elle avait ouvert la porte. → La porte qu'elle avait <strong>ouverte</strong>. Le CD <i>la porte</i>, féminin singulier, passe devant le participe passé.</div>
+  <p class="small" style="margin-bottom:0"><strong>Attention :</strong> dans <i>sa famille soit guérie</i>, <i>guérie</i> s'accorde avec <i>famille</i> parce qu'il est employé avec <i>être</i> dans une construction passive. Ce n'est pas la règle du participe passé avec <i>avoir</i>.</p>
+</section>
+
+<section class="card">
+  <p class="kicker">Ma copie corrigée</p>
+  <h2 id="copyTitle">Retrouver ma copie et mes erreurs</h2>
+  <p class="lead" id="copyStatus">Les copies individuelles seront ajoutées lorsque la correction sera terminée. Aucune erreur personnelle n'est affichée pour le moment.</p>
+  <div class="copybox" id="copyPlaceholder">À venir : ma copie originale, mes erreurs repérées dans le texte, les explications adaptées et ma progression.</div>
+  <a class="btn hidden" id="copyLink" href="#" rel="noopener noreferrer" target="_blank" style="text-decoration:none;margin-top:15px">Ouvrir ma copie corrigée ↗</a>
+</section>
+
+<section class="card">
+  <p class="kicker">Petite pratique</p>
+  <h2>Je vérifie ma compréhension</h2>
+  <p class="lead">Quatre questions courtes pour appliquer les règles. Ces essais servent à apprendre, pas à recevoir une note.</p>
+  <div class="exercise-list" id="exercises"></div>
+</section>
+</main>
+<footer class="small" style="margin-top:25px;text-align:center">Préparé par Kevin Tremblay · Enseignant de français · Automne 2026</footer>
+</div>
+
+<div class="modal-layer" id="overlay" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <button class="modal-close" type="button" aria-label="Fermer l'explication" id="closeModal">×</button>
+    <span class="pill" id="modalCategory"></span>
+    <h2 id="modalTitle"></h2>
+    <p class="rule-text" id="modalRule"></p>
+    <div class="rule-step"><strong>Comment le vérifier?</strong><span id="modalMethod"></span></div>
+    <div id="personalDetail" class="personal-box hidden"></div>
+    <label class="understand hidden" id="understandLabel"><input type="checkbox" id="understood"> Je comprends maintenant comment corriger cette erreur.</label>
+    <div class="modalfoot"><span class="stat" id="modalPosition">Explication</span><button class="btn light" type="button" id="modalNext">Explication suivante →</button></div>
+    <p class="feedbackline" id="saveMsg" role="status"></p>
+  </div>
+</div>
+<script>
+"use strict";
+const RULES={
+  'etait':{category:'Temps verbaux',title:'Il était une fois',rule:'« Était » est à l’imparfait de l’indicatif, 3e personne du singulier. Ce temps sert ici à installer le cadre du conte.',method:'Trouve le sujet « il », puis vérifie la terminaison -ait à l’imparfait. Ne confonds pas « était » avec « été », un participe passé.'},
+  'lointain':{category:'Accord dans le GN',title:'Un village lointain',rule:'L’adjectif « lointain » qualifie « village », un nom masculin singulier. On écrit donc « lointain », sans -e.',method:'Associe l’adjectif au nom qu’il précise, puis vérifie le genre et le nombre du nom.'},
+  'nommee':{category:'Accord du participe',title:'Une jeune fille nommée Éléonore',rule:'« Nommée » est employé pour qualifier « une jeune fille ». Il prend la marque du féminin singulier : -ée.',method:'Demande-toi « qui est nommée? » : une jeune fille. Il ne s’agit pas d’un participe passé précédé de l’auxiliaire « avoir ».'},
+  'avait-trouve':{category:'Participe passé avec avoir',title:'Elle avait trouvé un vieux livre',rule:'Avec « avoir », le participe passé s’accorde avec le CD s’il est placé avant. Ici, le CD « un vieux livre » vient après « avait trouvé » : on écrit « trouvé », sans accord.',method:'Elle avait trouvé quoi? « un vieux livre ». Comme ce groupe suit le participe passé, il ne commande aucun accord.'},
+  'poussiereux':{category:'Accord et lexique',title:'Un vieux livre poussiéreux',rule:'« Poussiéreux » qualifie « livre », masculin singulier. La terminaison est -eux, et non -euse. Le mot comporte un accent aigu dans « poussié- ».',method:'Identifie le nom « livre », vérifie le masculin singulier, puis retrouve la famille de « poussière » et la terminaison de l’adjectif.'},
+  'grenier':{category:'Orthographe lexicale',title:'Dans le grenier',rule:'Le mot « grenier » se termine par -ier. Il désigne ici une pièce ou un espace de rangement sous le toit.',method:'Au besoin, vérifie sa graphie dans Usito. Ne te fie pas uniquement au son final.'},
+  'grand-mere':{category:'Mot composé',title:'Sa grand-mère',rule:'« Grand-mère » est un nom composé qui s’écrit avec un trait d’union. « Mère » prend un accent grave.',method:'Vérifie les deux éléments du mot et leur trait d’union. Tu peux confirmer la graphie dans Usito.'},
+  'curieuse':{category:'Accord de l’adjectif',title:'Curieuse, elle…',rule:'« Curieuse » qualifie Éléonore, reprise par « elle ». L’adjectif est féminin singulier et prend la terminaison -euse.',method:'Qui est curieuse? Éléonore. Replace mentalement l’adjectif près du nom : « Éléonore est curieuse ».'},
+  'avait-ouvert':{category:'Participe passé avec avoir',title:'Elle l’avait ouvert',rule:'Le pronom « l’ » est le CD de « avait ouvert » et remplace « un vieux livre ». Il est placé avant le participe passé. Il faut donc vérifier l’accord avec « livre », masculin singulier : « ouvert ».',method:'1. Repère « avait » (avoir). 2. Pose la question : elle avait ouvert quoi? « l’ ». 3. Retrouve son antécédent : « un vieux livre ». 4. Masculin singulier : « ouvert ». Si le CD était « la porte », on écrirait « elle l’avait ouverte ».'},
+  'eclatante':{category:'Accord de l’adjectif',title:'Une lumière éclatante',rule:'« Éclatante » s’accorde avec « lumière », féminin singulier. On ajoute un -e à la forme masculine « éclatant ».',method:'Repère le nom et son déterminant : « une lumière ». Vérifie ensuite la marque du féminin sur l’adjectif.'},
+  'sortit':{category:'Temps verbaux',title:'Une lumière en sortit',rule:'« Sortit » est au passé simple de l’indicatif, 3e personne du singulier. Ce n’est pas « sorti », le participe passé du verbe « sortir ».',method:'Le sujet est « une lumière ». Dans le récit, « sortit » est un verbe conjugué autonome, sans auxiliaire : la terminaison est -it.'},
+  'avait-pris':{category:'Participe passé avec avoir',title:'Un génie avait pris forme',rule:'« Avait pris » est au plus-que-parfait. Le participe passé de « prendre » est « pris », avec un -s final au masculin singulier. Dans « prendre forme », le mot « forme » suit le verbe : il n’y a pas d’accord à faire avec lui.',method:'Repère « avait » et cherche un éventuel CD placé avant « pris ». Il n’y en a pas. Conserve l’orthographe « pris ».'},
+  'avait-offert':{category:'Participe passé avec avoir',title:'Lui avait offert trois vœux',rule:'« Lui » est un complément indirect : il répond à « à qui? ». Le CD, « trois vœux », se trouve après « avait offert ». Le participe passé reste « offert ».',method:'Le génie avait offert quoi? « trois vœux » (CD après). À qui? « lui » (CI). Seul un CD placé avant pourrait déclencher l’accord avec « avoir ».'},
+  'voeux':{category:'Orthographe lexicale',title:'Trois vœux',rule:'Le nom « vœu » prend un -x au pluriel : « vœux ». La ligature « œ » s’écrit comme dans « cœur ».',method:'Vérifie le déterminant « trois », qui commande le pluriel. Confirme la forme « vœux » dans Usito au besoin.'},
+  'avait-souhaite':{category:'Participe passé avec avoir',title:'Elle avait souhaité d’abord que…',rule:'« Avait souhaité » est au plus-que-parfait. Le souhait exprimé après le verbe ne constitue pas un CD placé avant le participe passé : on écrit « souhaité », sans accord.',method:'Repère l’auxiliaire « avait » et vérifie ce qui est souhaité. Rien n’est placé avant pour commander un accord du participe passé.'},
+  'dabord':{category:'Orthographe et ponctuation',title:'D’abord',rule:'« D’abord » contient une apostrophe, car « de » s’élide devant « abord ». On écrit le mot sans espace entre « d’ » et « abord ».',method:'Vérifie l’apostrophe et la graphie du mot. Il s’agit d’un adverbe qui indique l’ordre des souhaits.'},
+  'soit-guerie':{category:'Subjonctif et accord',title:'Que sa famille soit guérie',rule:'« Soit » est le subjonctif présent de « être », après « souhaiter que ». « Guérie » est le participe passé d’une construction passive; il s’accorde avec « sa famille », féminin singulier.',method:'Repère le sujet « sa famille » et l’auxiliaire « être ». Vérifie l’accord « guérie » avec le féminin singulier. Ne lui applique pas la règle propre à « avoir ».'},
+  'qui-la-rongeait':{category:'Pronoms et imparfait',title:'La maladie qui la rongeait',rule:'« Qui » reprend « la maladie » : c’est le sujet de « rongeait ». « La » remplace « la famille » : c’est un CD. Le verbe « rongeait » est à l’imparfait, 3e personne du singulier.',method:'Qui rongeait la famille? La maladie. Le sujet est singulier : « rongeait ». Le pronom CD « la » ne change pas la terminaison d’un verbe à l’imparfait.'},
+  'avait-exauce':{category:'Participe passé avec avoir',title:'Le génie avait exaucé son vœu',rule:'Le participe passé « exaucé » suit l’auxiliaire « avait ». Son CD, « son vœu », se trouve après : il n’y a pas d’accord. « Exaucer » signifie réaliser un souhait.',method:'Le génie avait exaucé quoi? « son vœu » (CD après). Vérifie aussi l’orthographe « exaucé », avec -au- et -cé.'}
+};
+const EXERCISES=[
+  {q:'Elle avait ouvert la porte. Quel est le participe passé correct?',choices:['ouvert','ouverte'],answer:0,why:'« La porte » est le CD, mais il est après le verbe : on écrit « ouvert ». '},
+  {q:'La porte qu’elle avait… Quel mot complète correctement la phrase?',choices:['ouvert','ouverte'],answer:1,why:'« Qu’ » reprend « la porte », CD féminin singulier placé avant : « ouverte ». '},
+  {q:'Le génie lui avait offert trois vœux. Quelle fonction a « lui »?',choices:['CD (complément direct)','CI (complément indirect)'],answer:1,why:'« Lui » répond à « à qui? » : c’est un complément indirect. '},
+  {q:'Il souhaitait que sa famille soit…',choices:['guéri','guérie'],answer:1,why:'Avec « être » dans cette construction passive, « guérie » s’accorde avec « sa famille », féminin singulier.'}
+];
+const $=s=>document.querySelector(s);
+const $$=s=>Array.from(document.querySelectorAll(s));
+const BASE='https://ojyswaxuqwnqilrvtjll.supabase.co';
+const KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qeXN3YXh1cXducWlscnZ0amxsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4MDI0MTksImV4cCI6MjEwNDM3ODQxOX0.zKiE9TgFhH0W0Y_4qL_o16csdDqq9TiacHiCcf6ES3Q';
+let personalised=false,student=null,errorKeys=[],errorInfo={},understood=new Set(),activeKey=null,lastFocused=null,mode='all';
+const keys=Object.keys(RULES);
+function setMode(next){
+  if(next==='errors'&&!personalised)return;
+  mode=next;
+  document.body.classList.toggle('mode-all',next==='all');
+  document.body.classList.toggle('mode-errors',next==='errors');
+  ['All','Errors','Plain'].forEach(x=>$('#mode'+x).classList.toggle('active',x.toLowerCase()===next));
+  $('#modeNotice').textContent=next==='all'?'Clique sur les expressions soulignées en bleu pour découvrir l’explication et la méthode de correction.':next==='plain'?'Voici la dictée sans annotations. Tu peux revenir au mode expliqué à tout moment.':errorKeys.length?'Tes erreurs sont soulignées en rouge. Clique sur chacune pour comprendre comment la corriger.':'Aucune erreur individuelle à travailler.';
+  $$('.word').forEach(el=>{const active=next==='all'||(next==='errors'&&el.classList.contains('personal'));el.tabIndex=active?0:-1;el.setAttribute('role',active?'button':'text');});
+}
+function updateProgress(){
+  const done=errorKeys.filter(k=>understood.has(k)).length;
+  $('#progressText').textContent=done+' / '+errorKeys.length;
+  $('#progressBar').style.width=(errorKeys.length?100*done/errorKeys.length:100)+'%';
+  $$('.word.personal').forEach(el=>el.classList.toggle('seen',understood.has(el.dataset.rule)));
+}
+async function rpc(name,payload){
+  const r=await fetch(BASE+'/rest/v1/rpc/'+name,{method:'POST',headers:{'Content-Type':'application/json',apikey:KEY,Authorization:'Bearer '+KEY},body:JSON.stringify(payload),cache:'no-store'});
+  const d=await r.json().catch(()=>null);
+  if(!r.ok)throw new Error('Service de correction indisponible.');
+  return d;
+}
+function openRule(key,el){
+  if(mode==='plain'||(mode==='errors'&&!errorKeys.includes(key)))return;
+  const r=RULES[key];if(!r)return;
+  lastFocused=el||document.activeElement;activeKey=key;
+  $('#modalCategory').textContent=r.category;$('#modalTitle').textContent=r.title;$('#modalRule').textContent=r.rule;$('#modalMethod').textContent=r.method;
+  const isMine=personalised&&errorKeys.includes(key);const detail=errorInfo[key]||{};
+  const panel=$('#personalDetail');panel.replaceChildren();panel.classList.toggle('hidden',!isMine);
+  if(isMine){
+    const heading=document.createElement('strong');heading.textContent='Dans ta copie';panel.append(heading);
+    const text=document.createElement('p');text.style.margin='5px 0 0';text.textContent=detail.written?'Tu avais écrit : « '+detail.written+' ». '+(detail.comment||'Observe la forme correcte dans la dictée et compare les deux.'):(detail.comment||'Compare la forme de ta copie avec le texte corrigé, puis explique-toi la règle.');panel.append(text);
+  }
+  $('#understandLabel').classList.toggle('hidden',!isMine);$('#understood').checked=understood.has(key);
+  const scope=mode==='errors'?errorKeys:keys;
+  const ix=scope.indexOf(key);$('#modalPosition').textContent=(isMine?'Mon erreur ':'Explication ')+(ix+1)+' / '+scope.length;
+  $('#modalNext').disabled=ix<0||ix===scope.length-1;
+  $('#modalNext').textContent=mode==='errors'?'Erreur suivante →':'Explication suivante →';
+  $('#saveMsg').textContent='';
+  $('#overlay').classList.add('open');$('#overlay').setAttribute('aria-hidden','false');
+  document.body.style.overflow='hidden';$('#closeModal').focus();
+}
+function closeRule(){
+  $('#overlay').classList.remove('open');$('#overlay').setAttribute('aria-hidden','true');
+  document.body.style.overflow='';if(lastFocused&&typeof lastFocused.focus==='function')lastFocused.focus();
+}
+async function syncProgress(){
+  if(!student||!student.studentKey)return;
+  try{await rpc('eleonore_update_progress',{p_fiche:student.studentKey,p_understood_keys:errorKeys.filter(k=>understood.has(k))});$('#saveMsg').textContent='Progression enregistrée.';}
+  catch(e){$('#saveMsg').textContent='Progression non enregistrée pour le moment.';}
+}
+function activatePersonal(d){
+  if(!d?.ok)return;
+  personalised=true;student=d;
+  errorKeys=(Array.isArray(d.errorKeys)?d.errorKeys:[]).filter(k=>RULES[k]);
+  errorInfo=Object.fromEntries((d.errors||[]).filter(x=>RULES[x.key]).map(x=>[x.key,x]));
+  understood=new Set((d.progress?.understoodKeys||[]).filter(k=>errorKeys.includes(k)));
+  $$('.word').forEach(el=>el.classList.toggle('personal',errorKeys.includes(el.dataset.rule)));
+  $('#availability').textContent='Bonjour '+(d.first||'')+'! Ton retour individuel est disponible. Les marques rouges indiquent les éléments à revoir dans ta copie.';
+  $('#modeErrors').disabled=false;$('#progressArea').classList.remove('hidden');
+  $('#copyPlaceholder').classList.add('hidden');
+  $('#copyStatus').textContent=d.copyUrl?'Compare ta copie avec le texte corrigé et repère les règles que tu veux mieux comprendre.':'Ta copie numérisée n’est pas encore disponible.';
+  const link=$('#copyLink');
+  try{
+    const url=new URL(d.copyUrl);
+    if(url.protocol==='https:'){link.href=url.href;link.classList.remove('hidden');}
+  }catch(e){}
+  if(!d.copyUrl)$('#copyPlaceholder').classList.remove('hidden');
+  updateProgress();setMode('errors');
+}
+async function tryPersonalData(){
+  // Les fiches des élèves ne sont ni dans ce fichier ni dans l'URL.
+  // Le service élève sera activé à la réception des corrections individuelles.
+  let item=null;
+  try{const raw=sessionStorage.getItem('francais.portail.eleonore');sessionStorage.removeItem('francais.portail.eleonore');if(raw)item=JSON.parse(raw);}catch(e){}
+  if(!item||!/^[0-9]{7}$/.test(item.fiche)||Date.now()-item.date>60000||Date.now()<item.date)return;
+  try{const d=await rpc('eleonore_identify',{p_fiche:item.fiche});if(d?.ok)activatePersonal(d);}catch(e){}
+}
+$$('.word').forEach(el=>{
+  const key=el.dataset.rule;
+  if(!RULES[key])return;
+  el.addEventListener('click',()=>openRule(key,el));
+  el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openRule(key,el);}});
+});
+$('#modeAll').addEventListener('click',()=>setMode('all'));
+$('#modePlain').addEventListener('click',()=>setMode('plain'));
+$('#modeErrors').addEventListener('click',()=>setMode('errors'));
+$('#closeModal').addEventListener('click',closeRule);
+$('#overlay').addEventListener('click',e=>{if(e.target===$('#overlay'))closeRule();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#overlay').classList.contains('open'))closeRule();});
+$('#modalNext').addEventListener('click',()=>{
+  if(!activeKey)return;
+  const arr=mode==='errors'?errorKeys:keys;const i=arr.indexOf(activeKey);
+  if(i>=0&&i<arr.length-1)openRule(arr[i+1],$('.word[data-rule="'+arr[i+1]+'"]'));
+});
+$('#understood').addEventListener('change',e=>{
+  if(!activeKey||!errorKeys.includes(activeKey))return;
+  if(e.target.checked)understood.add(activeKey);else understood.delete(activeKey);
+  updateProgress();syncProgress();
+});
+function renderExercises(){
+  const list=$('#exercises');
+  EXERCISES.forEach((ex,index)=>{
+    const card=document.createElement('article');card.className='exercise';
+    const q=document.createElement('p');q.className='question';q.textContent=(index+1)+'. '+ex.q;card.append(q);
+    const row=document.createElement('div');row.className='choice-row';
+    const feedback=document.createElement('div');feedback.className='feedback';feedback.setAttribute('role','status');
+    ex.choices.forEach((choice,i)=>{
+      const b=document.createElement('button');b.type='button';b.className='choice';b.textContent=choice;
+      b.addEventListener('click',()=>{
+        row.querySelectorAll('button').forEach(btn=>{btn.classList.remove('selected','correct','incorrect');btn.setAttribute('aria-pressed','false');});
+        b.classList.add('selected',i===ex.answer?'correct':'incorrect');b.setAttribute('aria-pressed','true');
+        feedback.className='feedback '+(i===ex.answer?'correct':'incorrect');
+        feedback.textContent=(i===ex.answer?'Bonne réponse! ':'Pas tout à fait. ')+ex.why;
+      });row.append(b);
+    });
+    card.append(row,feedback);list.append(card);
+  });
+}
+renderExercises();setMode('all');tryPersonalData();
+</script>
+</body>
+</html>
