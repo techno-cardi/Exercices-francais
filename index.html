@@ -51,6 +51,9 @@ footer{text-align:center;color:var(--muted);font-size:.78rem;margin-top:27px}
       <input type="text" id="fiche" inputmode="numeric" pattern="[0-9]{7}" maxlength="7" autocomplete="off" spellcheck="false" placeholder="7 chiffres" aria-describedby="fiche-help" required>
       <button class="btn" id="loginButton" type="submit">Accéder à mes travaux →</button>
     </div>
+    <label for="schoolEmail" style="display:block;margin-top:14px">3e secondaire : ton courriel scolaire</label>
+    <input type="email" id="schoolEmail" autocomplete="username" placeholder="prenom.nom@educ.cscapitale.qc.ca" style="width:100%;max-width:420px;padding:12px;border:1px solid #ccd2d9;border-radius:9px">
+    <p class="help">Ce champ est nécessaire pour ouvrir une dictée personnelle de 3e secondaire. Laisse-le vide pour Marianne en 5e.</p>
     <p class="help" id="fiche-help">Entre les sept chiffres de ta fiche, y compris un zéro au début s'il y en a un.</p>
     <p class="message" id="loginMsg" role="status" aria-live="polite"></p>
   </form>
@@ -90,8 +93,8 @@ const SESSION_TTL=20*60*1000;
 function loadSession(){
   try{
     const d=JSON.parse(sessionStorage.getItem(SESSION_KEY)||'null');
-    if(d&&/^[0-9]{7}$/.test(d.fiche)&&[3,5].includes(Number(d.level))&&Number.isFinite(d.started)&&Date.now()>=d.started&&Date.now()-d.started<SESSION_TTL){
-      return {first:d.first,level:Number(d.level),group:d.group,fiche:d.fiche,progress:d.progress||{}};
+    if(d&&[3,5].includes(Number(d.level))&&(Number(d.level)===3 ? (typeof d.schoolToken==='string'&&d.schoolToken.length>30&&/^\S+@educ\.cscapitale\.qc\.ca$/.test(d.schoolEmail||'')) : /^[0-9]{7}$/.test(d.fiche))&&Number.isFinite(d.started)&&Date.now()>=d.started&&Date.now()-d.started<SESSION_TTL){
+      return {first:d.first,level:Number(d.level),group:d.group,fiche:Number(d.level)===5?d.fiche:undefined,progress:d.progress||{},schoolToken:d.schoolToken||null,schoolEmail:d.schoolEmail||null};
     }
   }catch(e){}
   try{sessionStorage.removeItem(SESSION_KEY);}catch(e){}
@@ -109,6 +112,13 @@ async function rpc(name,payload){
   const data=await response.json().catch(()=>null);
   if(!response.ok){const err=new Error(data?.message || 'Service temporairement indisponible.');err.code=data?.code;err.status=response.status;throw err;}
   return data;
+}
+async function identifySecure(email,fiche){
+  const r=await fetch(BASE+'/functions/v1/school-results',{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json',apikey:KEY},body:JSON.stringify({action:'studentLogin',email,fiche})});
+  const d=await r.json().catch(()=>null);
+  if(!r.ok||!d?.ok||!d?.token)throw new Error('Connexion scolaire refusée.');
+  if(!['31','32'].includes(String(d.user?.group)))throw new Error('Ce travail ne correspond pas à ton groupe.');
+  return {first:String(d.user.name||'élève').split(' ')[0],level:3,group:String(d.user.group),schoolToken:d.token,schoolEmail:email,progress:{}};
 }
 async function identify(fiche){
   // Contrat futur: fr_portal_identify renvoie {ok,first,level,group}.
@@ -141,7 +151,7 @@ function showDashboard(){
     if(!work)return;
     if(work.id==='marianne'||work.id==='eleonore'){
       // Transmission limitée au même onglet, consommée et effacée sur la page du travail.
-      try{sessionStorage.setItem('francais.portail.'+work.id,JSON.stringify({fiche:student.fiche,date:Date.now()}));}catch(e){}
+      if(work.id==='marianne')try{sessionStorage.setItem('francais.portail.marianne',JSON.stringify({fiche:student.fiche,date:Date.now()}));}catch(e){}
     }
     location.assign('./'+work.page);
   }));
@@ -154,9 +164,11 @@ $('#loginForm').addEventListener('submit',async event=>{
   if(!/^[0-9]{7}$/.test(fiche)){$('#loginMsg').textContent='Le numéro de fiche doit contenir exactement 7 chiffres.';return;}
   $('#loginButton').disabled=true;$('#loginMsg').textContent='Vérification en cours…';
   try{
-    student=await identify(fiche);
+    const schoolEmail=String($('#schoolEmail').value||'').trim().toLowerCase();
+    student=schoolEmail?await identifySecure(schoolEmail,fiche):await identify(fiche);
+    if(student.level===3&&!student.schoolToken)throw new Error('Le courriel scolaire est requis pour ouvrir ce travail.');
     saveSession(student);
-    $('#fiche').value='';
+    $('#fiche').value='';$('#schoolEmail').value='';
     $('#loginMsg').textContent='';
     showDashboard();
   }catch(err){
