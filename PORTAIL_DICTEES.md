@@ -72,3 +72,11 @@ Une seule porte d'entrée pour les élèves: `index.html` avec numéro de fiche 
 - Le portail `index.html`, la page `dictee-eleonore.html`, le script `assets/eleonore-feedback.js`, la console `controle-dictees.html` et la fonction serveur `fr-dictee-feedback` sont en place. Chaque élève se connecte par sa fiche et son courriel; le mot secret se valide côté serveur et le professeur peut voir une prévisualisation en lecture seule.
 - Contrôles réalisés : intégrité des 59 codes et URL, validations de structure des 235 erreurs, permissions Drive individuelles, syntaxe JavaScript et diversité des trois positions de réponse. Un essai de bout en bout avec un véritable compte élève et la vérification du site GitHub Pages restent non réalisables dans cette session.
 - Sécurité : ne placer aucun nom d'élève, note individuelle, courriel étudiant, fiche, mot secret ou URL de PDF dans ce dépôt public.
+
+
+## Accès unifié au portail - 8 octobre 2026
+- Tous les élèves des groupes 31, 32 et 51 entrent **courriel scolaire et numéro de fiche à sept chiffres** dans `index.html`. L'option d'accès par fiche seule a été supprimée du portail.
+- Le service `school-results/studentLogin` vérifie la correspondance courriel/fiche pour les trois groupes et délivre une session éphémère. Le groupe détermine le niveau : 31/32 → 3e, 51 → 5e.
+- `dictee-marianne.html` exige une session scolaire valable (courriel, jeton, groupe 51) et reprend automatiquement la fiche validée sur le portail. Le deuxième formulaire visible de saisie a été retiré. Le service RPC historique de Marianne est encore utilisé pour les corrections et la progression; toute migration future devra conserver le fonctionnement des élèves et la confidentialité.
+- Ce changement ne modifie pas les notes, les partages de PDF, les codes secrets ou la publication des dictées.
+- Vérification : les scripts JavaScript des pages `index.html`, `dictee-marianne.html` et `dictee-eleonore.html` ont été analysés sans erreur de syntaxe. Essai de bout en bout réel sur GitHub Pages encore nécessaire, le site public n'étant pas accessible à cet outil.
