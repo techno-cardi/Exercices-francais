@@ -10,6 +10,12 @@
 (function verrouillerAcces(){
   function estAutorise(){
     try{
+      if(new URLSearchParams(location.search).get('apercu-enseignant')==='1'){
+        const p=JSON.parse(sessionStorage.getItem('francais.prof.preview')||'null');
+        if(p && typeof p.token==='string' && p.token.length>15 && typeof p.studentEmail==='string' && Number.isFinite(p.created) && Date.now()-p.created<20*60*1000 && p.created<=Date.now()){
+          window.eleonoreTeacherPreview=true;return true;
+        }
+      }
       const s=JSON.parse(sessionStorage.getItem('francais.portail.session')||'null');
       return !!(s && Number(s.level)===3 && typeof s.schoolToken==='string' && s.schoolToken.length>30 && /^\S+@educ\.cscapitale\.qc\.ca$/.test(s.schoolEmail||'') &&
         Number.isFinite(s.started) && Date.now()>=s.started &&
