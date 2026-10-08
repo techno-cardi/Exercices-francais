@@ -85,6 +85,21 @@ const KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6
 const $=s=>document.querySelector(s);
 const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
 let student=null;
+const SESSION_KEY='francais.portail.session';
+const SESSION_TTL=20*60*1000;
+function loadSession(){
+  try{
+    const d=JSON.parse(sessionStorage.getItem(SESSION_KEY)||'null');
+    if(d&&/^[0-9]{7}$/.test(d.fiche)&&[3,5].includes(Number(d.level))&&Number.isFinite(d.started)&&Date.now()>=d.started&&Date.now()-d.started<SESSION_TTL){
+      return {first:d.first,level:Number(d.level),group:d.group,fiche:d.fiche,progress:d.progress||{}};
+    }
+  }catch(e){}
+  try{sessionStorage.removeItem(SESSION_KEY);}catch(e){}
+  return null;
+}
+function saveSession(data){
+  try{sessionStorage.setItem(SESSION_KEY,JSON.stringify({...data,started:Date.now()}));}catch(e){}
+}
 const works={
   3:[{id:'eleonore',type:'Dictée',title:'Le livre magique et les vœux d’Éléonore',desc:'Relis le texte, comprends les accords du participe passé et découvre des stratégies de correction.',page:'dictee-eleonore.html'}],
   5:[{id:'marianne',type:'Dictée',title:'Marianne',desc:'Reprends ta copie corrigée, étudie tes erreurs et suis ta progression.',page:'dictee-marianne.html'}]
@@ -140,6 +155,7 @@ $('#loginForm').addEventListener('submit',async event=>{
   $('#loginButton').disabled=true;$('#loginMsg').textContent='Vérification en cours…';
   try{
     student=await identify(fiche);
+    saveSession(student);
     $('#fiche').value='';
     $('#loginMsg').textContent='';
     showDashboard();
@@ -150,9 +166,15 @@ $('#loginForm').addEventListener('submit',async event=>{
 });
 $('#logout').addEventListener('click',()=>{
   student=null;
-  try{sessionStorage.removeItem('francais.portail.marianne');}catch(e){}
+  try{
+    sessionStorage.removeItem(SESSION_KEY);
+    sessionStorage.removeItem('francais.portail.marianne');
+    sessionStorage.removeItem('francais.portail.eleonore');
+  }catch(e){}
   $('#dashboard').classList.add('hidden');$('#login').classList.remove('hidden');$('#fiche').value='';$('#fiche').focus();
 });
+student=loadSession();
+if(student)showDashboard();
 </script>
 </body>
 </html>
