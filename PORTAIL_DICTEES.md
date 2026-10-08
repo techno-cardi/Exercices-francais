@@ -30,3 +30,11 @@ Une seule porte d'entrée pour les élèves: `index.html` avec numéro de fiche 
 - Dictée d'Éléonore comparée caractère par caractère au texte source (avant ajouts de nouvelles annotations, qui ne modifient pas le texte visible).
 - Clés des annotations liées aux règles, vérifiées.
 - Pas de test de connexion secondaire 3 ni de copie individuelle: données et RPC requises encore à créer/configurer.
+
+## Correctif du 8 octobre 2026 : contrôle de l'accès et lisibilité
+- `index.html` conserve une session temporaire de vingt minutes dans `sessionStorage`, créée uniquement après identification via une RPC. Le retour à l'accueil dans le même onglet conserve le tableau de bord jusqu'à expiration ou déconnexion. La déconnexion efface session et tickets des travaux.
+- `dictee-eleonore.html` et `dictee-marianne.html` possèdent maintenant un gardien en tête de page. Si aucune session correspondant au bon niveau n'est présente ou si elle est expirée, redirection immédiate vers l'accueil. Masquage du corps du document avant validation pour éviter l'affichage fugitif du travail.
+- Marianne utilise sa RPC existante pour charger le retour individuel après navigation depuis l'accueil et récupération de la fiche côté session temporaire.
+- Éléonore a maintenant 22 mini-leçons structurées (phrase ciblée, 2 ou 3 étapes, comparaison lorsque pertinente). Le cas « l'avait ouvert » montre le CD avant le verbe, l'antécédent masculin singulier et une comparaison avec « la porte qu'elle avait ouverte ». « Lui » est correctement étiqueté CI, tandis que « trois vœux » est CD.
+- IMPORTANT : ce gardien côté navigateur est une contrainte de parcours, **pas** une mesure d'autorisation côté serveur. Les fichiers HTML restent techniquement publics sur GitHub Pages. Avant publication de notes/copies, leurs API, scans et accès aux données doivent être sécurisés côté serveur (identité, autorisation par élève, protections anti-tentatives multiples). Le numéro de fiche ne constitue pas à lui seul un secret solide.
+- Les accès de secondaire 3 demeurent non opérationnels avant liaison de `fr_portal_identify` avec une liste réelle des élèves de troisième secondaire. Les autres pages de travail restent inaccessibles sans passer par la connexion au portail.
