@@ -5,6 +5,21 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#a71930">
 <meta name="description" content="Retour pédagogique sur la dictée Le livre magique et les vœux d'Éléonore">
+<style>html:not(.portal-authorized) body{display:none!important}</style>
+<script>
+(function verrouillerAcces(){
+  try{
+    const s=JSON.parse(sessionStorage.getItem('francais.portail.session')||'null');
+    if(s && s.level===3 && /^[0-9]{7}$/.test(s.fiche) &&
+      Number.isFinite(s.started) && Date.now()>=s.started &&
+      Date.now()-s.started<20*60*1000){
+      document.documentElement.classList.add('portal-authorized');
+      return;
+    }
+  }catch(e){}
+  location.replace('./?connexion=requise');
+})();
+</script>
 <title>Le livre magique et les vœux d’Éléonore | Dictée de 3e secondaire</title>
 <style>
 :root{--red:#b42137;--red-deep:#831a2b;--ink:#222b38;--muted:#627183;--bg:#f5f6f9;--line:#e0e5ea;--blue:#215c9f;--blue-soft:#eaf3fc;--green:#267349;--green-soft:#eaf6ee;--shadow:0 15px 44px rgba(28,42,60,.075)}
@@ -42,7 +57,39 @@ body.mode-errors .word.personal,body.mode-all .word.personal{color:#99243a;backg
 .modal-layer.open{display:flex}.modal{background:#fff;width:min(610px,100%);max-height:min(85vh,760px);overflow-y:auto;border-radius:19px;padding:clamp(19px,3vw,28px);box-shadow:0 24px 80px rgba(0,0,0,.25);position:relative}
 .modal-close{position:absolute;right:15px;top:12px;background:#f0f2f4;border:0;width:36px;height:36px;border-radius:50%;font-size:1.5rem}
 .modal .pill{margin-bottom:6px;color:#235a91;background:#ebf4fc}.modal h2{padding-right:29px;margin:4px 0 9px;line-height:1.3}
-.rule-text{margin:10px 0;color:#273949}.rule-step{background:#f5f8fb;border:1px solid #e0e7ed;border-radius:12px;padding:14px;margin-top:14px}.rule-step strong{display:block;color:#203c5b;margin-bottom:4px}
+.rule-text{margin:7px 0 15px;color:#4b5c6b;font-size:.96rem;line-height:1.56}
+.rule-step{background:#f6f8fa;border:1px solid #e2e7eb;border-radius:13px;padding:15px 17px;margin-top:14px}
+.rule-step strong{display:block;color:#203c5b;margin-bottom:7px;font-size:.95rem}
+.modal{width:min(680px,100%);padding:clamp(22px,4vw,32px)}
+.modal .pill{background:#f0f3f7;color:#49667f;font-size:.71rem;letter-spacing:.055em}
+.modal h2{font-size:clamp(1.43rem,3.5vw,1.8rem);font-weight:870;letter-spacing:-.02em;line-height:1.24;margin:8px 35px 10px 0}
+.modal-close{font-size:1.35rem;display:grid;place-items:center;background:#f1f3f6;color:#304250}
+.rule-quote{padding:16px 19px;background:#fff;border:1px solid #dbe2e9;border-radius:14px;margin:13px 0 16px}
+.rule-quote-label{display:block;font-size:.73rem;letter-spacing:.075em;text-transform:uppercase;color:#697988;font-weight:850;margin-bottom:8px}
+.rule-quote-main{font-family:Georgia,"Times New Roman",serif;font-size:clamp(1.33rem,3vw,1.61rem);line-height:1.5;color:#273443}
+.rule-quote .highlight-cd{background:#fff2e2;color:#834b0d;border-radius:5px;padding:1px 4px;font-weight:700}
+.rule-quote .highlight-verb{background:#e8f1ff;color:#204d84;border-radius:5px;padding:1px 5px;font-weight:700}
+.rule-quote .highlight-pp{background:#eaf5ee;color:#256144;border-radius:5px;padding:1px 5px;font-weight:700}
+.legend-mini{display:flex;flex-wrap:wrap;gap:7px 17px;margin-top:10px;font-size:.78rem;color:#596878}
+.legend-mini b{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px}
+.legend-mini .cd{background:#e7b77a}.legend-mini .verbe{background:#8ab0de}
+.method-heading{font-size:1.05rem;font-weight:850;margin:10px 0 10px;color:#263647}
+.method-steps{padding:0;margin:0;list-style:none;display:grid;gap:8px}
+.method-steps li{display:grid;grid-template-columns:34px minmax(0,1fr);align-items:start;gap:11px;padding:11px 13px;background:#f7f9fc;border:1px solid #e5eaf0;border-radius:12px}
+.method-step-number{display:grid;place-items:center;width:30px;height:30px;border-radius:10px;background:#e5edf6;color:#315a80;font-weight:900;font-size:.85rem}
+.method-step-title{font-weight:850;line-height:1.32;font-size:.94rem;color:#25394d}
+.method-step-answer{font-weight:800;color:#2a6494;margin:3px 0}
+.method-step-desc{font-size:.91rem;color:#566878;line-height:1.52}
+.contrast{border:1px solid #c7dfd1;background:#f1f8f4;border-radius:12px;padding:13px 16px;margin-top:12px}
+.contrast-title{font-size:.75rem;font-weight:900;letter-spacing:.04em;text-transform:uppercase;color:#28734d;margin-bottom:6px}
+.contrast p{margin:3px 0;font-size:.93rem;line-height:1.54}
+.contrast strong{color:#1d6540}
+.rule-general{background:#f6f8fb;border:1px solid #e2e9ef;border-radius:12px;padding:13px 16px;margin:12px 0}
+.rule-general strong{display:block;color:#2e5979;margin-bottom:4px;font-size:.84rem}
+.rule-general p{margin:0;font-size:.95rem}
+#modalPosition{font-variant-numeric:tabular-nums}
+@media(max-width:630px){.rule-quote{padding:13px 14px}.method-steps li{padding:10px 11px}.modal .pill{font-size:.69rem}}
+
 .personal-box{padding:12px 14px;margin-top:14px;border-radius:11px;background:#fff0f3;border:1px solid #f0c4cc}.personal-box strong{color:#89253b}
 .understand{display:flex;gap:10px;align-items:center;margin-top:18px;font-size:.94rem;font-weight:800;color:#275a3b}
 .understand input{width:19px;height:19px;accent-color:var(--green)}.modalfoot{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;border-top:1px solid var(--line);padding-top:15px;margin-top:19px}
@@ -129,7 +176,7 @@ body.mode-errors .word.personal,body.mode-all .word.personal{color:#99243a;backg
     <span class="pill" id="modalCategory"></span>
     <h2 id="modalTitle"></h2>
     <p class="rule-text" id="modalRule"></p>
-    <div class="rule-step"><strong>Comment le vérifier?</strong><span id="modalMethod"></span></div>
+    <div id="modalLearning" aria-live="polite"></div>
     <div id="personalDetail" class="personal-box hidden"></div>
     <label class="understand hidden" id="understandLabel"><input type="checkbox" id="understood"> Je comprends maintenant comment corriger cette erreur.</label>
     <div class="modalfoot"><span class="stat" id="modalPosition">Explication</span><button class="btn light" type="button" id="modalNext">Explication suivante →</button></div>
@@ -161,6 +208,83 @@ const RULES={
   'qui-la-rongeait':{category:'Pronoms et imparfait',title:'La maladie qui la rongeait',rule:'« Qui » reprend « la maladie » : c’est le sujet de « rongeait ». « La » remplace « la famille » : c’est un CD. Le verbe « rongeait » est à l’imparfait, 3e personne du singulier.',method:'Qui rongeait la famille? La maladie. Le sujet est singulier : « rongeait ». Le pronom CD « la » ne change pas la terminaison d’un verbe à l’imparfait.'},
   'son-voeu':{category:'Homophones et nombre',title:'Son vœu',rule:'« Son » est un déterminant possessif devant le nom masculin singulier « vœu ». Ne le confonds pas avec « sont », le verbe être au présent. « Vœu » reste au singulier parce que le texte parle ici d’un souhait précis.',method:'Remplace « son » par « mon » : « mon vœu » fonctionne. « Sont » pourrait être remplacé par « étaient » et ne convient pas. Vérifie aussi la graphie « vœu ».'},
   'avait-exauce':{category:'Participe passé avec avoir',title:'Le génie avait exaucé son vœu',rule:'Le participe passé « exaucé » suit l’auxiliaire « avait ». Son CD, « son vœu », se trouve après : il n’y a pas d’accord. « Exaucer » signifie réaliser un souhait.',method:'Le génie avait exaucé quoi? « son vœu » (CD après). Vérifie aussi l’orthographe « exaucé », avec -au- et -cé.'}
+};
+const VISUAL_LESSONS={
+  'avait-ouvert':{
+    title:'Pourquoi écrit-on « ouvert »?',
+    intro:'Pour accorder un participe passé avec « avoir », il faut d’abord trouver le CD et sa position.',
+    phrase:[{text:'Elle '},{text:'l’',style:'cd'},{text:'avait ',style:'verb'},{text:'ouvert',style:'pp'},{text:'.'}],
+    steps:[
+      {label:'Repérer le verbe',answer:'avait ouvert',detail:'Auxiliaire « avoir » + participe passé « ouvert ».'},
+      {label:'Trouver le complément direct (CD)',answer:'« l’ » = « un vieux livre »',detail:'Elle avait ouvert quoi? « l’ ». Ce pronom est AVANT « avait ouvert ».'},
+      {label:'Vérifier l’accord',answer:'livre = masculin singulier → ouvert',detail:'Le CD est avant : on accorde avec « livre ». Au masculin singulier, la forme reste « ouvert ».'}
+    ],
+    takeaway:'Compare les deux cas',
+    examples:[
+      'Elle a ouvert la porte. → CD après : « ouvert ».',
+      'La porte qu’elle a ouverte. → CD avant, féminin : « ouverte ».'
+    ]
+  },
+  'avait-trouve':{
+    title:'Pourquoi « trouvé » sans accord?',
+    intro:'Le complément direct est après le verbe. Il ne commande donc aucun accord.',
+    phrase:[{text:'Elle '},{text:'avait trouvé',style:'verb'},{text:' un vieux livre',style:'cd'},{text:'.'}],
+    steps:[
+      {label:'Repérer l’auxiliaire',answer:'avait',detail:'Le participe passé « trouvé » est employé avec « avoir ».'},
+      {label:'Poser la question',answer:'Elle avait trouvé quoi? Un vieux livre.',detail:'« Un vieux livre » est le CD, placé APRÈS le verbe.'},
+      {label:'Décider de l’accord',answer:'trouvé',detail:'CD après « avoir » : le participe passé reste invariable.'}
+    ],takeaway:'À comparer',examples:['Le livre qu’elle avait trouvé. → CD avant, masculin singulier : « trouvé ».','Les pages qu’elle avait trouvées. → CD avant, féminin pluriel : « trouvées ».']
+  },
+  'avait-offert':{
+    title:'Pourquoi « offert » ne s’accorde-t-il pas avec « lui »?',
+    intro:'Le mot « lui » désigne la personne qui reçoit. Ce n’est pas le complément direct.',
+    phrase:[{text:'Le génie '},{text:'lui',style:'cd'},{text:' avait offert',style:'verb'},{text:' trois vœux.'}],
+    steps:[
+      {label:'Repérer le participe passé',answer:'avait offert',detail:'Il est employé avec « avoir ».'},
+      {label:'Distinguer les compléments',answer:'offert quoi? « trois vœux »',detail:'« Trois vœux » est le CD APRÈS le verbe; « lui » répond à « à qui? » et est un CI.'},
+      {label:'Conclure',answer:'offert',detail:'Aucun CD avant le verbe : pas d’accord. Le CI « lui » ne compte pas pour cette règle.'}
+    ],takeaway:'Le piège',examples:['« Lui » est avant le verbe, mais ce n’est pas un CD.','« Les vœux qu’il lui avait offerts » : CD avant, masculin pluriel → « offerts ».']
+  },
+  'avait-pris':{
+    title:'Pourquoi écrit-on « pris »?',
+    intro:'Le participe passé du verbe « prendre » est « pris ». La lettre s fait partie de sa graphie.',
+    phrase:[{text:'Un génie '},{text:'avait pris',style:'verb'},{text:' forme.'}],
+    steps:[
+      {label:'Repérer le temps du verbe',answer:'avait pris',detail:'Auxiliaire « avoir » + participe passé : plus-que-parfait.'},
+      {label:'Chercher le CD placé avant',answer:'Aucun CD avant le participe passé',detail:'« Prendre forme » est une expression. Il n’y a pas d’accord déclenché par un CD placé avant.'},
+      {label:'Vérifier l’orthographe',answer:'pris',detail:'« Pris » s’écrit avec un s, même sans accord.'}
+    ],takeaway:'À retenir',examples:['« Pris » n’est pas la marque d’un accord avec « génie ».','Il a pris un livre. → « pris ».']
+  },
+  'avait-souhaite':{
+    title:'Pourquoi écrit-on « souhaité »?',
+    intro:'Le souhait est annoncé après le verbe. Il n’y a pas de CD placé avant le participe passé.',
+    phrase:[{text:'Elle '},{text:'avait souhaité',style:'verb'},{text:' d’abord que sa famille soit guérie.'}],
+    steps:[
+      {label:'Repérer l’auxiliaire',answer:'avait',detail:'« Souhaité » est un participe passé employé avec « avoir ».'},
+      {label:'Vérifier ce qui est souhaité',answer:'Que sa famille soit guérie',detail:'Cette proposition se trouve APRÈS le participe passé.'},
+      {label:'Conclure',answer:'souhaité',detail:'Pas de CD placé avant : aucune marque d’accord à ajouter.'}
+    ],takeaway:'Le bon réflexe',examples:['Avec « avoir », on ne regarde pas le genre du sujet « elle ».','On cherche d’abord un CD placé avant le verbe.']
+  },
+  'avait-exauce':{
+    title:'Pourquoi « exaucé » ne prend-il pas de -e?',
+    intro:'Avec « avoir », le sujet « le génie » ne commande pas l’accord du participe passé.',
+    phrase:[{text:'Le génie '},{text:'avait exaucé',style:'verb'},{text:' son vœu',style:'cd'},{text:'.'}],
+    steps:[
+      {label:'Trouver le verbe',answer:'avait exaucé',detail:'C’est le plus-que-parfait, avec l’auxiliaire « avoir ».'},
+      {label:'Trouver le CD',answer:'exaucé quoi? « son vœu »',detail:'Le CD est APRÈS « avait exaucé ».'},
+      {label:'Choisir la terminaison',answer:'exaucé',detail:'Pas de CD avant : pas d’accord. Vérifie aussi « exau- » dans le radical.'}
+    ],takeaway:'À comparer',examples:['Il avait exaucé son vœu. → CD après : « exaucé ».','Les demandes qu’il avait exaucées. → CD avant, féminin pluriel : « exaucées ».']
+  },
+  'soit-guerie':{
+    title:'Pourquoi « guérie » prend-il un -e?',
+    intro:'Attention : cette fois, le participe passé est employé avec « être » dans une construction passive.',
+    phrase:[{text:'Que sa famille '},{text:'soit guérie',style:'pp'},{text:'.'}],
+    steps:[
+      {label:'Observer l’auxiliaire',answer:'soit = verbe être',detail:'« Soit » est au subjonctif présent.'},
+      {label:'Identifier le sujet',answer:'sa famille',detail:'« Famille » est féminin singulier.'},
+      {label:'Faire l’accord',answer:'guérie',detail:'Avec « être » dans cette construction passive, le participe passé s’accorde avec le sujet : féminin singulier → -e.'}
+    ],takeaway:'Ne mélange pas les règles',examples:['Elle avait guéri la famille. → « avoir », CD après : « guéri ».','La famille soit guérie. → « être », sujet féminin : « guérie ».']
+  }
 };
 const EXERCISES=[
   {q:'Elle avait ouvert la porte. Quel est le participe passé correct?',choices:['ouvert','ouverte'],answer:0,why:'« La porte » est le CD, mais il est après le verbe : on écrit « ouvert ». '},
@@ -195,16 +319,73 @@ async function rpc(name,payload){
   if(!r.ok)throw new Error('Service de correction indisponible.');
   return d;
 }
+function newEl(tag,cls,txt){
+  const e=document.createElement(tag);
+  if(cls)e.className=cls;
+  if(txt!==undefined)e.textContent=txt;
+  return e;
+}
+function renderVisualLesson(key,rule){
+  const zone=$('#modalLearning');zone.replaceChildren();
+  const visual=VISUAL_LESSONS[key];
+  if(!visual){
+    const reminder=newEl('div','rule-general');
+    reminder.append(newEl('strong','','Pour vérifier cette difficulté'),newEl('p','',rule.method));
+    zone.append(reminder);
+    return;
+  }
+  const quote=newEl('div','rule-quote');
+  quote.append(newEl('span','rule-quote-label','Dans la dictée'));
+  const sentence=newEl('div','rule-quote-main');
+  visual.phrase.forEach(part=>{
+    const s=newEl('span',part.style?'highlight-'+(part.style==='verb'?'verb':part.style==='pp'?'pp':'cd'):'',part.text);
+    sentence.append(s);
+  });
+  quote.append(sentence);
+  if(visual.phrase.some(p=>p.style==='cd'||p.style==='verb')){
+    const legend=newEl('div','legend-mini');
+    if(visual.phrase.some(p=>p.style==='cd')){
+      const l=newEl('span');l.append(newEl('b','cd'),document.createTextNode('Complément à identifier'));legend.append(l);
+    }
+    if(visual.phrase.some(p=>p.style==='verb')){
+      const l=newEl('span');l.append(newEl('b','verbe'),document.createTextNode('Groupe verbal'));legend.append(l);
+    }
+    quote.append(legend);
+  }
+  zone.append(quote,newEl('div','method-heading','Je vérifie en 3 étapes'));
+  const steps=newEl('ol','method-steps');
+  visual.steps.forEach((step,index)=>{
+    const item=newEl('li');item.append(newEl('span','method-step-number',String(index+1)));
+    const b=newEl('div');
+    b.append(newEl('div','method-step-title',step.label),
+             newEl('div','method-step-answer',step.answer),
+             newEl('div','method-step-desc',step.detail));
+    item.append(b);steps.append(item);
+  });
+  zone.append(steps);
+  if(visual.examples&&visual.examples.length){
+    const contrast=newEl('div','contrast');
+    contrast.append(newEl('div','contrast-title',visual.takeaway||'À retenir'));
+    visual.examples.forEach(line=>contrast.append(newEl('p','',line)));
+    zone.append(contrast);
+  }
+}
 function openRule(key,el){
   if(mode==='plain'||(mode==='errors'&&!errorKeys.includes(key)))return;
   const r=RULES[key];if(!r)return;
   lastFocused=el||document.activeElement;activeKey=key;
-  $('#modalCategory').textContent=r.category;$('#modalTitle').textContent=r.title;$('#modalRule').textContent=r.rule;$('#modalMethod').textContent=r.method;
+  const visual=VISUAL_LESSONS[key];
+  $('#modalCategory').textContent=r.category;
+  $('#modalTitle').textContent=visual?visual.title:r.title;
+  $('#modalRule').textContent=visual?visual.intro:r.rule;
+  renderVisualLesson(key,r);
   const isMine=personalised&&errorKeys.includes(key);const detail=errorInfo[key]||{};
   const panel=$('#personalDetail');panel.replaceChildren();panel.classList.toggle('hidden',!isMine);
   if(isMine){
-    const heading=document.createElement('strong');heading.textContent='Dans ta copie';panel.append(heading);
-    const text=document.createElement('p');text.style.margin='5px 0 0';text.textContent=detail.written?'Tu avais écrit : « '+detail.written+' ». '+(detail.comment||'Observe la forme correcte dans la dictée et compare les deux.'):(detail.comment||'Compare la forme de ta copie avec le texte corrigé, puis explique-toi la règle.');panel.append(text);
+    const heading=newEl('strong','','Dans ta copie');panel.append(heading);
+    const commentary=newEl('p','',detail.written?'Tu avais écrit : « '+detail.written+' ». '+(detail.comment||'Compare avec la forme correcte, puis vérifie la règle.'):
+      (detail.comment||'Observe la forme correcte et compare-la avec ta copie.'));
+    commentary.style.margin='5px 0 0';panel.append(commentary);
   }
   $('#understandLabel').classList.toggle('hidden',!isMine);$('#understood').checked=understood.has(key);
   const scope=mode==='errors'?errorKeys:keys;
