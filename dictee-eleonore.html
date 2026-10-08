@@ -115,7 +115,7 @@ body.mode-errors .word.personal,body.mode-all .word.personal{color:#99243a;backg
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.progress-track>span{transition:none}}
 </style>
 </head>
-<body class="mode-all">
+<body class="mode-plain">
 <div class="shell">
 <header class="topbar">
   <img class="logo" src="https://ecole-cardinal-roy.cssc.gouv.qc.ca/wp-content/uploads/2022/03/sans-titre-1-1440x811.png" alt="École secondaire Cardinal-Roy">
@@ -585,7 +585,7 @@ function renderExercises(){
     card.append(row,feedback);list.append(card);
   });
 }
-renderExercises();setMode('all');
+renderExercises();setMode('plain');
 </script>
 <script src="assets/eleonore-feedback.js?v=20261008" defer></script>
 </body>
