@@ -11,7 +11,7 @@
   function estAutorise(){
     try{
       const s=JSON.parse(sessionStorage.getItem('francais.portail.session')||'null');
-      return !!(s && s.level===3 && /^[0-9]{7}$/.test(s.fiche) &&
+      return !!(s && Number(s.level)===3 && typeof s.schoolToken==='string' && s.schoolToken.length>30 && /^\S+@educ\.cscapitale\.qc\.ca$/.test(s.schoolEmail||'') &&
         Number.isFinite(s.started) && Date.now()>=s.started &&
         Date.now()-s.started<20*60*1000);
     }catch(e){return false;}
