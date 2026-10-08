@@ -478,7 +478,9 @@ function openRule(key,el){
   const isMine=personalised&&errorKeys.includes(key);const detail=errorInfo[key]||{};
   const panel=$('#personalDetail');panel.replaceChildren();panel.classList.toggle('hidden',!isMine);
   if(isMine){
-    const heading=newEl('strong','','Dans ta copie');panel.append(heading);
+    const heading=newEl('strong','','TON ERREUR');panel.append(heading);
+    if(detail.written)panel.append(newEl('p','','Tu avais écrit : « '+detail.written+' ».'));
+    if(detail.correct)panel.append(newEl('p','','Il fallait écrire : « '+detail.correct+' ».'));
     const commentary=newEl('p','',detail.written?'Tu avais écrit : « '+detail.written+' ». '+(detail.comment||'Compare avec la forme correcte, puis vérifie la règle.'):
       (detail.comment||'Observe la forme correcte et compare-la avec ta copie.'));
     commentary.style.margin='5px 0 0';panel.append(commentary);
