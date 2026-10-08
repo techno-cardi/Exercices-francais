@@ -475,7 +475,7 @@ function openRule(key,el){
       (detail.comment||'Observe la forme correcte et compare-la avec ta copie.'));
     commentary.style.margin='5px 0 0';panel.append(commentary);
   }
-  $('#understandLabel').classList.toggle('hidden',!isMine);$('#understood').checked=understood.has(key);
+  $('#understandLabel').classList.toggle('hidden',!isMine || !!window.eleonoreExternalTracking);$('#understood').checked=understood.has(key);
   const scope=mode==='errors'?errorKeys:keys;
   const ix=scope.indexOf(key);$('#modalPosition').textContent=(isMine?'Mon erreur ':'Explication ')+(ix+1)+' / '+scope.length;
   $('#modalNext').disabled=ix<0||ix===scope.length-1;
@@ -561,7 +561,8 @@ function renderExercises(){
     card.append(row,feedback);list.append(card);
   });
 }
-renderExercises();setMode('all');tryPersonalData();
+renderExercises();setMode('all');
 </script>
+<script src="assets/eleonore-feedback.js?v=20261008" defer></script>
 </body>
 </html>
