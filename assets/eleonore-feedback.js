@@ -31,6 +31,7 @@ async function action(name,args={}){
 }
 function strategy(key, categoryOverride=''){
  const category=categoryOverride||(typeof RULES==='object' ? RULES[key]?.category : '')||(key.startsWith('phrase-')?'Structure de phrase':'');
+ if(/écoute|fidélité|omission|mots oubliés/i.test(category))return ['Écouter toute la phrase et demander qu’on répète si un mot n’est pas clair.','Remplacer les mots entendus par des synonymes sans vérifier.','Chercher dans Usito les mots qu’on n’a pas entendus.'];
  if(/Structure de phrase/.test(category))return ['Écouter la phrase au complet et demander qu’on répète si un mot manque ou semble incertain.','Remplacer les mots entendus par d’autres qui veulent dire la même chose.','Chercher dans Usito les mots qui ont été oubliés.'];
  if(/ponctuation/i.test(category))return ['Relire la phrase et encadrer les groupes détachés avec les virgules nécessaires.','Mettre une virgule après chaque mot difficile.','Retirer toutes les virgules pour lire plus vite.'];
  if(/orthographe|lexique|vocabulaire/i.test(category))return ['Chercher le mot dans Usito et vérifier ses lettres, ses accents et sa graphie exacte.','Écrire le mot seulement comme il se prononce.','Ajouter une lettre muette sans vérifier.'];
@@ -42,7 +43,7 @@ function strategy(key, categoryOverride=''){
 }
 function mixed(key,error){
  // Positions stables, sans données privées persistées : hash de l'identifiant de session et clé de règle.
- const s=String(session.schoolEmail||'')+'|'+key;let h=0;
+ const s=String(preview?session.studentEmail:session.schoolEmail||'')+'|'+key;let h=0;
  for(let i=0;i<s.length;i++)h=((h*33)^s.charCodeAt(i))>>>0;
  const correct=h%3;
  const choices=strategy(key,error?.category||'');const ordered=[null,null,null];ordered[correct]=choices[0];ordered[(correct+1)%3]=choices[1];ordered[(correct+2)%3]=choices[2];
@@ -103,7 +104,7 @@ function render(){
    });
  }
  const third=line(steps,'div',undefined,'exercise');line(third,'h3','3. Consulter mon bilan');
- line(third,'p','Relis la première page de ton PDF. Pour la prochaine dictée : repère les noms, vérifie les verbes, les homophones, puis termine par Usito.');
+ line(third,'p','Relis la première page de ton PDF et la stratégie complète de la boîte à outils, p. 1 : texte et ponctuation, points au-dessus des noms avec genre/nombre et flèches d’accord, verbes surlignés reliés au sujet, pronom de remplacement, temps, participes passés, homophones et mots difficiles dans Usito.');
  btn(third,prog.bilanSeen?'Bilan consulté':'J’ai lu mon bilan',async()=>{try{await action('bilanSeen');await reload();}catch(e){msg.textContent=e.message;}}).disabled=!!prog.bilanSeen;
  const done=(info.errors||[]).every(e=>(prog.understoodKeys||[]).includes(e.key));
  const fourth=line(steps,'div',undefined,'exercise');line(fourth,'h3','4. Valider mon travail');
