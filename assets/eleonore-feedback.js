@@ -55,7 +55,7 @@ function render(){
  if(preview)line(steps,'p','APERÇU ENSEIGNANT : lecture seule. Aucune progression ne sera modifiée.','notice');
   if(info.unreleased&&!preview){line(steps,'p','Ce travail n’est pas encore publié. Ton enseignant validera les corrections avant de l’ouvrir.');return;}
  const prog=info.progress||{};
- const top=line(steps,'p',`Groupe ${info.group} · Note : ${info.grade===null?'à confirmer':info.grade+' / '+info.maxScore}`,'small');
+ const top=line(steps,'p',`Groupe ${info.group} · Note : ${info.grade===null?'à confirmer':Number(info.grade).toLocaleString('fr-CA')+' / '+info.maxScore}`,'small');
  top.style.fontWeight='bold';
  if(prog.completedAt){line(steps,'h3','Travail terminé');line(steps,'p','Ta vérification est enregistrée. Tu peux revoir les explications à tout moment.');return;}
  const first=line(steps,'div',undefined,'exercise');
