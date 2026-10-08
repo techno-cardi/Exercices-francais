@@ -190,11 +190,12 @@ body.mode-errors .word.personal,body.mode-all .word.personal{color:#99243a;backg
 <div class="modal-layer" id="overlay" aria-hidden="true">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
     <button class="modal-close" type="button" aria-label="Fermer l'explication" id="closeModal">×</button>
+    <div id="personalDetail" class="personal-box hidden"></div>
     <span class="pill" id="modalCategory"></span>
     <h2 id="modalTitle"></h2>
     <p class="rule-text" id="modalRule"></p>
     <div id="modalLearning" aria-live="polite"></div>
-    <div id="personalDetail" class="personal-box hidden"></div>
+
     <label class="understand hidden" id="understandLabel"><input type="checkbox" id="understood"> Je comprends maintenant comment corriger cette erreur.</label>
     <div class="modalfoot"><span class="stat" id="modalPosition">Explication</span><button class="btn light" type="button" id="modalNext">Explication suivante →</button></div>
     <p class="feedbackline" id="saveMsg" role="status"></p>
