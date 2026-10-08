@@ -4,6 +4,21 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#a61d2d">
+<style>html:not(.portal-authorized) body{display:none!important}</style>
+<script>
+(function verrouillerAcces(){
+  try{
+    const s=JSON.parse(sessionStorage.getItem('francais.portail.session')||'null');
+    if(s && s.level===5 && /^[0-9]{7}$/.test(s.fiche) &&
+      Number.isFinite(s.started) && Date.now()>=s.started &&
+      Date.now()-s.started<20*60*1000){
+      document.documentElement.classList.add('portal-authorized');
+      return;
+    }
+  }catch(e){}
+  location.replace('./?connexion=requise');
+})();
+</script>
 <title>Dictée Marianne - Retour personnalisé</title>
 <style>
 :root{
@@ -585,10 +600,11 @@ $('#loginForm').addEventListener('submit',async e=>{
   try{
     const raw=sessionStorage.getItem('francais.portail.marianne');
     sessionStorage.removeItem('francais.portail.marianne');
-    if(!raw)return;
-    const item=JSON.parse(raw);
-    if(!item || !/^[0-9]{7}$/.test(item.fiche) || Date.now()-item.date>60000 || Date.now()<item.date)return;
-    $('#fiche').value=item.fiche;
+    const item=raw?JSON.parse(raw):null;
+    const s=JSON.parse(sessionStorage.getItem('francais.portail.session')||'null');
+    const fiche=item&&/^[0-9]{7}$/.test(item.fiche)&&Date.now()-item.date<60000&&Date.now()>=item.date?item.fiche:s?.fiche;
+    if(!/^[0-9]{7}$/.test(fiche))return;
+    $('#fiche').value=fiche;
     $('#loginForm').requestSubmit();
   }catch(e){console.warn('Reprise depuis le portail impossible');}
 })();
