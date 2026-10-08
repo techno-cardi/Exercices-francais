@@ -68,11 +68,12 @@ body.mode-errors .word.personal,body.mode-all .word.personal{color:#99243a;backg
 .rule-quote-label{display:block;font-size:.73rem;letter-spacing:.075em;text-transform:uppercase;color:#697988;font-weight:850;margin-bottom:8px}
 .rule-quote-main{font-family:Georgia,"Times New Roman",serif;font-size:clamp(1.33rem,3vw,1.61rem);line-height:1.5;color:#273443}
 .rule-quote .highlight-cd{background:#fff2e2;color:#834b0d;border-radius:5px;padding:1px 4px;font-weight:700}
+.rule-quote .highlight-ci{background:#f3eafe;color:#684192;border-radius:5px;padding:1px 4px;font-weight:700}
 .rule-quote .highlight-verb{background:#e8f1ff;color:#204d84;border-radius:5px;padding:1px 5px;font-weight:700}
 .rule-quote .highlight-pp{background:#eaf5ee;color:#256144;border-radius:5px;padding:1px 5px;font-weight:700}
 .legend-mini{display:flex;flex-wrap:wrap;gap:7px 17px;margin-top:10px;font-size:.78rem;color:#596878}
 .legend-mini b{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px}
-.legend-mini .cd{background:#e7b77a}.legend-mini .verbe{background:#8ab0de}
+.legend-mini .cd{background:#e7b77a}.legend-mini .ci{background:#b99adc}.legend-mini .verbe{background:#8ab0de}
 .method-heading{font-size:1.05rem;font-weight:850;margin:10px 0 10px;color:#263647}
 .method-steps{padding:0;margin:0;list-style:none;display:grid;gap:8px}
 .method-steps li{display:grid;grid-template-columns:34px minmax(0,1fr);align-items:start;gap:11px;padding:11px 13px;background:#f7f9fc;border:1px solid #e5eaf0;border-radius:12px}
@@ -238,7 +239,7 @@ const VISUAL_LESSONS={
   'avait-offert':{
     title:'Pourquoi « offert » ne s’accorde-t-il pas avec « lui »?',
     intro:'Le mot « lui » désigne la personne qui reçoit. Ce n’est pas le complément direct.',
-    phrase:[{text:'Le génie '},{text:'lui',style:'cd'},{text:' avait offert',style:'verb'},{text:' trois vœux.'}],
+    phrase:[{text:'Le génie '},{text:'lui',style:'ci'},{text:' avait offert',style:'verb'},{text:' trois vœux',style:'cd'},{text:'.'}],
     steps:[
       {label:'Repérer le participe passé',answer:'avait offert',detail:'Il est employé avec « avoir ».'},
       {label:'Distinguer les compléments',answer:'offert quoi? « trois vœux »',detail:'« Trois vœux » est le CD APRÈS le verbe; « lui » répond à « à qui? » et est un CI.'},
@@ -412,14 +413,17 @@ function renderVisualLesson(key,rule){
   quote.append(newEl('span','rule-quote-label','Dans la dictée'));
   const sentence=newEl('div','rule-quote-main');
   visual.phrase.forEach(part=>{
-    const s=newEl('span',part.style?'highlight-'+(part.style==='verb'?'verb':part.style==='pp'?'pp':'cd'):'',part.text);
+    const s=newEl('span',part.style?'highlight-'+(part.style==='verb'?'verb':part.style==='pp'?'pp':part.style==='ci'?'ci':'cd'):'',part.text);
     sentence.append(s);
   });
   quote.append(sentence);
-  if(visual.phrase.some(p=>p.style==='cd'||p.style==='verb')){
+  if(visual.phrase.some(p=>['cd','ci','verb'].includes(p.style))){
     const legend=newEl('div','legend-mini');
     if(visual.phrase.some(p=>p.style==='cd')){
-      const l=newEl('span');l.append(newEl('b','cd'),document.createTextNode('Complément à identifier'));legend.append(l);
+      const l=newEl('span');l.append(newEl('b','cd'),document.createTextNode('Complément direct (CD)'));legend.append(l);
+    }
+    if(visual.phrase.some(p=>p.style==='ci')){
+      const l=newEl('span');l.append(newEl('b','ci'),document.createTextNode('Complément indirect (CI)'));legend.append(l);
     }
     if(visual.phrase.some(p=>p.style==='verb')){
       const l=newEl('span');l.append(newEl('b','verbe'),document.createTextNode('Groupe verbal'));legend.append(l);
