@@ -170,3 +170,13 @@ When a stable flow passes, avoid changing the core engine without a concrete bug
 - **Aucune rétroaction individuelle publiée** : toutes les lignes ont `released=false`. L'absence de publication empêche le backend de rendre notes, erreurs, lien PDF et progression à l'élève. Le parcours est installé, mais pas encore validé en usage réel avec un compte élève.
 - Relevés d'erreurs : 12 copies documentées individuellement, dont Sarah sans erreur, 17 restent à vérifier intégralement. Ne pas déduire les erreurs à partir du pointage ni publier avant vérification complète. Corriger toute incohérence entre la note manuscrite, Gestion des notes et le bilan PDF.
 - Tests locaux de scripts et logique passés. **Tests de bout en bout réels encore requis** sur le portail, la persistance, le partage PDF, la validation correcte/fausse et la console. Le niveau de préparation ne doit pas être présenté comme une publication aux élèves.
+
+
+## Reprise après interruption de connexion, 8 octobre 2026
+- État Supabase relu : 29 lignes privées, **23 vérifications complètes** (`errors_verified=true`), **6 en attente**, 91 erreurs personnalisées; **0 ligne `released`**. Aucun élève n'a été publié dans le parcours interactif.
+- Six dossiers validés depuis la reconnexion : Éloi Michaud, Amina Chaib-Draa, Ludovic Barrette, Alexis Le Huu, Tristan Cournoyer, Jacob Savard; puis Maëva Ruel. Les notes manuscrites demeurent inchangées.
+- Six dossiers difficiles non publiables : Sofia Coulombe, Thomas Jeffrey, Laurent Morin, Dahlia Fortin, Samuel Salcedo Alegrias, Albert Verreault. Détails privés de relecture dans le dossier Drive enseignant; ne pas inférer des erreurs à partir du score, ne pas modifier `released` sans revue.
+- Audit des PDF : 29 PDF à trois pages, 29 mots secrets uniques, les 29 empreintes SHA-256 des codes imprimés concordent avec l'import privé. Le doublon local du PDF rectifié de Samuel a été archivé; les trois pages de ses deux variantes étaient identiques en rendu.
+- Contrôle local passé : `tests/check_choices.py`, `tests/check_integration.py`, `tests/check_backend.cjs`; le test d'intégration vérifie les 29 scans et les scripts. Cela **ne constitue pas un test complet en situation réelle** avec des comptes élèves.
+- Tableaux privés de suivi déposés dans le dossier Drive de la dictée, version 23/29, et tableau détaillé des 6 copies à relire. Sans accès au dossier, élèves autorisés uniquement à leurs PDF personnels.
+- Les quatre fichiers publics et la Edge Function restent installés; aucun test réel intercomptes (un autre élève) n'a été conduit; garder les données non publiées. Groupe 32 : aucune copie reçue.
