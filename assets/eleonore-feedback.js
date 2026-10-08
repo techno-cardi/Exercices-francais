@@ -4,11 +4,12 @@
 'use strict';
 const base='https://ojyswaxuqwnqilrvtjll.supabase.co';
 const key='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qeXN3YXh1cXducWlscnZ0amxsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4MDI0MTksImV4cCI6MjEwNDM3ODQxOX0.zKiE9TgFhH0W0Y_4qL_o16csdDqq9TiacHiCcf6ES3Q';
-const assignment='dictee-eleonore-2026-10-08';
+const preview=window.eleonoreTeacherPreview===true;
 const $=s=>document.querySelector(s);
-let session;try{session=JSON.parse(sessionStorage.getItem('francais.portail.session')||'null');}catch{}
-if(!session||Number(session.level)!==3)return;
-const token=String(session.schoolToken||'');
+let session;try{session=JSON.parse(sessionStorage.getItem(preview?'francais.prof.preview':'francais.portail.session')||'null');}catch{}
+if(!session||(!preview&&Number(session.level)!==3))return;
+const assignment=preview?String(session.workSlug||'dictee-eleonore-2026-10-08'):'dictee-eleonore-2026-10-08';
+const token=String(preview?session.token:session.schoolToken||'');
 const status=$('#availability');
 const wrap=document.createElement('section');wrap.className='card';wrap.id='monParcours';
 const title=document.createElement('h2');title.textContent='Mon parcours de correction';wrap.append(title);
@@ -20,7 +21,10 @@ function el(tag,content,cls){const n=document.createElement(tag);if(cls)n.classN
 function line(node,tag,content,cls){const n=el(tag,content,cls);node.append(n);return n;}
 function btn(node,content,action){const b=line(node,'button',content,'btn');b.type='button';b.addEventListener('click',action);return b;}
 async function action(name,args={}){
- const r=await fetch(base+'/functions/v1/fr-dictee-feedback',{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json','apikey':key},body:JSON.stringify({action:name,token,workSlug:assignment,...args})});
+ if(preview&&name!=='load')throw new Error('Aperçu en lecture seule.');
+ const actualAction=preview?'teacherPreview':name;
+ const extras=preview?{studentEmail:session.studentEmail}:{};
+ const r=await fetch(base+'/functions/v1/fr-dictee-feedback',{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json','apikey':key},body:JSON.stringify({action:actualAction,token,workSlug:assignment,...extras,...args})});
  let result=null;try{result=await r.json();}catch{}
  if(!r.ok||result?.ok!==true)throw new Error(result?.message||'Le suivi ne répond pas. Réessaie.');
  return result;
@@ -46,7 +50,8 @@ function mixed(key,error){
 function render(){
  steps.replaceChildren();
  if(!info)return;
- if(info.unreleased){line(steps,'p','Ce travail n’est pas encore publié. Ton enseignant validera les corrections avant de l’ouvrir.');return;}
+ if(preview)line(steps,'p','APERÇU ENSEIGNANT : lecture seule. Aucune progression ne sera modifiée.','notice');
+  if(info.unreleased&&!preview){line(steps,'p','Ce travail n’est pas encore publié. Ton enseignant validera les corrections avant de l’ouvrir.');return;}
  const prog=info.progress||{};
  const top=line(steps,'p',`Groupe ${info.group} · Note : ${info.grade===null?'à confirmer':info.grade+' / '+info.maxScore}`,'small');
  top.style.fontWeight='bold';
@@ -117,9 +122,9 @@ async function reload(){try{info=await action('load');
    activatePersonal({ok:true,first:info.first,note:info.grade,copyUrl:info.copyUrl,errorKeys:(info.errors||[]).map(e=>e.key),errors:info.errors,progress:{understoodKeys:info.progress?.understoodKeys||[]}});
    // La validation des stratégies est exclusivement gérée par le parcours ci-dessus.
  }
- msg.textContent=info.unreleased?'Le travail individuel n’est pas encore publié.':info.ready?'Ton suivi est enregistré automatiquement.':'Les erreurs personnalisées restent en vérification.';render();}catch(err){msg.textContent=err.message;}}
+ msg.textContent=preview?'Aperçu enseignant en lecture seule.':info.unreleased?'Le travail individuel n’est pas encore publié.':info.ready?'Ton suivi est enregistré automatiquement.':'Les erreurs personnalisées restent en vérification.';render();}catch(err){msg.textContent=err.message;}}
 // Le portail ne transfère jamais une fiche dans le code public. Le jeton est éphémère dans sessionStorage.
-$('#copyLink')?.addEventListener('click',()=>{action('copyOpened').then(reload).catch(err=>msg.textContent=err.message);});
+if(!preview)$('#copyLink')?.addEventListener('click',()=>{action('copyOpened').then(reload).catch(err=>msg.textContent=err.message);});
 if(!token)msg.textContent='Accès personnel indisponible : reconnecte-toi depuis le portail avec ton courriel scolaire et ta fiche.';
 else reload();
 })();
