@@ -61,3 +61,14 @@ Une seule porte d'entrée pour les élèves: `index.html` avec numéro de fiche 
 - L'enseignant se connecte à la console avec son courriel et le **mot de passe actuel de Gestion des notes**, via `school-results/teacherLogin`. Il n'existe pas de mot de passe statique en GitHub et il ne faut pas en créer un dans le HTML. La récupération/réinitialisation relève de l'identité enseignante déjà existante.
 - **Tests réels restant nécessaires** : connexion de l'enseignant, aperçu, ouverture des 59 PDF selon les permissions, parcours élève, cases à trois choix, validation correcte/fausse du mot secret et persistance. Ne pas déclarer la console validée de bout en bout sans ces essais.
 - Le groupe 31 conserve une fiche PPA à interprétation incertaine avant publication. Le groupe 32 n'a encore aucune analyse exhaustive des erreurs. Les résultats et les PDF sont prêts, mais les parcours interactifs personnels restent volontairement masqués.
+
+
+## État actuel - octobre 2026, groupes 31 et 32
+- Le groupe 31 a 29 dossiers avec 129 corrections personnalisées; le groupe 32 a 30 dossiers avec 106 corrections personnalisées. Tous les 59 dossiers correspondants ont `released=true` dans `fr_dictee_feedback`.
+- Tous les 59 PDF de trois pages sont déposés dans des dossiers privés sur Drive et partagés avec un seul destinataire étudiant en lecture seule. Les liens sont conservés dans Supabase, pas dans GitHub.
+- Un élève inscrit au groupe 32 n'a pas de copie identifiable dans le document transmis; aucun score ou dossier ne doit être créé sans copie.
+- `school_assignments.published=false` est distinct du portail de dictées : le travail d'autocorrection est disponible, mais la publication académique de Gestion des notes reste inchangée.
+- La méthode détaillée renvoie à La boîte à outils 2026-2027 p. 1 : relecture, noms communs pointés et accordés avec flèches, verbes surlignés reliés au sujet, remplacement du sujet GN par un pronom, système verbal, participes passés, homophones et Usito. Les omissions relèvent de l'écoute et de la fidélité aux mots dictés.
+- Le portail `index.html`, la page `dictee-eleonore.html`, le script `assets/eleonore-feedback.js`, la console `controle-dictees.html` et la fonction serveur `fr-dictee-feedback` sont en place. Chaque élève se connecte par sa fiche et son courriel; le mot secret se valide côté serveur et le professeur peut voir une prévisualisation en lecture seule.
+- Contrôles réalisés : intégrité des 59 codes et URL, validations de structure des 235 erreurs, permissions Drive individuelles, syntaxe JavaScript et diversité des trois positions de réponse. Un essai de bout en bout avec un véritable compte élève et la vérification du site GitHub Pages restent non réalisables dans cette session.
+- Sécurité : ne placer aucun nom d'élève, note individuelle, courriel étudiant, fiche, mot secret ou URL de PDF dans ce dépôt public.
