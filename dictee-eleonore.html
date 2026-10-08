@@ -507,7 +507,7 @@ function activatePersonal(d){
   if(!d?.ok)return;
   personalised=true;student=d;
   errorKeys=(Array.isArray(d.errorKeys)?d.errorKeys:[]).filter(k=>typeof k==='string'&&k.length<130);
-  errorInfo=Object.fromEntries((d.errors||[]).filter(x=>RULES[x.key]).map(x=>[x.key,x]));
+  errorInfo=Object.fromEntries((d.errors||[]).filter(x=>typeof x.key==='string').map(x=>[x.key,x]));
   understood=new Set((d.progress?.understoodKeys||[]).filter(k=>errorKeys.includes(k)));
   $$('.word').forEach(el=>el.classList.toggle('personal',errorKeys.includes(el.dataset.rule)));
   $('#availability').textContent='Bonjour '+(d.first||'')+'! Ton retour individuel est disponible. Les marques rouges indiquent les éléments à revoir dans ta copie.';
