@@ -286,6 +286,80 @@ const VISUAL_LESSONS={
     ],takeaway:'Ne mélange pas les règles',examples:['Elle avait guéri la famille. → « avoir », CD après : « guéri ».','La famille soit guérie. → « être », sujet féminin : « guérie ».']
   }
 };
+
+function lesson(title,intro,phrase,steps,example){
+  return {title,intro,phrase:[{text:phrase}],steps,takeaway:'À retenir',examples:example?[example]:[]};
+}
+Object.assign(VISUAL_LESSONS,{
+  'etait':lesson('Pourquoi écrit-on « était »?','Le récit commence avec un verbe à l’imparfait.','Il était une fois…',[
+    {label:'Trouver le verbe',answer:'était',detail:'C’est le verbe « être », conjugué à l’imparfait.'},
+    {label:'Trouver le sujet',answer:'il',detail:'Le sujet est à la 3e personne du singulier.'},
+    {label:'Vérifier la terminaison',answer:'-ait',detail:'À l’imparfait, on écrit « il était ».'}
+  ],'« Été » est un participe passé. Ici, on veut un verbe conjugué : « était ».'),
+  'lointain':lesson('Pourquoi « lointain » sans -e?','C’est le nom qui détermine l’accord de l’adjectif.','dans un village lointain',[
+    {label:'Trouver l’adjectif',answer:'lointain',detail:'Il apporte une précision sur le village.'},
+    {label:'Repérer le nom',answer:'village = masculin singulier',detail:'Le déterminant « un » aide à identifier le genre et le nombre.'},
+    {label:'Accorder',answer:'lointain',detail:'Au masculin singulier, on ne met ni -e ni -s.'}
+  ],'Une contrée lointaine. → « contrée » est féminin singulier.'),
+  'nommee':lesson('Pourquoi « nommée » prend-il -ée?','Le participe passé employé pour qualifier un nom s’accorde avec ce nom.','une jeune fille nommée Éléonore',[
+    {label:'Repérer le nom décrit',answer:'une jeune fille',detail:'C’est la personne qui est nommée.'},
+    {label:'Déterminer le genre et le nombre',answer:'féminin singulier',detail:'« Fille » est féminin singulier.'},
+    {label:'Accorder',answer:'nommée',detail:'La marque du féminin ajoute -e à « nommé ».'}
+  ],'Un jeune garçon nommé Louis. → masculin singulier : « nommé ».'),
+  'poussiereux':lesson('Pourquoi « poussiéreux »?','Le mot combine une difficulté d’accord et une difficulté d’orthographe.','un vieux livre poussiéreux',[
+    {label:'Trouver le nom',answer:'livre',detail:'C’est un nom masculin singulier.'},
+    {label:'Accorder l’adjectif',answer:'poussiéreux',detail:'La forme masculine est « poussiéreux »; la forme féminine est « poussiéreuse ».'},
+    {label:'Vérifier la graphie',answer:'poussié-reux',detail:'Attention à l’accent aigu et à la terminaison -eux.'}
+  ],'Une vieille couverture poussiéreuse.'),
+  'grenier':lesson('Comment vérifier « grenier »?','Certains mots doivent être vérifiés par l’orthographe lexicale.','dans le grenier',[
+    {label:'Identifier le mot',answer:'grenier',detail:'Le lieu sous le toit où l’on range des objets.'},
+    {label:'Vérifier sa finale',answer:'-ier',detail:'Le son final ne suffit pas toujours à choisir les lettres.'}
+  ],'Après les vérifications grammaticales, confirme l’orthographe dans Usito.'),
+  'grand-mere':lesson('Pourquoi un trait d’union?','« Grand-mère » est un nom composé.','de sa grand-mère',[
+    {label:'Reconnaître le nom composé',answer:'grand-mère',detail:'Les deux éléments forment un seul mot.'},
+    {label:'Vérifier les signes',answer:'- et è',detail:'Il faut le trait d’union et l’accent grave de « mère ».'}
+  ],'Ne pas écrire « grand mère » sans trait d’union.'),
+  'curieuse':lesson('Pourquoi « curieuse »?','L’adjectif est détaché en début de phrase, mais il s’accorde quand même.','Curieuse, elle l’avait ouvert…',[
+    {label:'Trouver ce qui est décrit',answer:'Éléonore',detail:'Le pronom « elle » reprend Éléonore.'},
+    {label:'Déterminer le genre et le nombre',answer:'féminin singulier',detail:'Éléonore est une jeune fille.'},
+    {label:'Faire l’accord',answer:'curieuse',detail:'Le féminin de « curieux » se termine par -euse.'}
+  ],'Curieux, il avait ouvert le livre. → masculin singulier.'),
+  'et':lesson('« Et » ou « est »?','Les deux mots se prononcent de la même façon, mais n’ont pas le même rôle.','elle l’avait ouvert et…',[
+    {label:'Observer le lien',answer:'et',detail:'Ce mot relie deux faits du récit.'},
+    {label:'Faire un remplacement',answer:'et puis',detail:'« Elle l’avait ouvert et puis une lumière en sortit » garde son sens.'}
+  ],'« Est » est le verbe être et se remplace par « était ».'),
+  'a-sa-surprise':lesson('Pourquoi « à sa grande surprise »?','Les mots « à » et « sa » sont des homophones à vérifier.','à sa grande surprise',[
+    {label:'Vérifier « à »',answer:'préposition',detail:'On ne peut pas remplacer « à » par « avait ».'},
+    {label:'Vérifier « sa »',answer:'déterminant possessif',detail:'On peut dire « à ma grande surprise ».'},
+    {label:'Observer les virgules',answer:'…, à sa grande surprise, …',detail:'Les virgules encadrent le complément inséré.'}
+  ],'« Ça » est un pronom démonstratif et ne peut pas remplacer « sa » devant « surprise ».'),
+  'eclatante':lesson('Pourquoi « éclatante » prend-il un -e?','L’adjectif qualifie un nom féminin singulier.','une lumière éclatante',[
+    {label:'Identifier le nom',answer:'lumière',detail:'Le déterminant « une » indique le féminin singulier.'},
+    {label:'Accorder l’adjectif',answer:'éclatante',detail:'Masculin « éclatant » → féminin « éclatante ».'}
+  ],'Un éclair éclatant. → masculin singulier.'),
+  'sortit':lesson('Pourquoi « sortit » avec un -t?','Il faut distinguer un verbe conjugué au passé simple d’un participe passé.','une lumière en sortit',[
+    {label:'Trouver le sujet',answer:'une lumière',detail:'C’est la lumière qui sort.'},
+    {label:'Trouver le temps',answer:'passé simple',detail:'Le narrateur raconte ici un événement ponctuel.'},
+    {label:'Choisir la forme',answer:'sortit',detail:'À la 3e personne du singulier : « elle sortit ».'}
+  ],'« La lumière est sortie » : avec « est », on utilise le participe passé « sortie ».'),
+  'voeux':lesson('Comment écrire « trois vœux »?','La forme du pluriel est particulière.','trois vœux',[
+    {label:'Observer le déterminant',answer:'trois',detail:'Le nom doit être au pluriel.'},
+    {label:'Vérifier la forme du nom',answer:'un vœu → des vœux',detail:'On écrit « œ » et on ajoute -x au pluriel.'}
+  ],'Ne confonds pas « un vœu » et « trois vœux ».'),
+  'dabord':lesson('Comment écrire « d’abord »?','Cette expression contient une apostrophe.','d’abord',[
+    {label:'Reconnaître l’expression',answer:'d’abord',detail:'Elle indique ce qui se passe en premier.'},
+    {label:'Vérifier la graphie',answer:'d’ + abord',detail:'On écrit une apostrophe, sans espace à cet endroit.'}
+  ],'Pour vérifier une graphie incertaine, utilise Usito.'),
+  'qui-la-rongeait':lesson('Qui rongeait la famille?','Attention à ne pas confondre le sujet et le complément direct.','la maladie qui la rongeait',[
+    {label:'Trouver le sujet',answer:'qui = la maladie',detail:'C’est la maladie qui ronge.'},
+    {label:'Identifier « la »',answer:'CD = la famille',detail:'La maladie ronge qui? « la », qui reprend la famille.'},
+    {label:'Accorder le verbe',answer:'rongeait',detail:'Le sujet est singulier : imparfait, 3e personne du singulier, -ait.'}
+  ],'Le CD « la » placé avant le verbe ne change pas la terminaison « rongeait ».'),
+  'son-voeu':lesson('« Son » ou « sont »?','Le déterminant possessif et le verbe « être » sont des homophones.','son vœu',[
+    {label:'Identifier le mot suivant',answer:'vœu = nom',detail:'« Son » accompagne un nom masculin singulier.'},
+    {label:'Vérifier par remplacement',answer:'mon vœu',detail:'Le remplacement par « mon » fonctionne : on écrit « son ».'}
+  ],'« Sont » est le verbe être et peut se remplacer par « étaient ».')
+});
 const EXERCISES=[
   {q:'Elle avait ouvert la porte. Quel est le participe passé correct?',choices:['ouvert','ouverte'],answer:0,why:'« La porte » est le CD, mais il est après le verbe : on écrit « ouvert ». '},
   {q:'La porte qu’elle avait… Quel mot complète correctement la phrase?',choices:['ouvert','ouverte'],answer:1,why:'« Qu’ » reprend « la porte », CD féminin singulier placé avant : « ouverte ». '},
@@ -352,7 +426,7 @@ function renderVisualLesson(key,rule){
     }
     quote.append(legend);
   }
-  zone.append(quote,newEl('div','method-heading','Je vérifie en 3 étapes'));
+  zone.append(quote,newEl('div','method-heading','Je vérifie en '+visual.steps.length+' étapes'));
   const steps=newEl('ol','method-steps');
   visual.steps.forEach((step,index)=>{
     const item=newEl('li');item.append(newEl('span','method-step-number',String(index+1)));
