@@ -20,7 +20,13 @@ let info=null;
 function el(tag,content,cls){const n=document.createElement(tag);if(cls)n.className=cls;if(content!==undefined)n.textContent=content;return n;}
 function line(node,tag,content,cls){const n=el(tag,content,cls);node.append(n);return n;}
 function btn(node,content,action){const b=line(node,'button',content,'btn');b.type='button';b.addEventListener('click',action);return b;}
-async function action(name,args={}){
+let actionQueue=Promise.resolve();
+function action(name,args={}){
+ const result=actionQueue.then(()=>requestAction(name,args));
+ actionQueue=result.catch(()=>{});
+ return result;
+}
+async function requestAction(name,args={}){
  if(preview&&name!=='load')throw new Error('Aperçu en lecture seule.');
  const actualAction=preview?'teacherPreview':name;
  const extras=preview?{studentEmail:session.studentEmail}:{};
@@ -72,7 +78,7 @@ function render(){
  const first=line(steps,'div',undefined,'exercise');
  line(first,'h3','1. Ouvrir ma copie');
  line(first,'p','Lis ton commentaire à la page 1, puis regarde la copie corrigée à la page 2 et ta feuille de vérification à la page 3.');
- if(/^https:\/\/drive\.google\.com\/file\/d\/[a-zA-Z0-9_-]+\/view(?:[?#].*)?$/.test(info.copyUrl||'')){const link=line(first,'a','Ouvrir mon PDF personnel ↗','btn');link.href=info.copyUrl;link.target='_blank';link.rel='noopener noreferrer';link.style.textDecoration='none';link.addEventListener('click',()=>{action('copyOpened').then(()=>reload()).catch(e=>msg.textContent=e.message);});}
+ if(/^https:\/\/drive\.google\.com\/file\/d\/[a-zA-Z0-9_-]+\/view(?:[?#].*)?$/.test(info.copyUrl||'')){const link=line(first,'a','Ouvrir mon PDF personnel ↗','btn');link.href=info.copyUrl;link.target='_blank';link.rel='noopener noreferrer';link.style.textDecoration='none';if(!preview)link.addEventListener('click',()=>{action('copyOpened').then(()=>reload()).catch(e=>msg.textContent=e.message);});}
  line(first,'p',prog.copyOpened?'Lien vers la copie activé : oui':'Lien vers la copie à activer','small');
  const second=line(steps,'div',undefined,'exercise');line(second,'h3','2. Comprendre mes erreurs');
  if(!info.ready){line(second,'p','Les erreurs individuelles sont en cours de vérification par ton enseignant. Les explications générales restent accessibles plus haut.');}
@@ -88,7 +94,17 @@ function render(){
      if(error.comment)line(card,'p',error.comment);
      const rule=(typeof RULES==='object' ? RULES[error.key]?.rule : '')||'';
      if(rule)line(card,'p',rule);
-     if(prog.completedAt){line(card,'p','Ton premier travail demeure enregistré. Tu peux lire cette correction révisée sans refaire le questionnaire.','small');return;}
+     if(prog.completedAt){
+       line(card,'p','Entraînement libre : ta validation et ton heure de fin restent enregistrées.','small');
+       line(card,'p',error.quiz?.prompt||'Quelle stratégie utiliserais-tu pour éviter cette erreur?');
+       const {correct,ordered}=mixed(error.key,error);
+       const feedback=line(card,'p','','feedback');
+       ordered.forEach((text,index)=>btn(card,`${index+1}. ${text}`,()=>{
+         const source=(index-correct+3)%3;
+         feedback.textContent=(index===correct?'Bonne réponse. ':'À revoir. ')+(error.quiz?.feedback?.[source]||error.comment||'Relis la correction.');
+       }));
+       return;
+     }
      if(understood.has(error.key)){line(card,'p','Compris et enregistré.','small');return;}
      const passed=new Set(prog.strategyKeys||[]);
      line(card,'p',error.quiz?.prompt||'Quelle stratégie utiliserais-tu pour éviter cette erreur?');
@@ -107,8 +123,10 @@ function render(){
      else ordered.forEach((text,index)=>btn(card,`${index+1}. ${text}`,async()=>{
        try{
          const result=await action('strategy',{key:error.key,choice:index});
-         if(!result.correct){feedback.textContent='Ce n’est pas la meilleure méthode. Essaie une autre stratégie.';return;}
-         feedback.textContent='Bonne stratégie! Tu peux maintenant confirmer ta compréhension.';
+         const source=(index-correct+3)%3;
+         const reason=error.quiz?.feedback?.[source]||error.comment||'Relis la correction et vérifie la règle.';
+         if(!result.correct){feedback.textContent='À revoir. '+reason;return;}
+         feedback.textContent='Bonne stratégie. '+reason+' Tu peux maintenant confirmer ta compréhension.';
          card.querySelectorAll('button').forEach(b=>{if(b!==card.querySelector('[data-understood]'))b.disabled=true;});
          confirm();
        }catch(e){feedback.textContent=e.message;}
@@ -134,7 +152,7 @@ function render(){
 async function reload(){try{info=await action('load');
  if(info.ready && typeof activatePersonal==='function'){
    window.eleonoreExternalTracking=true;
-   activatePersonal({ok:true,first:info.first,note:info.grade,copyUrl:info.copyUrl,errorKeys:(info.errors||[]).map(e=>e.key),errors:info.errors,progress:{understoodKeys:info.progress?.understoodKeys||[]}});
+   activatePersonal({ok:true,first:info.first,note:info.grade,maxScore:info.maxScore,copyUrl:info.copyUrl,errorKeys:(info.errors||[]).map(e=>e.key),errors:info.errors,progress:{understoodKeys:info.progress?.understoodKeys||[]}});
    // La validation des stratégies est exclusivement gérée par le parcours ci-dessus.
  }
  msg.textContent=preview?'Aperçu enseignant en lecture seule.':info.unreleased?'Le travail individuel n’est pas encore publié.':info.ready?'Ton suivi est enregistré automatiquement.':'Les erreurs personnalisées restent en vérification.';render();if(preview)steps.querySelectorAll('button, input').forEach(element=>element.disabled=true);}catch(err){msg.textContent='Impossible de charger ton parcours : '+(err?.message||'erreur inconnue')+'. Retourne à « Mes travaux », puis rouvre cette dictée.';status.textContent='Ta correction personnelle n’a pas pu être chargée. Ce message signale un problème technique, pas une correction en attente.';}}

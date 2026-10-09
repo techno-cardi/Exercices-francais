@@ -129,6 +129,7 @@ body.mode-errors .word.personal{color:#99243a;background:linear-gradient(transpa
 <section class="card">
   <p class="kicker">Retour sur la dictée</p>
   <h1>Le livre magique et les vœux d’Éléonore</h1>
+  <div class="warm hidden" id="gradeArea" role="status"><strong>Ma note : <span id="studentGrade"></span></strong><p class="small" style="margin:4px 0 0">Résultat de la dictée corrigée. Le parcours de révision ne modifie pas cette note.</p></div>
   <p class="lead">Une dictée pour apprendre à repérer les accords, comprendre ses erreurs et choisir les bonnes stratégies de correction.</p>
   <div class="warm" id="availability" role="status">Chargement sécurisé de ta correction personnelle…</div>
   <div class="row" style="margin-top:17px">
@@ -424,7 +425,7 @@ function locatePersonalError(error){
   const target=normaliseLocation(String(error.correct||'').trim());
   if(!target)return null;
   const context=normaliseLocation([error.key,error.title,error.comment].join(' '));
-  const inTitle=/titre|d'él[eé]onore|magique/.test(context)||/^le livre magique/.test(target);
+  const inTitle=error.region==='title'||(error.region!=='body'&&(/titre|d'él[eé]onore|magique/.test(context)||/^le livre magique/.test(target)));
   const region=personalTextRegions[inTitle?0:1],text=normaliseLocation(region.text);
   const matches=[];let start=0;
   while((start=text.indexOf(target,start))!==-1){
@@ -591,6 +592,11 @@ async function syncProgress(){
 }
 function activatePersonal(d){
   if(!d?.ok)return;
+  const grade=d.note;
+  const max=d.maxScore;
+  $('#studentGrade').textContent=grade!==null && grade!==undefined && grade!=='' && Number.isFinite(Number(grade)) && Number.isFinite(Number(max)) && Number(max)>0
+    ? Number(grade).toLocaleString('fr-CA')+' / '+Number(max).toLocaleString('fr-CA') : 'À confirmer';
+  $('#gradeArea').classList.remove('hidden');
   const initial=!personalised;
   personalised=true;student=d;
   errorKeys=(Array.isArray(d.errorKeys)?d.errorKeys:[]).filter(k=>typeof k==='string'&&k.length<130);
@@ -660,6 +666,6 @@ function renderExercises(){
 }
 renderExercises();setMode('plain');
 </script>
-<script src="assets/eleonore-feedback.js?v=20261009-personal-text1" defer></script>
+<script src="assets/eleonore-feedback.js?v=20261009-grade-audit1" defer></script>
 </body>
 </html>
