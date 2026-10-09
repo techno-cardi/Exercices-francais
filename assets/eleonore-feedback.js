@@ -137,7 +137,7 @@ async function reload(){try{info=await action('load');
    activatePersonal({ok:true,first:info.first,note:info.grade,copyUrl:info.copyUrl,errorKeys:(info.errors||[]).map(e=>e.key),errors:info.errors,progress:{understoodKeys:info.progress?.understoodKeys||[]}});
    // La validation des stratégies est exclusivement gérée par le parcours ci-dessus.
  }
- msg.textContent=preview?'Aperçu enseignant en lecture seule.':info.unreleased?'Le travail individuel n’est pas encore publié.':info.ready?'Ton suivi est enregistré automatiquement.':'Les erreurs personnalisées restent en vérification.';render();if(preview)steps.querySelectorAll('button, input').forEach(element=>element.disabled=true);}catch(err){msg.textContent=err.message;}}
+ msg.textContent=preview?'Aperçu enseignant en lecture seule.':info.unreleased?'Le travail individuel n’est pas encore publié.':info.ready?'Ton suivi est enregistré automatiquement.':'Les erreurs personnalisées restent en vérification.';render();if(preview)steps.querySelectorAll('button, input').forEach(element=>element.disabled=true);}catch(err){msg.textContent='Impossible de charger ton parcours : '+(err?.message||'erreur inconnue')+'. Retourne à « Mes travaux », puis rouvre cette dictée.';status.textContent='Ta correction personnelle n’a pas pu être chargée. Ce message signale un problème technique, pas une correction en attente.';}}
 // Le portail ne transfère jamais une fiche dans le code public. Le jeton est éphémère dans sessionStorage.
 if(!preview)$('#copyLink')?.addEventListener('click',()=>{action('copyOpened').then(reload).catch(err=>msg.textContent=err.message);});
 if(!token)msg.textContent='Accès personnel indisponible : reconnecte-toi depuis le portail avec ton courriel scolaire et ta fiche.';
