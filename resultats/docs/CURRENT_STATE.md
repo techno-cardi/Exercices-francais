@@ -225,3 +225,11 @@ When a stable flow passes, avoid changing the core engine without a concrete bug
 - Un aperçu individuel authentifié a été vérifié : note sous le titre, repères personnels dans le texte, explications et questions ciblées, contrôles de progression désactivés en lecture seule.
 - Le compteur calculé comme un nombre d’élèves sans difficulté restante avait le libellé ambigu « erreurs comprises ». Il affiche maintenant « élèves sans erreur à revoir »; aucun calcul ni donnée de progression changé.
 - La tentative d’audit des autres aperçus a été interrompue par la limite de durée de l’outil, puis par la protection native des identifiants empêchant la reprise du navigateur. Ne pas affirmer que les 59 aperçus ont été vérifiés visuellement en session réelle. Le test complet avec une session élève et une validation de mot secret reste non réalisé.
+
+
+## 9 octobre 2026 - reprise du parcours et historique des tentatives
+- Bouton « Recommencer le parcours » dans le menu de lecture en haut, réservé à l’élève pour son parcours vérifié et publié. Confirmation explicite avant remise à zéro.
+- Une reprise archive les étapes et les dates de la tentative courante, crée la tentative suivante et remet copie ouverte, bilan consulté, stratégies, compréhension et validation à zéro. Notes, PDF, corrections et mot secret restent inchangés. Les protections contre les essais de mot secret sont conservées.
+- Console : colonne Tentatives avec historique déroulant des débuts, fins et reprises, également inclus dans le CSV. Les anciennes validations deviennent la tentative 1 sans inventer d’historique antérieur. Les dossiers non commencés affichent zéro tentative.
+- Migration dictee_attempt_history et Edge Function fr-dictee-feedback version 7. Remise à zéro transactionnelle avec verrou de ligne; une ancienne tentative ne peut pas écrire dans une nouvelle ni la redémarrer deux fois par double soumission.
+- Vérification : confirmation annulée sans écriture, reprise validée, note conservée, historique à deux tentatives; test transactionnel réel de la fonction (ROLLBACK) et troisième tentative; aucun parcours élève réellement remis à zéro pendant ces essais. Régression des 177 scénarios/498 essais locaux. Test complet avec une session élève non réalisé.

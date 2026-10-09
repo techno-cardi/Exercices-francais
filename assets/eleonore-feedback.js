@@ -17,6 +17,15 @@ const msg=document.createElement('p');msg.className='small';msg.setAttribute('ro
 const steps=document.createElement('div');wrap.append(steps);
 const ref=$('#copyTitle')?.closest('section');if(ref)ref.before(wrap);
 let info=null;
+const restartButton=$('#restartParcours');
+if(restartButton&&!preview)restartButton.addEventListener('click',async()=>{
+ if(restartButton.disabled||!info?.ready||info.unreleased)return;
+ if(!window.confirm('Recommencer le parcours ? Ta progression actuelle sera remise à zéro. Ta note et tes anciennes tentatives seront conservées. Tu devras refaire les étapes et valider avec le mot secret de ton PDF.'))return;
+ restartButton.disabled=true;
+ try{await action('restart');await reload();msg.textContent='Nouvelle tentative commencée. Reprends les étapes du parcours.';}
+ catch(e){msg.textContent=e.message;}
+ finally{restartButton.disabled=false;}
+});
 function el(tag,content,cls){const n=document.createElement(tag);if(cls)n.className=cls;if(content!==undefined)n.textContent=content;return n;}
 function line(node,tag,content,cls){const n=el(tag,content,cls);node.append(n);return n;}
 function btn(node,content,action){const b=line(node,'button',content,'btn');b.type='button';b.addEventListener('click',action);return b;}
@@ -30,7 +39,7 @@ async function requestAction(name,args={}){
  if(preview&&name!=='load')throw new Error('Aperçu en lecture seule.');
  const actualAction=preview?'teacherPreview':name;
  const extras=preview?{studentEmail:session.studentEmail}:{};
- const r=await fetch(base+'/functions/v1/fr-dictee-feedback',{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json','apikey':key},body:JSON.stringify({action:actualAction,token,workSlug:assignment,...extras,...args})});
+ const r=await fetch(base+'/functions/v1/fr-dictee-feedback',{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json','apikey':key},body:JSON.stringify({action:actualAction,token,workSlug:assignment,...extras,attemptNumber:info?.attemptNumber||1,...args})});
  let result=null;try{result=await r.json();}catch{}
  if(!r.ok||result?.ok!==true)throw new Error(result?.message||'Le suivi ne répond pas. Réessaie.');
  return result;
@@ -60,6 +69,7 @@ function mixed(key,error){
 function render(){
  steps.replaceChildren();
  if(!info)return;
+ if(restartButton){restartButton.classList.toggle('hidden',preview||!info.ready||!!info.unreleased);}
  if(preview)line(steps,'p','APERÇU ENSEIGNANT : lecture seule. Aucune progression ne sera modifiée.','notice');
   if(info.unreleased&&!preview){
     line(steps,'h3','Révision des explications en cours');
@@ -68,13 +78,14 @@ function render(){
       const link=line(steps,'a','Voir ma copie manuscrite et mes corrections ↗','btn');
       link.href=info.copyUrl;link.rel='noopener noreferrer';link.target='_blank';link.style.textDecoration='none';
     }
-    if(info.progress?.completedAt)line(steps,'p','Ton premier travail demeure enregistré.','small');
+    if(info.progress?.completedAt)line(steps,'p','Ta tentative validée demeure enregistrée.','small');
     return;
   }
  const prog=info.progress||{};
+ line(steps,'p','Tentative '+(info.attemptNumber||1),'small');
  const top=line(steps,'p',`Groupe ${info.group} · Note : ${info.grade===null?'à confirmer':Number(info.grade).toLocaleString('fr-CA')+' / '+info.maxScore}`,'small');
  top.style.fontWeight='bold';
- if(prog.completedAt){line(steps,'h3','Première vérification enregistrée');line(steps,'p','Tu peux revoir les explications, sans perdre le travail déjà effectué.');}
+ if(prog.completedAt){line(steps,'h3','Tentative validée');line(steps,'p','Tu peux revoir les explications, sans perdre le travail déjà effectué.');}
  const first=line(steps,'div',undefined,'exercise');
  line(first,'h3','1. Ouvrir ma copie');
  line(first,'p','Lis ton commentaire à la page 1, puis regarde la copie corrigée à la page 2 et ta feuille de vérification à la page 3.');
@@ -161,3 +172,4 @@ if(!preview)$('#copyLink')?.addEventListener('click',()=>{action('copyOpened').t
 if(!token)msg.textContent='Accès personnel indisponible : reconnecte-toi depuis le portail avec ton courriel scolaire et ta fiche.';
 else reload();
 })();
+

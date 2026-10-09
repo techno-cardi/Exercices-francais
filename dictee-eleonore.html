@@ -143,6 +143,7 @@ body.mode-errors .word.personal{color:#99243a;background:linear-gradient(transpa
     <button class="btn light" type="button" id="modeErrors" disabled>Voir mes erreurs</button>
     <button class="btn light active" type="button" id="modeAll">Voir toute la dictée expliquée</button>
     <button class="btn light" type="button" id="modePlain">Lire la dictée sans annotations</button>
+    <button class="btn hidden" type="button" id="restartParcours">Recommencer le parcours</button>
   </div>
   <div class="notice" id="correctionManuelleNotice">Les soulignements rouges correspondent à ton relevé individuel de corrections manuscrites. Ta copie annotée est accessible dans le parcours ci-dessous.</div>
   <div class="notice" id="modeNotice">Clique sur les expressions soulignées en bleu pour découvrir l'explication et la méthode de correction.</div>
@@ -666,6 +667,7 @@ function renderExercises(){
 }
 renderExercises();setMode('plain');
 </script>
-<script src="assets/eleonore-feedback.js?v=20261009-grade-audit1" defer></script>
+<script src="assets/eleonore-feedback.js?v=20261009-attempts1" defer></script>
 </body>
 </html>
+
