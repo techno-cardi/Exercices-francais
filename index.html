@@ -104,7 +104,7 @@ function saveSession(data){
   try{sessionStorage.setItem(SESSION_KEY,JSON.stringify({...data,started:Date.now()}));}catch(e){}
 }
 const works={
-  3:[{id:'eleonore',type:'Dictée',title:'Le livre magique et les vœux d’Éléonore',desc:'Relis le texte, comprends les accords du participe passé et découvre des stratégies de correction.',page:'dictee-eleonore.html'}],
+  3:[{id:'eleonore',type:'Dictée',title:'Le livre magique et les vœux d’Éléonore',desc:'Relis le texte, comprends les accords du participe passé et découvre des stratégies de correction.',page:'dictee-eleonore.html?v=20261008-correctif'}],
   5:[{id:'marianne',type:'Dictée',title:'Marianne',desc:'Reprends ta copie corrigée, étudie tes erreurs et suis ta progression.',page:'dictee-marianne.html'}]
 };
 async function identifySecure(email,fiche){
