@@ -55,7 +55,16 @@ function render(){
  steps.replaceChildren();
  if(!info)return;
  if(preview)line(steps,'p','APERÇU ENSEIGNANT : lecture seule. Aucune progression ne sera modifiée.','notice');
-  if(info.unreleased&&!preview){line(steps,'p','Ce travail n’est pas encore publié. Ton enseignant validera les corrections avant de l’ouvrir.');return;}
+  if(info.unreleased&&!preview){
+    line(steps,'h3','Révision des explications en cours');
+    line(steps,'p','Les explications interactives et la première page des bilans sont temporairement en révision. Ta dictée manuscrite corrigée (page 2) et ta feuille de vérification (page 3) restent la référence.');
+    if(/^https:\/\/drive\.google\.com\/file\/d\/[a-zA-Z0-9_-]+\/view(?:[?#].*)?$/.test(info.copyUrl||'')){
+      const link=line(steps,'a','Voir ma copie manuscrite et mes corrections ↗','btn');
+      link.href=info.copyUrl;link.rel='noopener noreferrer';link.target='_blank';link.style.textDecoration='none';
+    }
+    if(info.progress?.completedAt)line(steps,'p','Ton premier travail demeure enregistré.','small');
+    return;
+  }
  const prog=info.progress||{};
  const top=line(steps,'p',`Groupe ${info.group} · Note : ${info.grade===null?'à confirmer':Number(info.grade).toLocaleString('fr-CA')+' / '+info.maxScore}`,'small');
  top.style.fontWeight='bold';
