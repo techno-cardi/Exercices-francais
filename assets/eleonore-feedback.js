@@ -79,7 +79,7 @@ function render(){
  else if(!info.errors?.length){line(second,'p','Bravo! Aucune erreur personnelle à corriger dans cette dictée.');}
  else{
    const understood=new Set(prog.understoodKeys||[]);
-   line(second,'p',`${understood.size} / ${info.errors.length} difficultés comprises.`,'small');
+   line(second,'p',prog.completedAt?`${info.errors.length} corrections révisées à consulter.`:`${understood.size} / ${info.errors.length} difficultés comprises.`,'small');
    info.errors.forEach((error,i)=>{
      const card=line(second,'div',undefined,'exercise');
      line(card,'h3',(i+1)+'. '+(error.title||error.correct||'Point à revoir'));
@@ -88,6 +88,7 @@ function render(){
      if(error.comment)line(card,'p',error.comment);
      const rule=(typeof RULES==='object' ? RULES[error.key]?.rule : '')||'';
      if(rule)line(card,'p',rule);
+     if(prog.completedAt){line(card,'p','Ton premier travail demeure enregistré. Tu peux lire cette correction révisée sans refaire le questionnaire.','small');return;}
      if(understood.has(error.key)){line(card,'p','Compris et enregistré.','small');return;}
      const passed=new Set(prog.strategyKeys||[]);
      line(card,'p',error.quiz?.prompt||'Quelle stratégie utiliserais-tu pour éviter cette erreur?');
@@ -114,6 +115,7 @@ function render(){
      }));
    });
  }
+ if(prog.completedAt)return;
  const third=line(steps,'div',undefined,'exercise');line(third,'h3','3. Consulter mon bilan');
  line(third,'p','Relis la première page de ton PDF et la stratégie complète de la boîte à outils, p. 1 : texte et ponctuation, points au-dessus des noms avec genre/nombre et flèches d’accord, verbes surlignés reliés au sujet, pronom de remplacement, temps, participes passés, homophones et mots difficiles dans Usito.');
  btn(third,prog.bilanSeen?'Bilan consulté':'J’ai lu mon bilan',async()=>{try{await action('bilanSeen');await reload();}catch(e){msg.textContent=e.message;}}).disabled=!!prog.bilanSeen;
