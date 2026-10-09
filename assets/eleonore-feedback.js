@@ -39,8 +39,14 @@ async function requestAction(name,args={}){
  if(preview&&name!=='load')throw new Error('Aperçu en lecture seule.');
  const actualAction=preview?'teacherPreview':name;
  const extras=preview?{studentEmail:session.studentEmail}:{};
- const r=await fetch(base+'/functions/v1/fr-dictee-feedback',{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json','apikey':key},body:JSON.stringify({action:actualAction,token,workSlug:assignment,...extras,attemptNumber:info?.attemptNumber||1,...args})});
- let result=null;try{result=await r.json();}catch{}
+ const controller=new AbortController();
+ const timeout=setTimeout(()=>controller.abort(),15000);
+ let r,result=null;
+ try{
+   r=await fetch(base+'/functions/v1/fr-dictee-feedback',{method:'POST',cache:'no-store',signal:controller.signal,headers:{'Content-Type':'application/json','apikey':key},body:JSON.stringify({action:actualAction,token,workSlug:assignment,...extras,attemptNumber:info?.attemptNumber||1,...args})});
+   try{result=await r.json();}catch{}
+ }catch(err){throw new Error(err?.name==='AbortError'?'Le serveur met trop de temps à répondre. Réessaie : aucun succès n’est confirmé.':'Connexion interrompue. Vérifie ta connexion et réessaie.');}
+ finally{clearTimeout(timeout);}
  if(!r.ok||result?.ok!==true)throw new Error(result?.message||'Le suivi ne répond pas. Réessaie.');
  return result;
 }
@@ -66,6 +72,25 @@ function mixed(key,error){
  const ordered=[null,null,null];ordered[correct]=choices[0];ordered[(correct+1)%3]=choices[1];ordered[(correct+2)%3]=choices[2];
  return {correct,ordered};
 }
+function celebrate(){
+ if(preview||window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)return;
+ $('#completionCelebration')?.remove();
+ if(!$('#celebrationStyle')){
+  const style=el('style');style.id='celebrationStyle';
+  style.textContent='#completionCelebration{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:9999}#completionCelebration span{position:absolute;top:-60px;font-size:32px;animation:celebrationFall 2.8s ease-in forwards}@keyframes celebrationFall{to{transform:translateY(110vh) rotate(360deg);opacity:0}}';
+  document.head.append(style);
+ }
+ const overlay=el('div');overlay.id='completionCelebration';overlay.setAttribute('aria-hidden','true');
+ for(let i=0;i<24;i++){const emoji=line(overlay,'span','🎉');emoji.style.left=((i*37)%100)+'%';emoji.style.animationDelay=(i%6)*0.15+'s';}
+ document.body.append(overlay);setTimeout(()=>overlay.remove(),4200);
+}
+function successBanner(prog){
+ const box=line(steps,'div',undefined,'notice');box.id='parcoursSuccess';box.tabIndex=-1;box.setAttribute('role','status');
+ box.style.background='#e2f4e8';box.style.border='2px solid #238442';
+ line(box,'h3','🎉 Bravo, parcours terminé !');
+ line(box,'p','Ta tentative '+(info.attemptNumber||1)+' est validée. Ton enseignant voit que tu as terminé.');
+ line(box,'p','Fin enregistrée : '+new Intl.DateTimeFormat('fr-CA',{dateStyle:'short',timeStyle:'medium',timeZone:'America/Toronto'}).format(new Date(prog.completedAt)));
+}
 function render(){
  steps.replaceChildren();
  if(!info)return;
@@ -85,7 +110,7 @@ function render(){
  line(steps,'p','Tentative '+(info.attemptNumber||1),'small');
  const top=line(steps,'p',`Groupe ${info.group} · Note : ${info.grade===null?'à confirmer':Number(info.grade).toLocaleString('fr-CA')+' / '+info.maxScore}`,'small');
  top.style.fontWeight='bold';
- if(prog.completedAt){line(steps,'h3','Tentative validée');line(steps,'p','Tu peux revoir les explications, sans perdre le travail déjà effectué.');}
+ if(prog.completedAt){successBanner(prog);line(steps,'p','Tu peux revoir les explications, sans perdre le travail déjà effectué.');}
  const first=line(steps,'div',undefined,'exercise');
  line(first,'h3','1. Ouvrir ma copie');
  line(first,'p','Lis ton commentaire à la page 1, puis regarde la copie corrigée à la page 2 et ta feuille de vérification à la page 3.');
@@ -148,16 +173,38 @@ function render(){
  const third=line(steps,'div',undefined,'exercise');line(third,'h3','3. Consulter mon bilan');
  line(third,'p','Relis la première page de ton PDF et la stratégie complète de la boîte à outils, p. 1 : texte et ponctuation, points au-dessus des noms avec genre/nombre et flèches d’accord, verbes surlignés reliés au sujet, pronom de remplacement, temps, participes passés, homophones et mots difficiles dans Usito.');
  btn(third,prog.bilanSeen?'Bilan consulté':'J’ai lu mon bilan',async()=>{try{await action('bilanSeen');await reload();}catch(e){msg.textContent=e.message;}}).disabled=!!prog.bilanSeen;
- const done=(info.errors||[]).every(e=>(prog.understoodKeys||[]).includes(e.key));
+ const missing=[];
+ if(!prog.copyOpened)missing.push('Ouvrir ton PDF personnel.');
+ const strategyLeft=(info.errors||[]).filter(e=>!(prog.strategyKeys||[]).includes(e.key)).length;
+ const understoodLeft=(info.errors||[]).filter(e=>!(prog.understoodKeys||[]).includes(e.key)).length;
+ if(strategyLeft)missing.push('Trouver une bonne stratégie pour '+strategyLeft+' erreur'+(strategyLeft>1?'s':'')+'.');
+ if(understoodLeft)missing.push('Cliquer sur « J’ai compris cette erreur » pour '+understoodLeft+' erreur'+(understoodLeft>1?'s':'')+'.');
+ if(!prog.bilanSeen)missing.push('Cliquer sur « J’ai lu mon bilan ».');
  const fourth=line(steps,'div',undefined,'exercise');line(fourth,'h3','4. Valider mon travail');
  if(!info.ready)line(fourth,'p','Validation disponible une fois les erreurs personnelles vérifiées.');
- else if(!prog.copyOpened||!prog.bilanSeen||!done)line(fourth,'p','Ouvre ta copie, vérifie tes erreurs et consulte ton bilan avant de valider.');
- else{
-   const f=line(fourth,'form');
+ else if(missing.length){
+   line(fourth,'p','Il te reste ces étapes avant de saisir le mot secret :');
+   const list=line(fourth,'ul');missing.forEach(text=>line(list,'li',text));
+ }else{
+   const f=line(fourth,'form');f.noValidate=true;
    const label=line(f,'label','Mot secret imprimé à la page 1');label.htmlFor='validationMot';
-   const input=line(f,'input');input.id='validationMot';input.required=true;input.maxLength=9;input.autocomplete='off';input.placeholder='XXXX-XXXX';input.style.padding='12px';
+   const input=line(f,'input');input.id='validationMot';input.required=true;input.maxLength=32;input.autocomplete='off';input.placeholder='XXXX-XXXX';input.style.padding='12px';
+   line(f,'p','Quatre lettres, un tiret, quatre lettres. Les majuscules et les espaces n’ont pas d’importance.','small');
+   const feedback=line(f,'p','','notice');feedback.setAttribute('role','alert');feedback.id='validationFeedback';input.setAttribute('aria-describedby','validationFeedback');
    const send=line(f,'button','Terminer mon travail','btn');send.type='submit';
-   f.addEventListener('submit',async e=>{e.preventDefault();send.disabled=true;try{await action('finish',{secret:input.value});input.value='';await reload();}catch(err){msg.textContent=err.message;send.disabled=false;}});
+   f.addEventListener('submit',async e=>{
+     e.preventDefault();if(send.disabled)return;
+     const secret=String(input.value||'').normalize('NFC').toLowerCase().replace(/\s+/g,'').replace(/[\u2010-\u2015\u2212]/g,'-');
+     if(!/^[a-z]{4}-[a-z]{4}$/.test(secret)){feedback.textContent='Le code doit contenir quatre lettres, un tiret et quatre lettres. Vérifie le code de la page 1 de ton PDF.';input.setAttribute('aria-invalid','true');return;}
+     input.removeAttribute('aria-invalid');send.disabled=true;send.textContent='Vérification en cours…';feedback.textContent='Vérification de ton code et enregistrement de la fin du parcours…';
+     try{
+       const result=await action('finish',{secret});
+       if(!result.completedAt)throw new Error('La fin du parcours n’a pas été confirmée. Réessaie.');
+       info.progress={...info.progress,completedAt:result.completedAt};input.value='';render();
+       const banner=$('#parcoursSuccess');banner?.scrollIntoView?.({behavior:'smooth',block:'center'});banner?.focus();celebrate();
+       await reload();msg.textContent='🎉 Ton parcours est terminé et enregistré.';
+     }catch(err){feedback.textContent=err.message;input.setAttribute('aria-invalid','true');send.disabled=false;send.textContent='Terminer mon travail';}
+   });
  }
 }
 async function reload(){try{info=await action('load');
@@ -172,4 +219,5 @@ if(!preview)$('#copyLink')?.addEventListener('click',()=>{action('copyOpened').t
 if(!token)msg.textContent='Accès personnel indisponible : reconnecte-toi depuis le portail avec ton courriel scolaire et ta fiche.';
 else reload();
 })();
+
 

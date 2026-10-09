@@ -29,7 +29,7 @@ function previewStudent(email){
  if(!row||!token)return;
  sessionStorage.setItem('francais.prof.preview',JSON.stringify({token,studentEmail:email,workSlug:$('#work').value,created:Date.now()}));
  $('#previewTitle').textContent='Aperçu de '+row.name+' (lecture seule)';
- $('#previewFrame').src='dictee-eleonore.html?apercu-enseignant=1&v=20261009-attempts1';
+ $('#previewFrame').src='dictee-eleonore.html?apercu-enseignant=1&v=20261009-finish1';
  $('#teacherPreview').showModal();
 }
 $('#closePreview').addEventListener('click',()=>$('#teacherPreview').close());

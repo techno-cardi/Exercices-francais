@@ -158,12 +158,13 @@ Deno.serve(async (req:Request)=>{
     }
     if(!f.errors_verified||!f.copy_opened_at||!f.bilan_seen_at)fail('Termine les étapes précédentes.',409);
     if((f.errors||[]).some((e:any)=>!(f.understood_keys||[]).includes(e.key)||!(f.strategy_passed_keys||[]).includes(e.key)))fail('Il reste des erreurs à vérifier.',409);
-    if(f.locked_until&&Date.parse(f.locked_until)>Date.now()) fail('Trop de tentatives. Réessaie plus tard.',429);
-    const code=String(body.secret||'').normalize('NFC').trim().toLowerCase();
+    if(f.locked_until&&Date.parse(f.locked_until)>Date.now()) fail('Après cinq codes incorrects, la validation est bloquée jusqu’à '+new Intl.DateTimeFormat('fr-CA',{hour:'2-digit',minute:'2-digit',second:'2-digit',timeZone:'America/Toronto'}).format(new Date(f.locked_until))+'. Vérifie le code de la page 1 de ton PDF avant de réessayer.',429);
+    const code=String(body.secret||'').normalize('NFC').toLowerCase().replace(/\s+/g,'').replace(/[\u2010-\u2015\u2212]/g,'-');
     if(!/^[a-z]{4}-[a-z]{4}$/.test(code)||!constantEqual(await sha256(code),f.secret_hash)){
       const failed=(f.locked_until&&Date.parse(f.locked_until)<=Date.now()?0:Number(f.failed_attempts||0))+1;
       await update(db,assignment.id,student.email,{failed_attempts:failed,locked_until:failed>=5?new Date(Date.now()+15*60*1000).toISOString():null},f.attempt_number);
-      fail('Mot secret incorrect.',403);
+      if(failed>=5)fail('Mot secret incorrect. Après cinq essais, la validation est bloquée pendant 15 minutes. Vérifie le code de la page 1 de ton PDF.',429);
+      fail('Mot secret incorrect. Vérifie le code de la page 1 de ton PDF. Il reste '+(5-failed)+' essai'+(5-failed>1?'s':'')+' avant le blocage temporaire.',403);
     }
     const stamp=new Date().toISOString();
     await update(db,assignment.id,student.email,{completed_at:stamp,failed_attempts:0,locked_until:null},f.attempt_number);

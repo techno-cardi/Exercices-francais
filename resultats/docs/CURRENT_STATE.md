@@ -233,3 +233,10 @@ When a stable flow passes, avoid changing the core engine without a concrete bug
 - Console : colonne Tentatives avec historique déroulant des débuts, fins et reprises, également inclus dans le CSV. Les anciennes validations deviennent la tentative 1 sans inventer d’historique antérieur. Les dossiers non commencés affichent zéro tentative.
 - Migration dictee_attempt_history et Edge Function fr-dictee-feedback version 7. Remise à zéro transactionnelle avec verrou de ligne; une ancienne tentative ne peut pas écrire dans une nouvelle ni la redémarrer deux fois par double soumission.
 - Vérification : confirmation annulée sans écriture, reprise validée, note conservée, historique à deux tentatives; test transactionnel réel de la fonction (ROLLBACK) et troisième tentative; aucun parcours élève réellement remis à zéro pendant ces essais. Régression des 177 scénarios/498 essais locaux. Test complet avec une session élève non réalisé.
+
+
+### Validation finale du parcours (9 octobre 2026)
+
+Le résultat de saisie du mot secret apparaît près du champ : format incorrect, code refusé, blocage temporaire ou problème de connexion. La saisie accepte les espaces, la casse et les variantes de tirets. Les étapes restantes sont listées précisément avant la validation. Une réussite confirmée par le serveur affiche « 🎉 Bravo, parcours terminé ! », avec une brève animation respectant la préférence de réduction des mouvements. Les erreurs du serveur indiquent les essais restants et l’heure de fin du blocage. Délai maximal de réponse de 15 secondes avec possibilité de réessayer. Aucun changement des notes ou des progressions existantes.
+
+Validation : tests du module avec DOM simulé, 177 scénarios de parcours et 498 paires de réponses correctes/incorrectes ; vérification de syntaxe TypeScript et relecture de la fonction déployée. Aucun nouveau test de bout en bout dans une session élève réelle.
