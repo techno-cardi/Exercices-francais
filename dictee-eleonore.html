@@ -523,9 +523,9 @@ function activatePersonal(d){
   errorInfo=Object.fromEntries((d.errors||[]).filter(x=>typeof x.key==='string').map(x=>[x.key,x]));
   understood=new Set((d.progress?.understoodKeys||[]).filter(k=>errorKeys.includes(k)));
   // Ne jamais faire passer une notion grammaticale générique pour une faute personnelle.
-  $('.word').forEach(el=>{el.classList.remove('personal','seen');});
+  document.querySelectorAll('.word').forEach(el=>{el.classList.remove('personal','seen');});
   $('#availability').textContent='Bonjour '+(d.first||'')+'! Consulte ton PDF annoté et le relevé individuel ci-dessous. Les soulignements grammaticaux du texte de référence ne représentent pas tes fautes.';
-  $('#modeErrors').disabled=true;$('#modeErrors').title='Les fautes personnelles se trouvent dans le parcours, après vérification de ta copie.';$('#progressArea').classList.add('hidden');
+  $('#modeErrors').disabled=false;$('#modeErrors').title='Aller à mes erreurs et à mes exercices personnels.';$('#progressArea').classList.add('hidden');
   $('#copyPlaceholder').classList.add('hidden');
   $('#copyStatus').textContent=d.copyUrl?'Compare ta copie avec le texte corrigé et repère les règles que tu veux mieux comprendre.':'Ta copie numérisée n’est pas encore disponible.';
   const link=$('#copyLink');
@@ -552,7 +552,7 @@ $$('.word').forEach(el=>{
 });
 $('#modeAll').addEventListener('click',()=>setMode('all'));
 $('#modePlain').addEventListener('click',()=>setMode('plain'));
-$('#modeErrors').addEventListener('click',()=>setMode('errors'));
+$('#modeErrors').addEventListener('click',()=>{if(personalised){document.getElementById('monParcours')?.scrollIntoView({behavior:'smooth',block:'start'});}else setMode('errors');});
 $('#closeModal').addEventListener('click',closeRule);
 $('#overlay').addEventListener('click',e=>{if(e.target===$('#overlay'))closeRule();});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#overlay').classList.contains('open'))closeRule();});
