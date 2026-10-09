@@ -199,3 +199,12 @@ When a stable flow passes, avoid changing the core engine without a concrete bug
 - `dictee-marianne.html` exige une session scolaire valable (courriel, jeton, groupe 51) et reprend automatiquement la fiche validée sur le portail. Le deuxième formulaire visible de saisie a été retiré. Le service RPC historique de Marianne est encore utilisé pour les corrections et la progression; toute migration future devra conserver le fonctionnement des élèves et la confidentialité.
 - Ce changement ne modifie pas les notes, les partages de PDF, les codes secrets ou la publication des dictées.
 - Vérification : les scripts JavaScript des pages `index.html`, `dictee-marianne.html` et `dictee-eleonore.html` ont été analysés sans erreur de syntaxe. Essai de bout en bout réel sur GitHub Pages encore nécessaire, le site public n'étant pas accessible à cet outil.
+
+
+## 9 octobre 2026 - affichage personnel de la dictée
+- Le texte corrigé, avec son titre, apparaît immédiatement après l’introduction et avant la stratégie complète.
+- Après chargement sécurisé, le mode par défaut souligne en rouge les passages correspondant aux erreurs individuelles. Les boutons basculent réellement entre erreurs personnelles, difficultés expliquées en bleu et texte sans soulignement.
+- Les repères utilisent les formes corrigées et les positions dans le texte, sans attribuer une notion générale à un élève sur la seule base de sa catégorie. Les clés de révision, omissions, ponctuation, titre et occurrences répétées sont prises en charge; les corrections ambiguës nécessitent une occurrence explicite dans les données privées.
+- Les fenêtres personnelles affichent la forme écrite, la correction et l’explication individuelles. La validation des stratégies, la progression et le mot secret restent gérés par le module et le serveur existants. Aucun résultat académique modifié.
+- Vérifications: scripts analysés sans erreur; exécution dans un DOM de test sur les 59 dossiers privés, leurs 249 corrections, trois modes et fenêtres personnelles. Les données nominatives et fixtures restent hors dépôt. Deux positions de mots répétés confirmées visuellement sur les scans, puis précisées dans Supabase sans changer les clés ni la progression.
+- Limite: ces tests de DOM ne constituent pas une connexion réelle avec un compte élève. Le lancement du navigateur local est bloqué par l’environnement; la vue publique du portail est accessible au navigateur distant, mais sans session élève disponible.
