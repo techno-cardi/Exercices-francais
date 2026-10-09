@@ -218,3 +218,10 @@ When a stable flow passes, avoid changing the core engine without a concrete bug
 - Relecture après écriture Supabase : 59 dossiers conformes aux changements attendus; notes, copies, progression et dates de fin identiques. Les données nominatives et les fixtures de test restent hors dépôt public.
 - Vérifications locales : syntaxe, localisation de 249 corrections dans le DOM, modes et fenêtres personnelles; 177 scénarios élève/terminé/enseignant et 498 essais de réponses justes/fausses, cas sans erreur, notes 0/absentes et blocage de la validation avant compréhension. Le PDF remplacé a été téléchargé et comparé octet par octet.
 - Limite : aucun test avec une session réelle d’élève ou d’enseignant. Ces contrôles locaux avec API simulée ne valident pas à eux seuls une connexion réelle ni tous les droits de partage. Aucun changement de publication académique ni de note.
+
+
+## 9 octobre 2026 - vérification authentifiée de la console
+- Connexion réelle enseignant validée dans le navigateur distant. La console affiche 60 élèves inscrits, dont 59 avec note et dossier; la ligne sans copie reste non publiée et sans note.
+- Un aperçu individuel authentifié a été vérifié : note sous le titre, repères personnels dans le texte, explications et questions ciblées, contrôles de progression désactivés en lecture seule.
+- Le compteur calculé comme un nombre d’élèves sans difficulté restante avait le libellé ambigu « erreurs comprises ». Il affiche maintenant « élèves sans erreur à revoir »; aucun calcul ni donnée de progression changé.
+- La tentative d’audit des autres aperçus a été interrompue par la limite de durée de l’outil, puis par la protection native des identifiants empêchant la reprise du navigateur. Ne pas affirmer que les 59 aperçus ont été vérifiés visuellement en session réelle. Le test complet avec une session élève et une validation de mot secret reste non réalisé.
