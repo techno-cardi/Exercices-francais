@@ -614,6 +614,11 @@ function wireGradeInputs() {
         input.value = input.value.replace(/\./g, ",");
         try { input.setSelectionRange(p, p); } catch {}
       }
+      try {
+        updatePercent(input, gradeValue(input.value, state.currentAssignment.maxScore).grade);
+      } catch {
+        updatePercent(input, null);
+      }
     });
     input.addEventListener("blur", () => commitGrade(input));
     input.addEventListener("keydown", e => {
@@ -643,6 +648,7 @@ async function commitGrade(input) {
     setTimeout(() => {
       input.value = s.grade === null ? "" : formatNumber(s.grade, 3);
       input.classList.remove("error");
+      updatePercent(input, s.grade);
     }, 1000);
     return;
   }
