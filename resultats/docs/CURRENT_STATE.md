@@ -240,3 +240,12 @@ When a stable flow passes, avoid changing the core engine without a concrete bug
 Le résultat de saisie du mot secret apparaît près du champ : format incorrect, code refusé, blocage temporaire ou problème de connexion. La saisie accepte les espaces, la casse et les variantes de tirets. Les étapes restantes sont listées précisément avant la validation. Une réussite confirmée par le serveur affiche « 🎉 Bravo, parcours terminé ! », avec une brève animation respectant la préférence de réduction des mouvements. Les erreurs du serveur indiquent les essais restants et l’heure de fin du blocage. Délai maximal de réponse de 15 secondes avec possibilité de réessayer. Aucun changement des notes ou des progressions existantes.
 
 Validation : tests du module avec DOM simulé, 177 scénarios de parcours et 498 paires de réponses correctes/incorrectes ; vérification de syntaxe TypeScript et relecture de la fonction déployée. Aucun nouveau test de bout en bout dans une session élève réelle.
+
+## 23 octobre 2026 - aperçu des pourcentages pendant la saisie des notes
+
+- Dans `resultats/app.js`, la colonne « % » est désormais recalculée immédiatement sur l'événement `input` de chaque champ `.grade-input`, sans quitter le champ.
+- L'aperçu utilise la fonction existante `gradeValue` (surchargée par `app-patch-v04.js`) afin d'appliquer les mêmes règles de saisie, d'arrondissement au dixième et de barème que l'enregistrement.
+- Une note vide, invalide ou temporairement hors barème affiche « - » dans l'aperçu. En cas de rejet à la sortie du champ, le pourcentage revient à la valeur enregistrée lors de la restauration de la note.
+- Aucun changement des événements `blur`/`Enter`/`Tab`, de l'API `saveResult`, du statut d'enregistrement, de Formative, de Mozaïk ou des données existantes.
+- `resultats/index.html` charge `app.js?v=1003` pour éviter de conserver l'ancienne version en cache.
+- Validation de logique : 8 scénarios de saisie testés dans un DOM simulé (zéro, nombre, décimale, virgule, champ vide, hors barème et non numérique), sans déclencher l'enregistrement. Test complet en navigateur connecté restant à effectuer.
