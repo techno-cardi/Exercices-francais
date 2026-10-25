@@ -69,3 +69,5 @@ Mise à jour fonctionnelle : les sons, questions et écrans sont servis par le s
 Realtime Broadcast signale les changements de salle sans publier les questions, jetons, noms ou scores sur les canaux. Les clients rechargent l'état au serveur avec leur capacité. WebSocket avec reprise, heartbeat, et vérification périodique de secours. Une notification de modification n'est jamais utilisée comme donnée de score.
 
 Sous-thèmes locaux sélectionnables : quartiers et toponymie, histoire municipale, patrimoine et architecture, culture et sports, nature et territoire. Douze personnages; noms/surnoms de 1 à 24 caractères; personnage préservé à la revanche.
+
+Optimisation des réponses simultanées : `backend/answers.sql` ajoute `quiz_salon_answer`, une transaction courte avec verrou de ligne, validation de capacité et dédoublonnage. Une réponse demande un seul appel de base, au lieu de nouvelles tentatives de lecture/écriture. `tests/answers.sql` vérifie en transaction annulée les autorisations, le tour, la partie, les doublons, le bonus et le délai. Test réel à 32 joueurs : toutes les réponses conservées; test complet à 16 joueurs sur dix questions également réussi.
