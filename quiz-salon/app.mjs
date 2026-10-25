@@ -1,11 +1,13 @@
+import {RoomLive} from './realtime.mjs';
 import {resumeOutcome,isExpiredSession} from './session.mjs';
 import {GameAudio} from './sound.mjs';
 import {CATEGORIES,QUESTIONS} from './backend/questions.mjs';
 import {createGame,joinGame,applyAction,publicState} from './backend/engine.mjs';
+const TV_MODE=new URLSearchParams(location.search).has('tv')||navigator.userAgent.includes('QuizSalonTV');document.body.classList.toggle('tv-mode',TV_MODE);
 const API='https://ojyswaxuqwnqilrvtjll.supabase.co/functions/v1/quiz-salon';
 const app=document.querySelector('#app'),letters=['A','B','C','D'];
 const palette=['#edb968','#99bfef','#c6a3e9','#9fd0aa','#f0a38d','#efabc6'];
-let session=null,state=null,solo=null,screen='home',busy=false,polling=false,epoch=0,lastSignature='',offset=0,soundOn=true,lastPhase='',toastTimer,lastScene='',lastTick='',lastPlayerCount=0;
+let session=null,state=null,solo=null,screen='home',busy=false,polling=false,epoch=0,lastSignature='',offset=0,soundOn=true,lastPhase='',toastTimer,lastScene='',lastTick='',lastPlayerCount=0,live=null,liveCode='',dirty=false,refreshTimer=null;
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const cat=id=>CATEGORIES.find(c=>c.id===id)||CATEGORIES[0];
 const fmt=n=>new Intl.NumberFormat('fr-CA').format(n);
@@ -34,26 +36,29 @@ function avatar(p,index=0){return `<span class="avatar" style="--avatar:${palett
 function categoryDots(p){return `<span class="category-dots" aria-label="${p.categories.length} catégories réussies sur ${CATEGORIES.length}">${CATEGORIES.map(c=>`<i style="--cat:${c.color}" class="${p.categories.includes(c.id)?'won':''}"></i>`).join('')}</span>`;}
 function setPage(name){screen=name;lastSignature='';document.body.classList.remove('player-mode');connection();}
 function home(){
- session=null;state=null;solo=null;epoch++;setPage('home');history.replaceState(null,'',location.pathname);
- const active=store.get('quiz-host-active');
+ stopLive();session=null;state=null;solo=null;epoch++;setPage('home');history.replaceState(null,'',location.pathname);
+ const active=store.get('quiz-host-active',true)||store.get('quiz-host-active');
  app.innerHTML=`<section class="hero"><div><p class="eyebrow">LA CULTURE GÉNÉRALE, VERSION SOIRÉE</p><h1>Les bonnes questions.<br>La bonne <em>gang.</em></h1><p class="intro">La télé fait le spectacle. Vos téléphones font le reste. Un quiz d’ici, à jouer ensemble.</p><div class="actions"><button class="btn primary" data-action="setup">Créer une partie <span aria-hidden="true">↗</span></button><button class="btn outline" data-action="solo-setup">Essayer en solo</button></div><p class="micro"><span>✓</span> Aucun compte · Aucun téléchargement · 1 à 32 joueurs</p>${active?`<button class="back" data-action="resume-host" style="margin-top:12px">Reprendre ma partie ${esc(active.code)} ↗</button>`:''}</div><div class="preview-wrap"><div class="wheel" aria-hidden="true"></div><div class="preview-card"><div class="preview-meta"><span>⚜ QUÉBEC & CANADA</span><span>À VOUS DE VOIR</span></div><h2>Quel oiseau est l’emblème du Québec?</h2><div class="preview-options">${['Le geai bleu','Le harfang des neiges','Le huard','Le cardinal rouge'].map((s,i)=>`<button class="preview-option" data-preview="${i}"><strong>${letters[i]}</strong>${s}</button>`).join('')}</div><p id="preview-feedback" class="hint" style="color:#56705f;margin:16px 0 0">Une idée? Touche une réponse.</p></div><div class="preview-caption"><b>${QUESTIONS.length} questions.</b> De « facile! » à « ben voyons donc! »</div></div></section><section class="home-strip"><form id="quick-join" class="join-inline"><label for="quick-code">La partie est déjà lancée?</label><input id="quick-code" name="code" maxlength="6" placeholder="CODE" autocomplete="off" autocapitalize="characters" spellcheck="false" required aria-label="Code de partie"><button class="btn small outline" type="submit">Rejoindre ↗</button></form><p class="hint">Un téléphone par joueur. Une télé pour la gang.</p></section><section class="category-section"><div class="section-line"><h3>De quoi faire jaser tout le monde.</h3><span>${CATEGORIES.length} catégories · 3 niveaux</span></div><div class="category-grid">${CATEGORIES.map(c=>`<div class="category-tile" style="--cat:${c.color}"><span class="cat-icon" aria-hidden="true">${c.icon}</span><b>${c.name}</b><span>${QUESTIONS.filter(q=>q.category===c.id).length} questions</span></div>`).join('')}</div></section>`;
  document.title='Quiz de salon - À vous de jouer';
 }
 function setup(isSolo=false){
  setPage(isSolo?'setup-solo':'setup');
- app.innerHTML=`<div class="setup-layout"><div class="setup-heading"><button class="back" data-action="home">← Accueil</button><p class="eyebrow">${isSolo?'JUSTE POUR LE PLAISIR':'ON PRÉPARE LA SOIRÉE'}</p><h1>${isSolo?'À toi de jouer.':'À votre façon.'}</h1><p class="intro">${isSolo?'Un petit tour de chauffe, sans connexion à une salle. Choisis tes questions et vois jusqu’où tu peux aller.':'Choisis le rythme, ouvre le salon et laisse la gang se connecter.'}</p><p class="notice" style="margin-top:28px">${isSolo?'Les réponses et les explications s’affichent après chaque question.':'Sur la télé : garde cette page ouverte. Sur les téléphones : scannez le code QR qui apparaîtra.'}</p></div><form id="settings" class="panel"><fieldset><legend>Nombre de questions</legend><div class="count-control"><label class="sr-only" for="question-count">Nombre de questions</label><input id="question-count" name="count" type="number" min="1" max="${QUESTIONS.length}" value="20" inputmode="numeric" required><span class="hint">De 1 à ${QUESTIONS.length}</span></div><div class="pill-group count-presets">${[10,20,30,50,100].map(n=>`<button type="button" class="pill" data-count="${n}">${n}</button>`).join('')}</div></fieldset><fieldset><legend>Niveau</legend><div class="pill-group">${[['mix','Tous niveaux'],['progressive','Progressif ↗'],['1','Facile'],['2','Intermédiaire'],['3','Expert']].map(([v,n])=>`<label class="pill"><input type="radio" name="difficulty" value="${v}" ${v==='mix'?'checked':''}>${n}</label>`).join('')}</div></fieldset><fieldset><legend>Temps par question</legend><div class="pill-group">${[[20,'20 s'],[30,'30 s'],[45,'45 s'],[0,'Sans chrono']].map(([v,n])=>`<label class="pill"><input type="radio" name="seconds" value="${v}" ${v===30?'checked':''}>${n}</label>`).join('')}</div></fieldset><fieldset><legend>Catégories <span class="hint">· coche celles qui te tentent</span></legend><div class="setup-cats">${CATEGORIES.map(c=>`<label class="pill" style="--cat:${c.color}"><input type="checkbox" name="category" value="${c.id}" checked><i aria-hidden="true">${c.icon}</i>${c.name}</label>`).join('')}</div></fieldset><div class="setup-foot"><span class="hint" id="available">${QUESTIONS.length} questions disponibles</span><button class="btn primary" type="submit">${isSolo?'Commencer':'Ouvrir le salon'} <span aria-hidden="true">↗</span></button></div><p class="error" id="form-error" role="alert"></p></form></div>`;
+ app.innerHTML=`<div class="setup-layout"><div class="setup-heading"><button class="back" data-action="home">← Accueil</button><p class="eyebrow">${isSolo?'JUSTE POUR LE PLAISIR':'ON PRÉPARE LA SOIRÉE'}</p><h1>${isSolo?'À toi de jouer.':'À votre façon.'}</h1><p class="intro">${isSolo?'Un petit tour de chauffe, sans connexion à une salle. Choisis tes questions et vois jusqu’où tu peux aller.':'Choisis le rythme, ouvre le salon et laisse la gang se connecter.'}</p><p class="notice" style="margin-top:28px">${isSolo?'Les réponses et les explications s’affichent après chaque question.':'Sur la télé : garde cette page ouverte. Sur les téléphones : scannez le code QR qui apparaîtra.'}</p></div><form id="settings" class="panel"><fieldset><legend>Nombre de questions</legend><div class="count-control"><button type="button" class="icon-button" data-count-adjust="-1" aria-label="Une question de moins">−</button><label class="sr-only" for="question-count">Nombre de questions</label><input id="question-count" name="count" type="number" min="1" max="${QUESTIONS.length}" value="20" inputmode="numeric" required><button type="button" class="icon-button" data-count-adjust="1" aria-label="Une question de plus">+</button><span class="hint">De 1 à ${QUESTIONS.length}</span></div><div class="pill-group count-presets">${[10,20,30,50,100].map(n=>`<button type="button" class="pill" data-count="${n}">${n}</button>`).join('')}</div></fieldset><fieldset><legend>Niveau</legend><div class="pill-group">${[['mix','Tous niveaux'],['progressive','Progressif ↗'],['1','Facile'],['2','Intermédiaire'],['3','Expert']].map(([v,n])=>`<label class="pill" tabindex="0"><input type="radio" name="difficulty" value="${v}" ${v==='mix'?'checked':''}>${n}</label>`).join('')}</div></fieldset><fieldset><legend>Temps par question</legend><div class="pill-group">${[[20,'20 s'],[30,'30 s'],[45,'45 s'],[0,'Sans chrono']].map(([v,n])=>`<label class="pill" tabindex="0"><input type="radio" name="seconds" value="${v}" ${v===30?'checked':''}>${n}</label>`).join('')}</div></fieldset><fieldset><legend>Catégories <span class="hint">· coche celles qui te tentent</span></legend><div class="setup-cats">${CATEGORIES.map(c=>`<label class="pill" tabindex="0" style="--cat:${c.color}"><input type="checkbox" name="category" value="${c.id}" checked><i aria-hidden="true">${c.icon}</i>${c.name}</label>`).join('')}</div></fieldset><div class="setup-foot"><span class="hint" id="available">${QUESTIONS.length} questions disponibles</span><button class="btn primary" type="submit">${isSolo?'Commencer':'Ouvrir le salon'} <span aria-hidden="true">↗</span></button></div><p class="error" id="form-error" role="alert"></p></form></div>`;
 }
 function joinForm(code=''){
  session=null;state=null;solo=null;epoch++;setPage('join');document.body.classList.add('player-mode');
  history.replaceState(null,'',location.pathname+(code?'?code='+encodeURIComponent(code):''));
  app.innerHTML=`<div class="narrow"><button class="back" data-action="home">← Accueil</button><p class="eyebrow">UNE PLACE T’ATTEND</p><h1>Entre dans<br>la partie.</h1><p class="muted">Le code est sur la télé. Ton prénom suffit.</p><form id="join-form" class="panel"><div class="form-row"><label class="field" for="join-code">Code de partie</label><input id="join-code" name="code" class="code-input" value="${esc(code)}" maxlength="6" placeholder="ABC234" autocomplete="off" autocapitalize="characters" spellcheck="false" required></div><div class="form-row"><label class="field" for="join-name">Ton prénom</label><input id="join-name" name="name" maxlength="20" placeholder="Ex. : Kevin" autocomplete="given-name" required></div><button class="btn primary" type="submit">C’est parti! ↗</button><p class="error" id="form-error" role="alert"></p></form><p class="hint" style="margin-top:20px">Garde cette page ouverte pour répondre. Si tu reviens sur ce téléphone, ton score t’attendra.</p></div>`;
 }
-function remember(s){session=s;store.set('quiz-'+s.role+'-'+s.code,s,s.role==='player');if(s.role==='host')store.set('quiz-host-active',s);history.replaceState(null,'',location.pathname+(s.role==='host'?'?host=':'?code=')+s.code);}
+function remember(s){session=s;store.set('quiz-'+s.role+'-'+s.code,s,true);if(s.role==='host')store.set('quiz-host-active',s,true);startLive(s.code);history.replaceState(null,'',location.pathname+(s.role==='host'?'?host=':'?code=')+s.code);}
 async function request(payload){
  const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),12000),start=Date.now();
  try{const r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload),signal:controller.signal});let data;try{data=await r.json();}catch{throw new Error('Le serveur ne répond pas. Réessaie dans un instant.');}if(!r.ok){const e=new Error(data.error||'Connexion impossible.');e.status=r.status;throw e;}if(data.state)offset=data.state.serverTime-(start+Date.now())/2;return data;}
  catch(e){if(e.name==='AbortError')throw new Error('La connexion est lente. Réessaie dans un instant.');throw e;}finally{clearTimeout(timeout);}
 }
+function stopLive(){live?.stop();live=null;liveCode='';dirty=false;clearTimeout(refreshTimer);}
+function refreshSoon(){dirty=true;clearTimeout(refreshTimer);refreshTimer=setTimeout(()=>{if(session&&!busy&&!polling){dirty=false;poll();}else if(session)refreshSoon();},60);}
+function startLive(code){if(live&&liveCode===code)return;stopLive();liveCode=code;live=new RoomLive(code,refreshSoon,connected=>document.body.classList.toggle('live-connected',connected));}
 function credentials(action,data){return {...session,action,data};}
 function accept(s,force=false){
  state=s;screen='game';document.body.classList.toggle('player-mode',session?.role==='player');connection();
@@ -65,16 +70,16 @@ async function poll(){
  polling=true;const captured=epoch;
  try{const data=await request(credentials('state'));if(captured===epoch&&session)accept(data.state);}
  catch(e){if(captured===epoch&&session){if(isExpiredSession(e)){endSession(e.message);}else connection(navigator.onLine?'Reconnexion en cours… Ta réponse reste enregistrée si elle a été reçue.':'Hors ligne. La partie reprendra dès le retour d’Internet.');}}
- finally{polling=false;}
+ finally{polling=false;if(dirty)refreshSoon();}
 }
 async function command(action,data={}){
  if(busy)return;busy=true;epoch++;const captured=epoch;app.querySelectorAll('[data-action="advance"],[data-choice],[data-action="rematch"]').forEach(b=>b.disabled=true);
  try{
   if(solo){applyAction(solo,{role:'host',hash:'local'},action,data,Date.now(),QUESTIONS);accept(publicState(solo,{role:'player',id:'solo',hash:'local'}),true);}
   else{const response=await request(credentials(action,data));if(captured!==epoch)return;if(action==='leave'||action==='close'){forgetSession();home();return;}accept(response.state,true);}
- }catch(e){toast(e.message);if(state)accept(state,true);}finally{busy=false;tick();}
+ }catch(e){toast(e.message);if(state)accept(state,true);}finally{busy=false;tick();if(dirty)refreshSoon();}
 }
-function forgetSession(){if(!session)return;store.remove('quiz-'+session.role+'-'+session.code,session.role==='player');if(session.role==='host')store.remove('quiz-host-active');session=null;epoch++;}
+function forgetSession(){if(!session)return;stopLive();store.remove('quiz-'+session.role+'-'+session.code,true);store.remove('quiz-'+session.role+'-'+session.code);if(session.role==='host'){store.remove('quiz-host-active',true);store.remove('quiz-host-active');}session=null;epoch++;}
 function endSession(message){forgetSession();setPage('ended');app.innerHTML=`<div class="narrow waiting"><p class="eyebrow">LE SALON</p><h1>La partie est fermée.</h1><p class="muted">${esc(message)}</p><button class="btn primary" data-action="home">Retour à l’accueil</button></div>`;connection();}
 function leaders(s,full=false){return s.players.slice(0,full?32:7).map((p,i)=>`<div class="leader"><span class="rank">${p.rank}</span><span class="name">${esc(p.name)}${categoryDots(p)}</span><span class="score">${fmt(p.score)}</span>${session?.role==='host'&&s.phase!=='finished'?`<button class="kick-live" data-kick="${esc(p.id)}" aria-label="Retirer ${esc(p.name)}">×</button>`:''}</div>`).join('');}
 function sidebar(s){return `<aside class="score-panel"><h3>Le classement</h3><div class="leader-list">${leaders(s,session?.role==='host')}</div><div class="mini-code">Code de partie<b>${esc(session?.code||'SOLO')}</b>${session?.role==='host'?'<button class="text-button" data-action="copy-link" style="padding:10px 0 0;font-size:11px">Copier le lien ↗</button><div id="mini-qr" class="mini-qr" role="img" aria-label="Code QR pour rejoindre la partie"></div>':''}</div></aside>`;}
@@ -107,7 +112,7 @@ function tick(){
  const el=document.querySelector('#seconds');if(el){el.textContent=left+' s';el.classList.toggle('urgent',left<=5);}
  const fill=document.querySelector('#timer-fill');if(fill)fill.style.width=(state.phase==='reveal'?100:left===null?100:Math.max(0,Math.min(100,left/state.options.seconds*100)))+'%';
  if(state.phase==='question'&&left!==null&&left<=5&&(session?.role==='host'||solo)){const k=state.gameId+':'+state.round+':'+left;if(k!==lastTick){lastTick=k;beep(left===0?'timeout':'tick');}}
- if(state.phase==='question'&&left===0){app.querySelectorAll('[data-choice]').forEach(b=>b.disabled=true);if(solo){applyAction(solo,{role:'player',id:'solo',hash:'local'},'state',{},Date.now());accept(publicState(solo,{role:'player',id:'solo',hash:'local'}));}}
+ if(state.phase==='question'&&left===0){if(!solo&&!busy&&!polling)refreshSoon();app.querySelectorAll('[data-choice]').forEach(b=>b.disabled=true);if(solo){applyAction(solo,{role:'player',id:'solo',hash:'local'},'state',{},Date.now());accept(publicState(solo,{role:'player',id:'solo',hash:'local'}));}}
 }
 async function resume(s){
  if(!s)return home();busy=true;epoch++;session=s;setPage('loading');app.innerHTML='<p class="loading">On retrouve ta partie…</p>';
@@ -118,15 +123,16 @@ async function resume(s){
  busy=false;
 }
 app.addEventListener('click',async event=>{
+ const adjust=event.target.closest('[data-count-adjust]');if(adjust){const input=document.querySelector('#question-count');input.value=Math.max(1,Math.min(QUESTIONS.length,Number(input.value)+Number(adjust.dataset.countAdjust)));input.dispatchEvent(new Event('change',{bubbles:true}));return;}
  const preset=event.target.closest('[data-count]');if(preset){document.querySelector('#question-count').value=preset.dataset.count;document.querySelector('#question-count').dispatchEvent(new Event('change',{bubbles:true}));beep();return;}
  const preview=event.target.closest('[data-preview]');if(preview){const answer=Number(preview.dataset.preview);app.querySelectorAll('[data-preview]').forEach(b=>{b.classList.toggle('selected',b.dataset.preview==='1');b.setAttribute('aria-pressed',String(b===preview));});document.querySelector('#preview-feedback').textContent=answer===1?'Exact! Le harfang des neiges.':'C’est le harfang des neiges. On en apprend à chaque question.';beep();return;}
- const choice=event.target.closest('[data-choice]');if(choice&&!choice.disabled){beep();if(solo){if(busy)return;busy=true;applyAction(solo,{role:'player',id:'solo',hash:'local'},'answer',{gameId:state.gameId,round:state.round,choice:Number(choice.dataset.choice)},Date.now());accept(publicState(solo,{role:'player',id:'solo',hash:'local'}),true);busy=false;}else await command('answer',{gameId:state.gameId,round:state.round,choice:Number(choice.dataset.choice)});return;}
+ const choice=event.target.closest('[data-choice]');if(choice&&!choice.disabled){beep();choice.classList.add('chosen');const status=app.querySelector('.status-line');if(status)status.textContent='Envoi de ta réponse…';if(solo){if(busy)return;busy=true;applyAction(solo,{role:'player',id:'solo',hash:'local'},'answer',{gameId:state.gameId,round:state.round,choice:Number(choice.dataset.choice)},Date.now());accept(publicState(solo,{role:'player',id:'solo',hash:'local'}),true);busy=false;}else await command('answer',{gameId:state.gameId,round:state.round,choice:Number(choice.dataset.choice)});return;}
  const kick=event.target.closest('[data-kick]');if(kick){await command('kick',{id:kick.dataset.kick});return;}
  const button=event.target.closest('[data-action]');if(!button||button.disabled)return;
  const a=button.dataset.action;
- if(a==='home')home();else if(a==='setup'){beep();setup();}else if(a==='solo-setup'){beep();setup(true);}
+ if(a==='home')home();else if(a==='setup'){if(TV_MODE&&document.documentElement.requestFullscreen&&!document.fullscreenElement)document.documentElement.requestFullscreen().catch(()=>{});beep();setup();}else if(a==='solo-setup'){beep();setup(true);}
  else if(a==='retry')await resume(session);
- else if(a==='resume-host')await resume(store.get('quiz-host-active'));
+ else if(a==='resume-host')await resume(store.get('quiz-host-active',true)||store.get('quiz-host-active'));
  else if(a==='advance'||a==='rematch'){await command(a,{expected:`${state.phase}:${state.round}`,gameId:state.gameId});if(solo&&state.phase==='lobby'){applyAction(solo,{role:'host',hash:'local'},'advance',{expected:'lobby:0'},Date.now());accept(publicState(solo,{role:'player',id:'solo',hash:'local'}),true);}}
  else if(a==='close'||a==='leave')await command(a);
  else if(a==='copy-link'){try{await navigator.clipboard.writeText(joinLink());toast('Lien de la partie copié.');}catch{toast(joinLink());}}
@@ -157,17 +163,19 @@ document.querySelector('.dialog-close').addEventListener('click',()=>document.qu
 document.querySelector('#sound').addEventListener('click',()=>{soundOn=!soundOn;audio.enabled=soundOn;store.set('quiz-sound',soundOn,true);soundUI();beep();});
 document.querySelector('#fullscreen').addEventListener('click',async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else if(document.documentElement.requestFullscreen)await document.documentElement.requestFullscreen();else toast('Utilise le mode plein écran de ton navigateur.');}catch{toast('Le plein écran n’est pas disponible dans ce navigateur.');}});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden){poll();tick();}});window.addEventListener('online',()=>poll());window.addEventListener('offline',()=>{if(session)connection('Hors ligne. La partie reprendra dès le retour d’Internet.');});
-setInterval(poll,1800);setInterval(tick,200);
+setInterval(()=>{if(!live?.connected)poll();},1600);setInterval(poll,12000);setInterval(tick,200);
 const params=new URLSearchParams(location.search),code=(params.get('code')||'').toUpperCase(),hostCode=(params.get('host')||'').toUpperCase();
-if(hostCode){const saved=store.get('quiz-host-'+hostCode);saved?resume(saved):joinForm(hostCode);}else if(code){const saved=store.get('quiz-player-'+code,true);saved?resume(saved):joinForm(code);}else home();
+if(hostCode){const saved=store.get('quiz-host-'+hostCode,true)||store.get('quiz-host-'+hostCode);saved?resume(saved):joinForm(hostCode);}else if(code){const saved=store.get('quiz-player-'+code,true);saved?resume(saved):joinForm(code);}else home();
 // Keyboard/D-pad navigation for a TV browser, plus normal Enter activation.
 document.addEventListener('keydown',event=>{
  if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key)||event.altKey||event.ctrlKey||event.metaKey||document.querySelector('dialog[open]'))return;
  if(['INPUT','SELECT','TEXTAREA'].includes(document.activeElement?.tagName))return;
- const controls=[...document.querySelectorAll('button:not(:disabled),a[href]')].filter(el=>el.getClientRects().length);
+ const controls=[...document.querySelectorAll('button:not(:disabled),a[href],label.pill')].filter(el=>el.getClientRects().length);
  const current=document.activeElement,rect=current?.getBoundingClientRect();
  if(!controls.includes(current)){const first=app.querySelector('.btn:not(:disabled)');if(first){event.preventDefault();first.focus();}return;}
  const x=rect.x+rect.width/2,y=rect.y+rect.height/2,horizontal=['ArrowLeft','ArrowRight'].includes(event.key),sign=['ArrowRight','ArrowDown'].includes(event.key)?1:-1;
  const ranked=controls.filter(el=>el!==current).map(el=>{const r=el.getBoundingClientRect(),dx=r.x+r.width/2-x,dy=r.y+r.height/2-y;return {el,forward:(horizontal?dx:dy)*sign,distance:Math.abs(horizontal?dx:dy)+Math.abs(horizontal?dy:dx)*2};}).filter(v=>v.forward>4).sort((a,b)=>a.distance-b.distance);
  if(ranked.length){event.preventDefault();ranked[0].el.focus();}
 });
+
+document.addEventListener('keydown',event=>{if((event.key==='Enter'||event.key===' ')&&document.activeElement?.matches('label.pill')){event.preventDefault();document.activeElement.click();}});
