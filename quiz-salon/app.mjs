@@ -1,3 +1,4 @@
+import {CHARACTERS} from './backend/characters.mjs';
 import {RoomLive} from './realtime.mjs';
 import {resumeOutcome,isExpiredSession} from './session.mjs';
 import {GameAudio} from './sound.mjs';
@@ -32,7 +33,7 @@ function confetti(count){
  const wrap=document.createElement('div');wrap.className='confetti';wrap.setAttribute('aria-hidden','true');
  for(let i=0;i<count;i++){const bit=document.createElement('i');bit.style.cssText=`--x:${Math.random()*100}%;--delay:${Math.random()*.5}s;--spin:${Math.random()*720}deg;--drift:${(Math.random()-.5)*260}px;background:${palette[i%palette.length]}`;wrap.append(bit);}document.body.append(wrap);setTimeout(()=>wrap.remove(),3500);
 }
-function avatar(p,index=0){return `<span class="avatar" style="--avatar:${palette[index%palette.length]}">${esc(p.name.slice(0,1).toUpperCase())}</span>`;}
+function avatar(p,index=0){return `<span class="avatar" style="--avatar:${palette[index%palette.length]}">${CHARACTERS.find(c=>c.id===p.avatar)?.icon||esc(p.name.slice(0,1).toUpperCase())}</span>`;}
 function categoryDots(p){return `<span class="category-dots" aria-label="${p.categories.length} catégories réussies sur ${CATEGORIES.length}">${CATEGORIES.map(c=>`<i style="--cat:${c.color}" class="${p.categories.includes(c.id)?'won':''}"></i>`).join('')}</span>`;}
 function setPage(name){screen=name;lastSignature='';document.body.classList.remove('player-mode');connection();}
 function home(){
@@ -48,7 +49,7 @@ function setup(isSolo=false){
 function joinForm(code=''){
  session=null;state=null;solo=null;epoch++;setPage('join');document.body.classList.add('player-mode');
  history.replaceState(null,'',location.pathname+(code?'?code='+encodeURIComponent(code):''));
- app.innerHTML=`<div class="narrow"><button class="back" data-action="home">← Accueil</button><p class="eyebrow">UNE PLACE T’ATTEND</p><h1>Entre dans<br>la partie.</h1><p class="muted">Le code est sur la télé. Ton prénom suffit.</p><form id="join-form" class="panel"><div class="form-row"><label class="field" for="join-code">Code de partie</label><input id="join-code" name="code" class="code-input" value="${esc(code)}" maxlength="6" placeholder="ABC234" autocomplete="off" autocapitalize="characters" spellcheck="false" required></div><div class="form-row"><label class="field" for="join-name">Ton prénom</label><input id="join-name" name="name" maxlength="20" placeholder="Ex. : Kevin" autocomplete="given-name" required></div><button class="btn primary" type="submit">C’est parti! ↗</button><p class="error" id="form-error" role="alert"></p></form><p class="hint" style="margin-top:20px">Garde cette page ouverte pour répondre. Si tu reviens sur ce téléphone, ton score t’attendra.</p></div>`;
+ app.innerHTML=`<div class="narrow"><button class="back" data-action="home">← Accueil</button><p class="eyebrow">UNE PLACE T’ATTEND</p><h1>Entre dans<br>la partie.</h1><p class="muted">Le code est sur la télé. Choisis ton nom et ton personnage.</p><form id="join-form" class="panel"><div class="form-row"><label class="field" for="join-code">Code de partie</label><input id="join-code" name="code" class="code-input" value="${esc(code)}" maxlength="6" placeholder="ABC234" autocomplete="off" autocapitalize="characters" spellcheck="false" required></div><div class="form-row"><label class="field" for="join-name">Ton nom ou surnom</label><input id="join-name" name="name" maxlength="24" placeholder="Ex. : Kevin" autocomplete="given-name" required></div><fieldset><legend>Ton personnage</legend><div class="character-grid">${CHARACTERS.map((c,i)=>`<label class="character" title="${c.name}"><input type="radio" name="avatar" value="${c.id}" ${i===0?'checked':''}><span aria-hidden="true">${c.icon}</span><small>${c.name}</small></label>`).join('')}</div></fieldset><button class="btn primary" type="submit">C’est parti! ↗</button><p class="error" id="form-error" role="alert"></p></form><p class="hint" style="margin-top:20px">Garde cette page ouverte pour répondre. Si tu reviens sur ce téléphone, ton score t’attendra.</p></div>`;
 }
 function remember(s){session=s;store.set('quiz-'+s.role+'-'+s.code,s,true);if(s.role==='host')store.set('quiz-host-active',s,true);startLive(s.code);history.replaceState(null,'',location.pathname+(s.role==='host'?'?host=':'?code=')+s.code);}
 async function request(payload){
@@ -81,7 +82,7 @@ async function command(action,data={}){
 }
 function forgetSession(){if(!session)return;stopLive();store.remove('quiz-'+session.role+'-'+session.code,true);store.remove('quiz-'+session.role+'-'+session.code);if(session.role==='host'){store.remove('quiz-host-active',true);store.remove('quiz-host-active');}session=null;epoch++;}
 function endSession(message){forgetSession();setPage('ended');app.innerHTML=`<div class="narrow waiting"><p class="eyebrow">LE SALON</p><h1>La partie est fermée.</h1><p class="muted">${esc(message)}</p><button class="btn primary" data-action="home">Retour à l’accueil</button></div>`;connection();}
-function leaders(s,full=false){return s.players.slice(0,full?32:7).map((p,i)=>`<div class="leader"><span class="rank">${p.rank}</span><span class="name">${esc(p.name)}${categoryDots(p)}</span><span class="score">${fmt(p.score)}</span>${session?.role==='host'&&s.phase!=='finished'?`<button class="kick-live" data-kick="${esc(p.id)}" aria-label="Retirer ${esc(p.name)}">×</button>`:''}</div>`).join('');}
+function leaders(s,full=false){return s.players.slice(0,full?32:7).map((p,i)=>`<div class="leader"><span class="rank">${p.rank}</span>${avatar(p,i)}<span class="name">${esc(p.name)}${categoryDots(p)}</span><span class="score">${fmt(p.score)}</span>${session?.role==='host'&&s.phase!=='finished'?`<button class="kick-live" data-kick="${esc(p.id)}" aria-label="Retirer ${esc(p.name)}">×</button>`:''}</div>`).join('');}
 function sidebar(s){return `<aside class="score-panel"><h3>Le classement</h3><div class="leader-list">${leaders(s,session?.role==='host')}</div><div class="mini-code">Code de partie<b>${esc(session?.code||'SOLO')}</b>${session?.role==='host'?'<button class="text-button" data-action="copy-link" style="padding:10px 0 0;font-size:11px">Copier le lien ↗</button><div id="mini-qr" class="mini-qr" role="img" aria-label="Code QR pour rejoindre la partie"></div>':''}</div></aside>`;}
 function renderGame(){
  const s=state,host=session?.role==='host',isSolo=!!solo,isPlayer=session?.role==='player',opts=s.options;
@@ -154,7 +155,7 @@ app.addEventListener('submit',async event=>{
   }else if(form.id==='join-form'){
    const code=String(f.get('code')).trim().toUpperCase(),saved=store.get('quiz-player-'+code,true);
    if(saved){busy=false;await resume(saved);return;}
-   const d=await request({action:'join',code,name:f.get('name')});remember({code:d.code,token:d.token,id:d.id,role:'player'});lastPhase='';accept(d.state,true);
+   const d=await request({action:'join',code,name:f.get('name'),avatar:f.get('avatar')});remember({code:d.code,token:d.token,id:d.id,role:'player'});lastPhase='';accept(d.state,true);
   }
  }catch(e){error.textContent=e.message;submit.disabled=false;}finally{busy=false;}
 });

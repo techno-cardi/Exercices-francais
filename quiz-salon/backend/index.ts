@@ -56,7 +56,7 @@ Deno.serve(async(req:Request)=>{
    if(!rows.length)throw new HttpError('Cette partie est introuvable ou a expiré.',404);
    const {state:g,revision}=rows[0],before=JSON.stringify(g),now=Date.now();
    if(g.phase==='closed')throw new HttpError('L’hôte a fermé cette partie.',410);
-   if(isJoin)joinGame(g,body.name,actor.id,actor.hash);
+   if(isJoin)joinGame(g,body.name,actor.id,actor.hash,body.avatar);
    else {authorize(g,actor);applyAction(g,actor,action,body.data||{},now,QUESTIONS);}
    if(action==='leave'){
     const ok=await db('rpc/quiz_salon_store','POST',{p_code:code,p_revision:revision,p_state:g});if(!ok)continue;return reply({left:true});
@@ -70,7 +70,7 @@ Deno.serve(async(req:Request)=>{
   throw new HttpError('La partie reçoit beaucoup de réponses. Réessaie.',503);
  }catch(error){
   if(error instanceof HttpError)return reply({error:error.message},error.status);
-  if(error instanceof Error&&['prénom','32 joueurs','partie est terminée','hôte','réponse','question','joueur','connexion','action','revanche','Aucune question'].some(w=>error.message.toLowerCase().includes(w.toLowerCase())))return reply({error:error.message},400);
+  if(error instanceof Error&&['prénom','nom','32 joueurs','partie est terminée','hôte','réponse','question','joueur','connexion','action','revanche','Aucune question'].some(w=>error.message.toLowerCase().includes(w.toLowerCase())))return reply({error:error.message},400);
   console.error('quiz error',error instanceof Error?error.message:'unknown');return reply({error:'Le serveur est momentanément indisponible.'},503);
  }
 });

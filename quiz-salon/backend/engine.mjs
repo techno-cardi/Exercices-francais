@@ -1,3 +1,4 @@
+import {CHARACTERS} from './characters.mjs';
 import {CATEGORIES} from './questions.mjs';
 const categoryIds=new Set(CATEGORIES.map(c=>c.id));
 export function shuffle(items,rng=Math.random){const a=[...items];for(let i=a.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
@@ -30,13 +31,14 @@ export function createGame(input,bank,now=Date.now()){
  const o=settings(input),deck=selectDeck(bank,o);if(!deck.length)throw new Error('Aucune question pour cette sélection.');
  return {phase:'lobby',round:0,players:[],options:o,deck,startedAt:null,deadline:null,createdAt:now,gameId:crypto.randomUUID()};
 }
-export function joinGame(g,name,id,hash){
+export function joinGame(g,name,id,hash,avatar='castor'){
  name=String(name||'').normalize('NFC').trim().replace(/\s+/g,' ');
- if(!/^[\p{L}\p{N}][\p{L}\p{N} .’'\-]{0,19}$/u.test(name))throw new Error('Entre un prénom de 1 à 20 caractères, sans symbole spécial.');
+ if(!/^[\p{L}\p{N}][\p{L}\p{N} .’'\-]{0,23}$/u.test(name))throw new Error('Entre un nom de 1 à 24 caractères, sans symbole spécial.');
  if(g.players.length>=32)throw new Error('Cette partie a déjà 32 joueurs.');
- if(g.players.some(p=>p.name.toLocaleLowerCase('fr')===name.toLocaleLowerCase('fr')))throw new Error('Ce prénom est déjà utilisé. Ajoute une initiale.');
+ if(g.players.some(p=>p.name.toLocaleLowerCase('fr')===name.toLocaleLowerCase('fr')))throw new Error('Ce nom est déjà utilisé. Ajoute une initiale.');
  if(g.phase==='finished')throw new Error('La partie est terminée. Attends la revanche.');
- g.players.push({id,hash,name,score:0,correct:0,categories:[],answers:{}});return g;
+ avatar=CHARACTERS.some(c=>c.id===avatar)?avatar:'castor';
+ g.players.push({id,hash,name,avatar,score:0,correct:0,categories:[],answers:{}});return g;
 }
 export function authorize(g,actor){
  if(actor?.role==='host'&&(!g.hostHash||actor.hash===g.hostHash))return null;
@@ -95,10 +97,10 @@ export function publicState(g,actor,now=Date.now()){
  const me=authorize(g,actor);settle(g,now);
  const reveal=['reveal','finished'].includes(g.phase),q=g.deck[g.round];
  const ranked=g.players.map(p=>{const pending=!reveal&&g.phase==='question'?p.answers[g.round]:null;return {...p,score:p.score-(pending?.points||0),correct:p.correct-(pending?.correct?1:0),categories:reveal||g.phase!=='question'?p.categories:[...new Set(Object.entries(p.answers).filter(([i,a])=>Number(i)<g.round&&a.correct).map(([i])=>g.deck[Number(i)].category))]};}).sort((a,b)=>b.score-a.score||a.name.localeCompare(b.name,'fr'));
- const players=ranked.map((p,i)=>({id:p.id,name:p.name,score:p.score,correct:p.correct,categories:p.categories,answered:!!p.answers[g.round],rank:ranked.findIndex(x=>x.score===p.score)+1}));
+ const players=ranked.map((p,i)=>({id:p.id,name:p.name,avatar:p.avatar,score:p.score,correct:p.correct,categories:p.categories,answered:!!p.answers[g.round],rank:ranked.findIndex(x=>x.score===p.score)+1}));
  const question=g.phase!=='lobby'&&g.phase!=='closed'?{text:q.text,options:q.options,category:q.category,level:q.level,...(reveal?{correct:q.correct,explanation:q.explanation,source:q.source}:{} )}:null;
  const a=me?.answers[g.round];
  return {phase:g.phase,round:g.round,total:g.deck.length,options:g.options,serverTime:now,startedAt:g.startedAt,deadline:g.deadline,gameId:g.gameId,players,question,answeredCount:players.filter(p=>p.answered).length,
-  me:me?{id:me.id,name:me.name,score:ranked.find(p=>p.id===me.id).score,choice:a?.choice??null,...(reveal?{points:a?.points??0,wasCorrect:a?.correct??false}:{} )}:null,
+  me:me?{id:me.id,name:me.name,avatar:me.avatar,score:ranked.find(p=>p.id===me.id).score,choice:a?.choice??null,...(reveal?{points:a?.points??0,wasCorrect:a?.correct??false}:{} )}:null,
   ...(reveal?{distribution:[0,1,2,3].map(i=>g.players.filter(p=>p.answers[g.round]?.choice===i).length)}:{})};
 }
