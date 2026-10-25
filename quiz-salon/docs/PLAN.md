@@ -21,6 +21,8 @@ Réponses simultanées; réponses dupliquées/tardives; reconnexion; jeton inval
 
 ## Validation et revue
 
-18 tests Node passent. Intégration réelle : 16 joueurs concurrents, 160 réponses, dix tours, absence de fuite de score, autorisations, reconnexion, égalités, revanche et fermeture. Revue indépendante : correction de la conservation des accès lors d’une panne transitoire, liaison des réponses à l’identifiant de partie et retrait des joueurs pendant la partie.
+23 tests Node passent. Intégration réelle : 16 joueurs concurrents, 160 réponses, dix tours, absence de fuite de score, autorisations, reconnexion, égalités, revanche et fermeture. Revue indépendante : correction de la conservation des accès lors d’une panne transitoire, liaison des réponses à l’identifiant de partie et retrait des joueurs pendant la partie.
 
 Direction finale demandée : thème bleu; nombre personnalisé 1 à 210; catégorie Québec et Saint-Émile, pour un total de 210 questions et sept catégories. Support clavier/pavé directionnel pour navigateur télé.
+
+Version TV native compilée avec succès. APK signé et vérifié par apksigner (v1/v2/v3). Téléchargement public HTTP 200, MIME APK et empreinte SHA-256 identique au fichier signé. WebSocket réel vérifié sur une salle de sept questions locales. Écrans publiés inspectés sur navigateur bureau et cadre mobile 390 × 844 : prénom/personnage, salon, QR, question, réponse et score. Pas de matériel Fire TV/iPhone/Android physique disponible.

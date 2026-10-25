@@ -54,7 +54,7 @@ Le deuxième test utilise le vrai serveur et crée une salle jetable avec 16 jou
 
 ## Déployer et maintenir
 
-GitHub Pages publie la branche main du dépôt existant, sans changer la page d'accueil. Les sources du jeu sont entièrement contenues dans ce dossier. Pour modifier le serveur, inspecter la fonction déployée, puis déployer les trois fichiers de `backend/` avec `index.ts` comme point d'entrée et `verify_jwt=false` (authentification par capacités dans le corps). Une modification du fichier SQL doit passer par une migration. Ne pas réappliquer le schéma initial à des tables déjà présentes.
+GitHub Pages publie la branche main du dépôt existant, sans changer la page d'accueil. Les sources du jeu sont entièrement contenues dans ce dossier. Pour modifier le serveur, inspecter la fonction déployée, puis déployer les cinq fichiers JavaScript/TypeScript de `backend/` avec `index.ts` comme point d'entrée et `verify_jwt=false` (authentification par capacités dans le corps). Une modification du fichier SQL doit passer par une migration. Ne pas réappliquer le schéma initial à des tables déjà présentes.
 
 ## Application Fire TV plein écran
 
@@ -67,3 +67,5 @@ Le workflow `quiz-salon-tv.yml` compile un paquet non signé et publie un build 
 Mise à jour fonctionnelle : les sons, questions et écrans sont servis par le site, sans réinstallation de l'APK. Le fichier APK doit être réinstallé seulement si le conteneur Android change.
 
 Realtime Broadcast signale les changements de salle sans publier les questions, jetons, noms ou scores sur les canaux. Les clients rechargent l'état au serveur avec leur capacité. WebSocket avec reprise, heartbeat, et vérification périodique de secours. Une notification de modification n'est jamais utilisée comme donnée de score.
+
+Sous-thèmes locaux sélectionnables : quartiers et toponymie, histoire municipale, patrimoine et architecture, culture et sports, nature et territoire. Douze personnages; noms/surnoms de 1 à 24 caractères; personnage préservé à la revanche.
