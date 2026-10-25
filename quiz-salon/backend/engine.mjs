@@ -1,5 +1,5 @@
 import {CHARACTERS} from './characters.mjs';
-import {CATEGORIES} from './questions.mjs';
+import {CATEGORIES,LOCAL_THEMES} from './questions.mjs';
 const categoryIds=new Set(CATEGORIES.map(c=>c.id));
 export function shuffle(items,rng=Math.random){const a=[...items];for(let i=a.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 export function settings(input={}){
@@ -7,10 +7,11 @@ export function settings(input={}){
  const difficulty=['mix','progressive','1','2','3'].includes(String(input.difficulty))?String(input.difficulty):'mix';
  const seconds=[0,20,30,45].includes(Number(input.seconds))?Number(input.seconds):30;
  const categories=Array.isArray(input.categories)?[...new Set(input.categories.filter(c=>categoryIds.has(c)))]:[];
- return {count,difficulty,seconds,categories};
+ const localThemes=Array.isArray(input.localThemes)?input.localThemes.filter(t=>LOCAL_THEMES.some(x=>x.id===t)):[];
+ return {count,difficulty,seconds,categories,localThemes};
 }
 export function selectDeck(bank,input,rng=Math.random){
- const o=settings(input);let pool=bank.filter(q=>(!o.categories.length||o.categories.includes(q.category))&&(!['1','2','3'].includes(o.difficulty)||q.level===Number(o.difficulty)));
+ const o=settings(input);let pool=bank.filter(q=>(!o.categories.length||o.categories.includes(q.category))&&(!['1','2','3'].includes(o.difficulty)||q.level===Number(o.difficulty))&&(q.category!=='local'||!o.localThemes.length||o.localThemes.includes(q.theme))); 
  let chosen=[];
  if(o.difficulty==='progressive'){
   const count=Math.min(o.count,pool.length);const used=new Set();
@@ -98,7 +99,7 @@ export function publicState(g,actor,now=Date.now()){
  const reveal=['reveal','finished'].includes(g.phase),q=g.deck[g.round];
  const ranked=g.players.map(p=>{const pending=!reveal&&g.phase==='question'?p.answers[g.round]:null;return {...p,score:p.score-(pending?.points||0),correct:p.correct-(pending?.correct?1:0),categories:reveal||g.phase!=='question'?p.categories:[...new Set(Object.entries(p.answers).filter(([i,a])=>Number(i)<g.round&&a.correct).map(([i])=>g.deck[Number(i)].category))]};}).sort((a,b)=>b.score-a.score||a.name.localeCompare(b.name,'fr'));
  const players=ranked.map((p,i)=>({id:p.id,name:p.name,avatar:p.avatar,score:p.score,correct:p.correct,categories:p.categories,answered:!!p.answers[g.round],rank:ranked.findIndex(x=>x.score===p.score)+1}));
- const question=g.phase!=='lobby'&&g.phase!=='closed'?{text:q.text,options:q.options,category:q.category,level:q.level,...(reveal?{correct:q.correct,explanation:q.explanation,source:q.source}:{} )}:null;
+ const question=g.phase!=='lobby'&&g.phase!=='closed'?{text:q.text,options:q.options,category:q.category,level:q.level,theme:q.theme,...(reveal?{correct:q.correct,explanation:q.explanation,source:q.source}:{} )}:null;
  const a=me?.answers[g.round];
  return {phase:g.phase,round:g.round,total:g.deck.length,options:g.options,serverTime:now,startedAt:g.startedAt,deadline:g.deadline,gameId:g.gameId,players,question,answeredCount:players.filter(p=>p.answered).length,
   me:me?{id:me.id,name:me.name,avatar:me.avatar,score:ranked.find(p=>p.id===me.id).score,choice:a?.choice??null,...(reveal?{points:a?.points??0,wasCorrect:a?.correct??false}:{} )}:null,

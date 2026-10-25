@@ -1,5 +1,6 @@
 // Questions originales. Le premier choix du fichier source est la bonne réponse;
 // le moteur mélange les quatre choix indépendamment pour chaque nouvelle partie.
+export const LOCAL_THEMES=[{id:'quartiers',name:'Quartiers & toponymie'},{id:'histoire',name:'Histoire municipale'},{id:'patrimoine',name:'Patrimoine & architecture'},{id:'culture',name:'Culture & sports'},{id:'nature',name:'Nature & territoire'}];
 export const CATEGORIES = [
  {id:'local',name:'Québec & Saint-Émile',icon:'⌂',color:'#8ebcff'},
  {id:'geo',name:'Québec & Canada',icon:'⚜',color:'#6eafff'},
@@ -253,14 +254,14 @@ const HAUTE='https://www.ville.quebec.qc.ca/citoyens/arrondissements/lahautesain
 const DUFFERIN='https://www.quebec-cite.com/fr/quoi-faire-quebec/terrasse-dufferin';
 add('local',1,DUFFERIN,`
 Dans quel arrondissement se trouve Saint-Émile?|La Haute-Saint-Charles|Beauport|Charlesbourg|Les Rivières|Saint-Émile fait partie de La Haute-Saint-Charles.|${HAUTE}
-Quel fleuve longe le Vieux-Québec?|Saint-Laurent|Saguenay|Richelieu|Outaouais|Le Saint-Laurent borde Québec.
-Quelle terrasse est attenante au Château Frontenac?|Terrasse Dufferin|Terrasse Bonsecours|Terrasse du Lac|Terrasse des Prairies|La terrasse Dufferin offre une vue sur le fleuve.
-Quel bâtiment emblématique se trouve à côté de la terrasse Dufferin?|Château Frontenac|Stade olympique|Oratoire Saint-Joseph|Habitat 67|Le Château Frontenac surplombe la terrasse Dufferin.
-Quel moyen de transport relie le Petit-Champlain à la terrasse Dufferin?|Funiculaire|Métro|Tramway souterrain|Téléphérique de ski|Le funiculaire relie la basse ville à la terrasse.
-Quelle ville rejoint-on par le traversier depuis le Vieux-Québec?|Lévis|Trois-Rivières|Rimouski|Sorel-Tracy|La traverse relie Québec et Lévis.|https://www.traversiers.com/fr/nos-traverses/traverse-quebec-levis/horaire
-Qui est le représentant officiel du Carnaval de Québec?|Bonhomme|Youppi!|Badaboum|Victor|Bonhomme représente le Carnaval de Québec.|https://carnaval.qc.ca/le-carnaval/bonhomme/
+En quelle année le Jardin zoologique de Québec ferme-t-il ses portes?|2006|1998|2012|2018|Le zoo de Québec ferme en 2006.|${CITY}
+En quelle année le pont de Québec s'ouvre-t-il aux automobiles?|1929|1917|1939|1959|Une voie carrossable ouvre en 1929; le pont accueillait déjà trains et piétons.|${CITY}
+Dans quelle ancienne municipalité inaugure-t-on l'aéroport de Québec en 1941?|L'Ancienne-Lorette|Saint-Émile|Beauport|Sillery|L'aéroport de L'Ancienne-Lorette est inauguré en 1941.|${CITY}
+Quel équipement sportif de Québec est inauguré en 1939 pour le baseball?|Stade municipal|Colisée|Centre Vidéotron|PEPS|Le stade municipal est inauguré en 1939.|${CITY}
+Avec quelle ville de l'Alberta Québec conclut-elle un jumelage en 1956?|Calgary|Edmonton|Banff|Lethbridge|L'entente de jumelage avec Calgary date de 1956.|${CITY}
+En quelle année la fontaine de Tourny est-elle inaugurée à Québec?|2007|2008|1985|1993|L'inauguration a lieu le 3 juillet 2007, avant le 400e anniversaire.|https://www.ville.quebec.qc.ca/citoyens/patrimoine/quartiers/saint_jean_baptiste/interet/fontaine_tourny.aspx
 Combien d'arrondissements la ville de Québec compte-t-elle?|6|4|8|12|Québec est divisée en six arrondissements.|https://www.ville.quebec.qc.ca/apropos/portrait/quelques_chiffres/quartiers/index.aspx
-En quelle année Québec a-t-elle célébré son 400e anniversaire?|2008|2000|2017|2020|La fondation de 1608 est célébrée 400 ans plus tard, en 2008.|${CITY}
+En quelle année la bibliothèque centrale de Québec, future Gabrielle-Roy, est-elle inaugurée?|1983|1971|1985|1993|Elle ouvre en 1983 et reçoit le nom Gabrielle-Roy en 1985.|${CITY}
 Dans quel quartier de Québec se trouve le parc Réal-Cloutier?|Saint-Émile|Saint-Roch|Montcalm|Sillery|Le parc Réal-Cloutier se trouve à Saint-Émile, rue de l'Accueil.|https://www.ville.quebec.qc.ca/nous_joindre/311/banque-info/info.aspx?NoFiche=AC-000907
 `);
 add('local',2,CITY,`
@@ -287,4 +288,6 @@ De quelle ville française provient la fontaine de Tourny de Québec?|Bordeaux|P
 Quel arrondissement de Québec est connu pour son Trait-Carré historique?|Charlesbourg|Beauport|Les Rivières|La Haute-Saint-Charles|Le Trait-Carré est au cœur historique de Charlesbourg.
 En quelle année le Centre Vidéotron ouvre-t-il ses portes?|2015|2008|2012|2018|Le nouvel amphithéâtre ouvre en 2015.|${CITY}
 `);
+const localTopics={quartiers:['1-1','1-4','1-6','2-3','2-4','2-9','3-4','3-6','3-9'],histoire:['1-3','2-1','2-2','3-1','3-2','3-3','3-5'],patrimoine:['1-7','2-6','2-10','3-7','3-8'],culture:['1-5','1-9','1-10','2-7','2-8','3-10'],nature:['1-2','1-8','2-5']};
+for(const q of bank)if(q.category==='local')q.theme=Object.entries(localTopics).find(([theme,ids])=>ids.includes(q.id.replace('local-','')))?.[0]||'histoire';
 export const QUESTIONS=bank;
