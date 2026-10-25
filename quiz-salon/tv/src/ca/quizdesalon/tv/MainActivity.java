@@ -66,7 +66,7 @@ public final class MainActivity extends Activity {
   errorPanel=new LinearLayout(this);errorPanel.setOrientation(LinearLayout.VERTICAL);errorPanel.setGravity(17);errorPanel.setPadding(60,40,60,40);errorPanel.setBackgroundColor(Color.rgb(12,29,58));
   TextView title=new TextView(this);title.setText("Quiz de salon");title.setTextColor(Color.WHITE);title.setTextSize(32);errorPanel.addView(title);
   TextView detail=new TextView(this);detail.setText("La connexion au jeu est interrompue.\nVérifie Internet, puis réessaie. Ton accès est conservé.");detail.setTextColor(Color.rgb(169,187,214));detail.setTextSize(18);detail.setGravity(17);detail.setPadding(0,20,0,25);errorPanel.addView(detail);
-  Button retry=new Button(this);retry.setText("RÉESSAYER");retry.setOnClickListener(v->{errorPanel.setVisibility(View.GONE);web.setVisibility(View.VISIBLE);String current=web.getUrl();web.loadUrl(isGameUrl(current)?current:HOME+"?tv=1");});errorPanel.addView(retry);
+  Button retry=new Button(this);retry.setText("RÉESSAYER");retry.setOnClickListener(new View.OnClickListener(){ public void onClick(View v){errorPanel.setVisibility(View.GONE);web.setVisibility(View.VISIBLE);String current=web.getUrl();web.loadUrl(isGameUrl(current)?current:HOME+"?tv=1");}});errorPanel.addView(retry);
   root.addView(errorPanel,new FrameLayout.LayoutParams(-1,-1));errorPanel.setVisibility(View.GONE);
  }
  private void showError(){loadingError=true;pageReady=false;web.setVisibility(View.INVISIBLE);errorPanel.setVisibility(View.VISIBLE);errorPanel.getChildAt(2).requestFocus();}
