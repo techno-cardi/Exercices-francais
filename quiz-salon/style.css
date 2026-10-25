@@ -15,3 +15,25 @@
 .self-name{display:flex;align-items:center;gap:9px}.mobile-self .avatar{width:30px;height:30px;font-size:22px}
 /* Checked-state fallback for WebViews that predate CSS :has(). */
 .pill.selected{color:var(--bg);background:var(--gold);border-color:var(--gold)}.setup-cats .pill.selected{background:#ffffff12;color:var(--cream);border-color:var(--cat)}.character.selected{background:#8ebcff20;border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)}
+
+/* Correction commune et réussites individuelles. */
+.round-results{margin:20px 0;padding:18px;border:1px solid #77d8b155;border-radius:16px;background:#77d8b10b}
+.round-results .eyebrow{color:#77d8b1;margin:0 0 12px}
+.round-winners{display:flex;flex-wrap:wrap;gap:10px;max-height:190px;overflow:auto}
+.round-winner{display:flex;align-items:center;gap:9px;padding:8px 12px;border-radius:12px;background:#102d45;min-width:0;max-width:100%}
+.round-winner .avatar{width:32px;height:32px;flex-shrink:0;font-size:22px}
+.round-winner b{overflow-wrap:anywhere;font-size:16px}.round-winner strong{color:#77d8b1;white-space:nowrap;font-size:14px}
+.round-mark{font-size:20px;font-weight:800}.round-mark.good{color:#77d8b1}.round-mark.bad{color:#b4c1d1}
+@media(max-width:600px){.round-results{padding:14px}.round-winner{padding:6px 9px}.round-winner b{font-size:14px}.round-winners{max-height:220px}}
+
+.tv-mode .reveal-round .answer.faded,.tv-mode .reveal-round .answer.wrong{display:none}
+.tv-mode .reveal-round .options{grid-template-columns:1fr}
+.tv-mode .reveal-round .round-results{margin:14px 0;padding:12px}
+.tv-mode .reveal-round .round-winners{max-height:135px}
+.tv-mode .reveal-round .explanation{margin-top:12px}
+
+.tv-mode .reveal-round .round-winners{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));max-height:none;overflow:visible}
+.tv-mode .round-winner{display:grid;grid-template-columns:26px minmax(0,1fr);gap:2px 7px;padding:6px 8px}
+.tv-mode .round-winner .avatar{grid-row:span 2;width:26px;height:26px;font-size:20px}
+.tv-mode .round-winner b{font-size:13px;line-height:1.2}.tv-mode .round-winner strong{grid-column:2;font-size:12px}
+#winner-page{margin-left:auto;font-size:11px;color:var(--muted)}

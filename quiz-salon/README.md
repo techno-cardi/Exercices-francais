@@ -71,3 +71,11 @@ Realtime Broadcast signale les changements de salle sans publier les questions, 
 Sous-thèmes locaux sélectionnables : quartiers et toponymie, histoire municipale, patrimoine et architecture, culture et sports, nature et territoire. Douze personnages; noms/surnoms de 1 à 24 caractères; personnage préservé à la revanche.
 
 Optimisation des réponses simultanées : `backend/answers.sql` ajoute `quiz_salon_answer`, une transaction courte avec verrou de ligne, validation de capacité et dédoublonnage. Une réponse demande un seul appel de base, au lieu de nouvelles tentatives de lecture/écriture. `tests/answers.sql` vérifie en transaction annulée les autorisations, le tour, la partie, les doublons, le bonus et le délai. Test réel à 32 joueurs : toutes les réponses conservées; test complet à 16 joueurs sur dix questions également réussi.
+
+### Rythme automatique et niveau facile révisé
+
+Après les réponses ou la fin du chrono, la correction affiche les joueurs qui ont réussi et leurs points. Une échéance commune de 8 secondes déclenche ensuite la prochaine question, puis le classement final. La télé fait défiler automatiquement les groupes de huit gagnants pour que les 32 noms puissent apparaître sans télécommande. Les commandes manuelles restent disponibles. Sans chrono, la correction commence quand tous les joueurs ont répondu ou quand l'hôte dévoile la réponse.
+
+Les 60 questions faciles générales ont été remplacées par des questions accessibles aux adultes avec des choix cohérents. Les dix faciles locales déjà plus exigeantes sont conservées. Les nouveaux contenus sont tirés uniquement à la création d'une partie ou d'une revanche; les questions d'une partie en cours restent cohérentes.
+
+Vérification : `npm test`, SQL `tests/answers.sql`, vraie partie `node tests/live-automatic.mjs` (3 joueurs, 2 questions, progression et finale automatiques). Aucun nouveau téléchargement APK requis : l'application charge la version web.

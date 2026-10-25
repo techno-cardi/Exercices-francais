@@ -7,6 +7,7 @@ begin
  insert into public.quiz_salon_rooms(code,state) values('ZZZ9Z9',g);
  r:=public.quiz_salon_answer('ZZZ9Z9','p1','h1','test-game',0,2);
  if r->>'phase'<>'reveal' or (r->'players'->0->>'score')::integer<>1000 then raise exception 'score/reveal failed'; end if;
+ if (r->>'nextAt')::numeric-(r->>'revealedAt')::numeric<>8000 then raise exception 'automatic reveal timer failed'; end if;
  r:=public.quiz_salon_answer('ZZZ9Z9','p1','h1','test-game',0,2);
  if (r->'players'->0->>'score')::integer<>1000 then raise exception 'duplicate failed'; end if;
  r:=public.quiz_salon_answer('ZZZ9Z9','p1','bad','test-game',0,2);

@@ -1,5 +1,6 @@
 import {CHARACTERS} from './characters.mjs';
 import {CATEGORIES,LOCAL_THEMES} from './questions.mjs';
+export const REVEAL_MS=8000;
 const categoryIds=new Set(CATEGORIES.map(c=>c.id));
 export function shuffle(items,rng=Math.random){const a=[...items];for(let i=a.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 export function settings(input={}){
@@ -46,8 +47,19 @@ export function authorize(g,actor){
  const p=actor?.role==='player'&&g.players.find(p=>p.id===actor.id&&p.hash===actor.hash);
  if(!p)throw new Error('Cette connexion a expiré ou ce joueur a été retiré.');return p;
 }
+function beginQuestion(g,now){
+ g.phase='question';g.startedAt=now;g.deadline=g.options.seconds?now+g.options.seconds*1000:null;g.revealedAt=null;g.nextAt=null;
+}
 export function settle(g,now=Date.now()){
  if(g.phase==='question'&&((g.deadline!==null&&now>=g.deadline)||(g.players.length>0&&g.players.every(p=>p.answers[g.round]))))g.phase='reveal';
+ if(g.phase==='reveal'){
+  if(!Number.isFinite(g.revealedAt))g.revealedAt=now;
+  if(!Number.isFinite(g.nextAt))g.nextAt=g.revealedAt+REVEAL_MS;
+  if(now>=g.nextAt){
+   if(g.round+1>=g.deck.length){g.phase='finished';g.nextAt=null;}
+   else{g.round++;beginQuestion(g,now);}
+  }
+ }
  return g;
 }
 export function applyAction(g,actor,action,data={},now=Date.now(),bank=[]){
@@ -59,11 +71,11 @@ export function applyAction(g,actor,action,data={},now=Date.now(),bank=[]){
  if(action==='advance'){
   if(g.phase==='lobby'){
    if(!g.players.length)throw new Error('Il faut au moins un joueur pour commencer.');
-   g.phase='question';g.startedAt=now;g.deadline=g.options.seconds?now+g.options.seconds*1000:null;
+   beginQuestion(g,now);
   }else if(g.phase==='question'){g.phase='reveal';}
   else if(g.phase==='reveal'){
    if(g.round+1>=g.deck.length)g.phase='finished';
-   else{g.round++;g.phase='question';g.startedAt=now;g.deadline=g.options.seconds?now+g.options.seconds*1000:null;}
+   else{g.round++;beginQuestion(g,now);}
   }
  }else if(action==='answer'){
   if(!p)throw new Error('Rejoins la partie comme joueur pour répondre.');
@@ -71,6 +83,7 @@ export function applyAction(g,actor,action,data={},now=Date.now(),bank=[]){
   if(data.gameId!==g.gameId)throw new Error('Cette réponse appartient à une autre partie.');
   if(data.round!==g.round)throw new Error('Cette question est déjà terminée.');
   settle(g,now);
+  if(data.round!==g.round)return g;
   if(p.answers[g.round])return g;
   if(g.phase!=='question')return g;
   const q=g.deck[g.round],correct=data.choice===q.correct;
@@ -94,14 +107,14 @@ export function applyAction(g,actor,action,data={},now=Date.now(),bank=[]){
  else if(action!=='state')throw new Error('Action inconnue.');
  return settle(g,now);
 }
-export function publicState(g,actor,now=Date.now()){
- const me=authorize(g,actor);settle(g,now);
+export function publicState(g,actor,now=Date.now(),settleTime=true){
+ const me=authorize(g,actor);if(settleTime)settle(g,now);
  const reveal=['reveal','finished'].includes(g.phase),q=g.deck[g.round];
  const ranked=g.players.map(p=>{const pending=!reveal&&g.phase==='question'?p.answers[g.round]:null;return {...p,score:p.score-(pending?.points||0),correct:p.correct-(pending?.correct?1:0),categories:reveal||g.phase!=='question'?p.categories:[...new Set(Object.entries(p.answers).filter(([i,a])=>Number(i)<g.round&&a.correct).map(([i])=>g.deck[Number(i)].category))]};}).sort((a,b)=>b.score-a.score||a.name.localeCompare(b.name,'fr'));
- const players=ranked.map((p,i)=>({id:p.id,name:p.name,avatar:p.avatar,score:p.score,correct:p.correct,categories:p.categories,answered:!!p.answers[g.round],rank:ranked.findIndex(x=>x.score===p.score)+1}));
+ const players=ranked.map((p,i)=>({id:p.id,name:p.name,avatar:p.avatar,score:p.score,correct:p.correct,categories:p.categories,answered:!!p.answers[g.round],...(reveal?{wasCorrect:p.answers[g.round]?.correct??false,points:p.answers[g.round]?.points??0}:{}),rank:ranked.findIndex(x=>x.score===p.score)+1}));
  const question=g.phase!=='lobby'&&g.phase!=='closed'?{text:q.text,options:q.options,category:q.category,level:q.level,theme:q.theme,...(reveal?{correct:q.correct,explanation:q.explanation,source:q.source}:{} )}:null;
  const a=me?.answers[g.round];
- return {phase:g.phase,round:g.round,total:g.deck.length,options:g.options,serverTime:now,startedAt:g.startedAt,deadline:g.deadline,gameId:g.gameId,players,question,answeredCount:players.filter(p=>p.answered).length,
+ return {phase:g.phase,round:g.round,total:g.deck.length,options:g.options,serverTime:now,startedAt:g.startedAt,deadline:g.deadline,nextAt:g.phase==='reveal'?g.nextAt??null:null,gameId:g.gameId,players,question,answeredCount:players.filter(p=>p.answered).length,
   me:me?{id:me.id,name:me.name,avatar:me.avatar,score:ranked.find(p=>p.id===me.id).score,choice:a?.choice??null,...(reveal?{points:a?.points??0,wasCorrect:a?.correct??false}:{} )}:null,
   ...(reveal?{distribution:[0,1,2,3].map(i=>g.players.filter(p=>p.answers[g.round]?.choice===i).length)}:{})};
 }

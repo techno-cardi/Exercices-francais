@@ -1,6 +1,6 @@
 -- Atomic answer path: one database call, no client-side CAS contention.
 -- Invoker privileges and capability checks are both required.
-create function public.quiz_salon_answer(p_code text,p_id text,p_hash text,p_game_id text,p_round integer,p_choice integer)
+create or replace function public.quiz_salon_answer(p_code text,p_id text,p_hash text,p_game_id text,p_round integer,p_choice integer)
 returns jsonb language plpgsql security invoker set search_path='' as $$
 declare
  r public.quiz_salon_rooms%rowtype; g jsonb; player jsonb; answer jsonb;
@@ -34,6 +34,10 @@ begin
   g:=jsonb_set(g,array['players',idx::text],player);
   select bool_and((value->'answers') ? p_round::text) into all_done from jsonb_array_elements(g->'players');
   if all_done then g:=jsonb_set(g,'{phase}','"reveal"'); end if;
+ end if;
+ if g->>'phase'='reveal' then
+  g:=jsonb_set(g,'{revealedAt}',to_jsonb(now_ms));
+  g:=jsonb_set(g,'{nextAt}',to_jsonb(now_ms+8000));
  end if;
  update public.quiz_salon_rooms set state=g,revision=revision+1 where code=p_code;
  return g;

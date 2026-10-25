@@ -33,16 +33,16 @@ const S={
 const bank=[];
 function add(cat,level,source,rows){for(const line of rows.trim().split('\n')){const [text,a,b,c,d,explanation,key]=line.split('|');bank.push({id:`${cat}-${level}-${bank.filter(q=>q.category===cat&&q.level===level).length+1}`,category:cat,level,text,options:[a,b,c,d],correct:0,explanation,source:S[key||source]||key||source});}}
 add('geo',1,'regions',`
-Quelle est la capitale du Canada?|Ottawa|Toronto|Montréal|Vancouver|Ottawa est la capitale fédérale du Canada.
-Quelle est la capitale du Québec?|Québec|Montréal|Laval|Sherbrooke|La ville de Québec est la capitale de la province.
-Combien de provinces le Canada compte-t-il?|10|8|12|13|Le Canada comprend dix provinces et trois territoires.
-Dans quelle province se trouve Toronto?|Ontario|Québec|Alberta|Manitoba|Toronto est aussi la capitale de l'Ontario.
-Quelle province canadienne est une île située dans le golfe du Saint-Laurent?|Île-du-Prince-Édouard|Alberta|Saskatchewan|Manitoba|L'Île-du-Prince-Édouard est la plus petite province du Canada.
-Quel océan borde la Colombie-Britannique?|Pacifique|Atlantique|Indien|Austral|La Colombie-Britannique se trouve sur la côte pacifique du Canada.
-Quelle feuille figure sur le drapeau canadien?|Érable|Chêne|Bouleau|Peuplier|Une feuille d'érable rouge occupe le centre du drapeau canadien.|symbols
-Quelle est la devise du Québec?|Je me souviens|L'union fait la force|Toujours plus haut|D'un océan à l'autre|La devise du Québec est « Je me souviens ».|qc
-Quel oiseau est l'emblème aviaire du Québec?|Harfang des neiges|Geai bleu|Huard|Cardinal rouge|Le harfang des neiges est un des trois emblèmes officiels du Québec.|qc
-Combien de territoires le Canada compte-t-il?|3|2|4|5|Il s'agit du Yukon, des Territoires du Nord-Ouest et du Nunavut.
+Sur quelle rivière se trouve Ottawa, la capitale fédérale?|Outaouais|Richelieu|Saint-Maurice|Saguenay|Ottawa est située sur la rivière des Outaouais.
+Quelle baie des provinces de l'Atlantique est célèbre pour ses marées parmi les plus hautes du monde?|Baie de Fundy|Baie des Chaleurs|Baie James|Baie Georgienne|La baie de Fundy se trouve entre le Nouveau-Brunswick et la Nouvelle-Écosse.
+Quelle province est particulièrement associée aux grandes mines canadiennes de potasse?|Saskatchewan|Nouvelle-Écosse|Québec|Colombie-Britannique|La Saskatchewan concentre les mines canadiennes de potasse.|https://ressources-naturelles.canada.ca/mineraux-exploitation-miniere/donnees-statistiques-analyses-exploitation-miniere/faits-mineraux-metaux/faits-potasse
+Dans quelle province se trouve le parc national Banff?|Alberta|Colombie-Britannique|Saskatchewan|Manitoba|Banff se trouve dans les Rocheuses de l'Alberta.
+Quelle région canadienne réunit le Québec et l'Ontario dans le guide Découvrir le Canada?|Centre du Canada|Provinces de l'Atlantique|Prairies|Côte Ouest|Le guide regroupe le Québec et l'Ontario dans le Centre du Canada.
+Quelle ville de l'Alberta est célèbre pour son Stampede annuel?|Calgary|Edmonton|Red Deer|Lethbridge|Le Stampede de Calgary célèbre notamment la culture des cowboys.
+Quel territoire est associé à la ruée vers l'or du Klondike?|Yukon|Nunavut|Territoires du Nord-Ouest|Labrador|La région du Klondike et Dawson se trouvent au Yukon.
+Quel relief de roches anciennes couvre une grande partie du Québec et de l'Ontario?|Bouclier canadien|Basses-terres du Saint-Laurent|Rocheuses|Plaine côtière de l'Arctique|Le Bouclier canadien est formé de roches très anciennes et occupe une grande partie du pays.|https://open.canada.ca/data/fr/dataset/028dd58d-320c-53fb-b5bc-8188fd5d5edf
+Quelle province est reliée au Nouveau-Brunswick par le pont de la Confédération?|Île-du-Prince-Édouard|Terre-Neuve-et-Labrador|Nouvelle-Écosse|Québec|Le pont relie l'Île-du-Prince-Édouard au continent, au Nouveau-Brunswick.
+De quelle province la ville de Saskatoon fait-elle partie?|Saskatchewan|Manitoba|Alberta|Ontario|Saskatoon se trouve en Saskatchewan, dont la capitale est Regina.
 `);
 add('geo',2,'regions',`
 Quelle est la capitale de la Colombie-Britannique?|Victoria|Vancouver|Kelowna|Kamloops|Victoria, située sur l'île de Vancouver, est la capitale provinciale.
@@ -69,16 +69,16 @@ Quelles provinces forment les Prairies canadiennes?|Alberta, Saskatchewan, Manit
 Sur le drapeau du Québec, combien de fleurs de lys voit-on?|4|3|5|6|Le fleurdelisé porte quatre fleurs de lys blanches sur fond bleu.|qc
 `);
 add('histoire',1,'history',`
-En quelle année la Confédération canadienne a-t-elle eu lieu?|1867|1763|1905|1982|La Confédération entre en vigueur le 1er juillet 1867.
-Qui fonde Québec en 1608?|Samuel de Champlain|Jacques Cartier|Jean Talon|Louis-Joseph Papineau|Samuel de Champlain fonde l'établissement de Québec en 1608.
-Quel explorateur français arrive dans le golfe du Saint-Laurent en 1534?|Jacques Cartier|Samuel de Champlain|Louis Jolliet|Pierre Le Moyne d'Iberville|Jacques Cartier effectue son premier voyage au Canada en 1534.
-À quelle date célèbre-t-on la fête du Canada?|1er juillet|24 juin|11 novembre|15 février|Le 1er juillet rappelle l'entrée en vigueur de la Confédération.
-Quelle guerre mondiale commence en 1914?|Première Guerre mondiale|Deuxième Guerre mondiale|Guerre de Sept Ans|Guerre de 1812|La Première Guerre mondiale se déroule de 1914 à 1918.
-Quelle guerre mondiale se termine en 1945?|Deuxième Guerre mondiale|Première Guerre mondiale|Guerre de Sept Ans|Guerre de Crimée|La Deuxième Guerre mondiale se termine en 1945.
-Quel animal est étroitement associé à la traite des fourrures au Canada?|Castor|Bison|Orignal|Ours polaire|La fourrure de castor occupait une place majeure dans la traite.
-Quel pays contrôlait la Nouvelle-France avant la conquête britannique?|France|Espagne|Portugal|Italie|La Nouvelle-France était une colonie française.
-Quel jour est consacré au souvenir des militaires morts en service au Canada?|11 novembre|1er avril|24 juin|25 décembre|Le jour du Souvenir est observé le 11 novembre.
-Quelle ville a accueilli l'Expo 67?|Montréal|Québec|Toronto|Ottawa|L'Exposition universelle de 1967 a lieu à Montréal.
+Quel chef métis est associé à la résistance de la rivière Rouge et à celle du Nord-Ouest?|Louis Riel|Gabriel Sagard|George-Étienne Cartier|Louis-Hippolyte La Fontaine|Louis Riel joue un rôle central dans ces deux résistances métisses.
+Quelle reine choisit Ottawa comme capitale en 1857?|Victoria|Élisabeth Ire|Anne|Élisabeth II|La reine Victoria choisit Ottawa en 1857.|regions
+En quelle année achève-t-on le chemin de fer Canadien Pacifique avec le dernier crampon?|1885|1867|1905|1918|Le dernier crampon du Canadien Pacifique est posé en novembre 1885.
+Quel nom donne-t-on aux colons restés fidèles à la Couronne britannique après la Révolution américaine?|Loyalistes|Patriotes|Fils de la Liberté|Acadiens|Les Loyalistes quittent les États-Unis pour s'établir dans les colonies britanniques.
+Quelle province est la première à accorder le droit de vote provincial à certaines femmes, en 1916?|Manitoba|Québec|Ontario|Nouveau-Brunswick|Le Manitoba accorde ce droit en janvier 1916, avec les restrictions de l'époque.|https://www.canada.ca/fr/femmes-egalite-genres/commemorations-celebrations/mois-histoire-femmes/histoire-femmes-canada-chronologie.html
+En quelle année les femmes obtiennent-elles le droit de vote et d'éligibilité aux élections québécoises?|1940|1918|1931|1960|La loi québécoise est sanctionnée le 25 avril 1940.|https://www.electionsquebec.qc.ca/comprendre/comprendre-le-vote/histoire-du-droit-de-vote-et-deligibilite-des-femmes-au-quebec/
+Quelle crête les divisions canadiennes prennent-elles en avril 1917?|Vimy|Passchendaele|Dieppe|Dunkerque|Les quatre divisions canadiennes combattent ensemble lors de la bataille de Vimy.
+Quel dirigeant est associé aux Patriotes du Bas-Canada et aux rébellions de 1837?|Louis-Joseph Papineau|John A. Macdonald|Samuel de Champlain|Jean Talon|Louis-Joseph Papineau dirige le mouvement réformiste patriote au Bas-Canada.
+Quel événement de 1929 marque le début de la Grande Dépression?|Krach boursier|Crise de Suez|Crise d'Octobre|Choc pétrolier|L'effondrement boursier de 1929 précède une profonde crise économique.
+Quel premier ministre canadien-français gouverne le Canada de 1896 à 1911?|Wilfrid Laurier|Louis Saint-Laurent|Pierre Elliott Trudeau|Jean Chrétien|Wilfrid Laurier est le premier Canadien français à occuper ce poste.
 `);
 add('histoire',2,'history',`
 Qui est le premier premier ministre du Canada?|John A. Macdonald|Wilfrid Laurier|Lester B. Pearson|Pierre Elliott Trudeau|John A. Macdonald devient le premier premier ministre en 1867.
@@ -105,16 +105,16 @@ Quelle province rejoint le Canada en 1873?|Île-du-Prince-Édouard|Manitoba|Colo
 Quel conflit commence en 1812 entre les États-Unis et la Grande-Bretagne, notamment en Amérique du Nord?|Guerre de 1812|Guerre de Sécession|Guerre de Sept Ans|Guerre des Boers|La guerre de 1812 oppose les États-Unis à la Grande-Bretagne et à ses alliés.
 `);
 add('culture',1,'music',`
-Quel instrument possède des touches noires et blanches?|Piano|Violon|Trompette|Flûte traversière|Le clavier du piano alterne touches blanches et touches noires.
-Quel art associe habituellement acteurs, scène et public?|Théâtre|Sculpture|Photographie|Gravure|Le théâtre est un art de la représentation scénique.|words
-Comment appelle-t-on la personne qui écrit un roman?|Romancier ou romancière|Chorégraphe|Architecte|Chef d'orchestre|Le romancier ou la romancière est l'auteur d'un roman.|words
-Quel instrument se joue principalement avec un archet?|Violon|Trompette|Piano|Tambour|L'archet fait vibrer les cordes du violon.
-Dans quel domaine remet-on les Oscars?|Cinéma|Cuisine|Littérature|Architecture|Les Oscars récompensent des réalisations du cinéma.|https://www.oscars.org/oscars
-Quel art consiste à modeler ou tailler des formes en volume?|Sculpture|Poésie|Photographie|Danse|La sculpture produit des œuvres en trois dimensions.|words
-Comment appelle-t-on un ensemble de musiciens dirigés par un chef?|Orchestre|Chorale de lecteurs|Atelier d'écriture|Troupe de théâtre|Un orchestre réunit des instrumentistes sous la direction d'un chef.
-Quel instrument appartient à la famille des cuivres?|Trompette|Clarinette|Violon|Harpe|La trompette est un instrument à vent de la famille des cuivres.
-Quel mot désigne les paroles échangées entre personnages au théâtre?|Dialogue|Paysage|Préface|Sommaire|Le dialogue est un échange de paroles entre plusieurs personnes.|words
-Quel signe musical sert notamment à indiquer la hauteur des notes sur une portée?|Clé|Virgule|Guillemet|Parenthèse|La clé, comme la clé de sol, fixe des repères de hauteur sur la portée.
+Qui a réalisé le film québécois C.R.A.Z.Y.?|Jean-Marc Vallée|Denys Arcand|Xavier Dolan|Philippe Falardeau|C.R.A.Z.Y. est un film de Jean-Marc Vallée sorti en 2005.|https://www.ordre-national.gouv.qc.ca/membres/membre.asp?id=3674
+Quel film de Denys Arcand reçoit l'Oscar du meilleur film en langue étrangère en 2004?|Les Invasions barbares|Le Déclin de l'empire américain|Jésus de Montréal|La Chute de l'empire américain|Les Invasions barbares remporte cet Oscar lors de la cérémonie de 2004.|https://www.oscars.org/oscars/ceremonies/2004
+De quelle ville de Charlevoix vient la troupe à l'origine du Cirque du Soleil?|Baie-Saint-Paul|La Malbaie|Clermont|Baie-Sainte-Catherine|Les Échassiers de Baie-Saint-Paul forment le noyau du futur Cirque du Soleil.|https://www.cirquedusoleil.com/fr/a-propos-de-nous/history
+Quel Québécois écrit les paroles de l'opéra rock Starmania, sur la musique de Michel Berger?|Luc Plamondon|Gilles Vigneault|Félix Leclerc|Claude Dubois|Starmania est une œuvre de Luc Plamondon et Michel Berger.|https://www.starmania-officiel.com/
+Quel groupe québécois est associé à Serge Fiori?|Harmonium|Beau Dommage|Offenbach|Octobre|Serge Fiori est cofondateur du groupe Harmonium.|https://www.calq.gouv.qc.ca/actualites-et-publications/actualites/hommage-serge-fiori
+Quel groupe avait André « Dédé » Fortin comme chanteur et meneur?|Les Colocs|Les Cowboys Fringants|Les Trois Accords|Les Respectables|Dédé Fortin est le membre fondateur et meneur des Colocs de 1990 à 2000.|https://www.colocs.qc.ca/
+En musique, quel signe abaisse une note d'un demi-ton?|Bémol|Dièse|Bécarre|Point d'orgue|Le bémol abaisse la note d'un demi-ton; le dièse l'élève.|https://www.alloprof.qc.ca/fr/eleves/bv/musique
+À quelle famille instrumentale appartient le saxophone, malgré son corps métallique?|Bois|Cuivres|Cordes frottées|Percussions|Le saxophone est classé parmi les bois et produit le son avec une anche.|https://www.conservatoire-troyes.fr/scolarite-enseignement/musique/cordes/
+Quel mot désigne les indications de gestes et de décor dans le texte d'une pièce?|Didascalies|Apartés|Tirades|Répliques|Les didascalies donnent des indications de jeu, de mise en scène ou de décor.|words
+Quel terme désigne une scène qui revient sur un événement antérieur dans un film?|Retour en arrière|Ellipse|Plan-séquence|Champ-contrechamp|Le retour en arrière, ou flashback, présente un événement antérieur à l'action en cours.|words
 `);
 add('culture',2,'words',`
 Qui a écrit Les Belles-sœurs?|Michel Tremblay|Michel Marc Bouchard|Marcel Dubé|Robert Lepage|La pièce de Michel Tremblay est créée sur scène en 1968.|tremblay
@@ -141,16 +141,16 @@ Quelle figure rapproche deux termes contradictoires, comme « obscure clarté »
 Quel mot désigne une œuvre musicale composée pour neuf exécutants?|Nonette|Octuor|Septuor|Quintette|Un nonette réunit neuf exécutants; un octuor en réunit huit.
 `);
 add('sport',1,'sports',`
-Quel sport se joue avec une rondelle?|Hockey sur glace|Soccer|Basketball|Tennis|Au hockey sur glace, les joueurs déplacent une rondelle.|https://olympic.ca/sports/ice-hockey/
-Dans quel sport cherche-t-on à faire un panier?|Basketball|Baseball|Curling|Badminton|Le but du basketball est de marquer dans le panier adverse.|https://olympic.ca/sports/basketball/
-Quel sport utilise un volant?|Badminton|Tennis|Golf|Squash|Le badminton utilise un volant, et non une balle.|https://olympic.ca/sports/badminton/
-Au soccer, quel joueur peut normalement prendre le ballon avec les mains dans sa propre surface de réparation?|Gardien de but|Attaquant|Défenseur central|Milieu de terrain|Le gardien bénéficie de cette permission dans sa propre surface de réparation.|https://www.theifab.com/laws/latest/the-players/
-Dans quel sport lance-t-on des pierres vers une cible sur la glace?|Curling|Hockey|Patinage artistique|Skeleton|Le curling se joue avec des pierres et une cible appelée maison.|https://olympic.ca/sports/curling/
-Combien de joueurs une équipe de basketball aligne-t-elle sur le terrain en jeu à cinq?|5|6|7|11|Le basketball classique oppose deux équipes de cinq joueurs.|https://olympic.ca/sports/basketball/
-Quel sport comprend les styles crawl, dos et papillon?|Natation|Plongeon|Aviron|Water-polo|Ces techniques sont des styles de nage.|https://olympic.ca/sports/swimming/
-Quel objet frappe-t-on au golf?|Balle|Rondelle|Volant|Disque|Au golf, on frappe une balle avec un bâton.|https://olympic.ca/sports/golf/
-Dans quel jeu trouve-t-on un roi et une reine?|Échecs|Dominos|Scrabble|Mikado|Le roi et la reine font partie des pièces du jeu d'échecs.|https://handbook.fide.com/chapter/E012023
-Quel sport comporte un saut en longueur?|Athlétisme|Escrime|Cyclisme|Judo|Le saut en longueur est une discipline de l'athlétisme.|https://olympic.ca/sports/athletics/
+Au golf, que signifie réussir un birdie sur un trou?|Un coup sous la normale|Deux coups sous la normale|Un coup au-dessus de la normale|Exactement la normale|Un birdie correspond à un coup de moins que la normale du trou.|https://olympic.ca/sports/golf/
+Au basketball selon les règles FIBA, combien de secondes une équipe a-t-elle normalement pour tenter un tir?|24|20|30|35|Le chronomètre des tirs donne normalement 24 secondes à l'équipe en possession.|https://olympic.ca/sports/basketball/
+Au curling, quelle équipe marque des points dans une manche?|Celle qui a la pierre la plus proche du centre|Celle qui a lancé la première|Celle qui a le plus de pierres en jeu|Les deux équipes si elles touchent la cible|Une seule équipe marque, selon les pierres plus proches du centre que la meilleure pierre adverse.|https://olympic.ca/sports/curling/
+Quel est l'ordre des disciplines d'un triathlon olympique individuel?|Natation, cyclisme, course|Course, natation, cyclisme|Cyclisme, course, natation|Natation, course, cyclisme|Le triathlon individuel enchaîne natation, cyclisme puis course à pied.|https://olympic.ca/sports/triathlon/
+Au hockey sur glace, hors prolongation et sans pénalité, combien de joueurs une équipe a-t-elle normalement sur la glace, gardien compris?|6|5|7|4|Cinq patineurs et un gardien composent normalement chaque équipe sur la glace.|https://olympic.ca/sports/ice-hockey/
+Au tennis, que signifie réussir un break?|Gagner le jeu de service adverse|Gagner son propre jeu de service|Gagner un échange sans rebond|Obtenir une deuxième balle de service|Un break est un jeu remporté alors que l'adversaire sert.|https://www.tenniscanada.com/play/tennis-101/tennis-points-rules
+Au badminton, combien de points faut-il normalement atteindre pour gagner une manche, hors prolongation?|21|15|25|11|Une manche se joue normalement en 21 points, avec des règles d'écart et de plafond.|https://olympic.ca/sports/badminton/
+Aux échecs, quelle pièce reste sur la même couleur de cases pendant toute la partie?|Fou|Cavalier|Tour|Dame|Le fou se déplace en diagonale et reste donc sur sa couleur initiale.|https://handbook.fide.com/chapter/E012023
+Au volleyball intérieur, combien de contacts une équipe peut-elle normalement utiliser après le contre pour renvoyer le ballon?|3|2|4|5|Le contact du contre ne compte pas parmi les trois touches autorisées.|https://olympic.ca/sports/indoor-volleyball/
+Dans quelle province se déroulent les Jeux olympiques d'hiver de Calgary en 1988?|Alberta|Colombie-Britannique|Manitoba|Québec|Calgary se trouve en Alberta.|https://olympic.ca/games/1988-calgary/
 `);
 add('sport',2,'sports',`
 Quelle ville canadienne accueille les Jeux olympiques d'été de 1976?|Montréal|Toronto|Vancouver|Calgary|Montréal organise les Jeux d'été de 1976.|https://olympic.ca/games/1976-montreal/
@@ -177,16 +177,16 @@ Au volleyball intérieur, de combien de points faut-il normalement mener pour ga
 Quel sport associe traditionnellement fleuret, épée et sabre?|Escrime|Tir à l'arc|Pentathlon antique|Kendo|Le fleuret, l'épée et le sabre sont les trois armes de l'escrime sportive.|https://olympic.ca/sports/fencing/
 `);
 add('science',1,'science',`
-Quelle planète est surnommée la planète rouge?|Mars|Vénus|Jupiter|Neptune|Les oxydes de fer présents à sa surface donnent à Mars sa teinte rougeâtre.|https://science.nasa.gov/mars/facts/
-Combien de planètes notre Système solaire compte-t-il?|8|7|9|10|Le Système solaire compte huit planètes; Pluton est une planète naine.|planets
-Quelle étoile se trouve au centre du Système solaire?|Soleil|Sirius|Étoile polaire|Bételgeuse|Le Soleil est l'étoile autour de laquelle orbitent les planètes.|sun
-Quelle est la formule chimique de l'eau?|H₂O|CO₂|O₂|NaCl|Une molécule d'eau contient deux atomes d'hydrogène et un d'oxygène.
-Quel organe pompe le sang dans le corps humain?|Cœur|Poumon|Foie|Estomac|Le cœur propulse le sang dans les vaisseaux sanguins.
-Quelle partie d'une plante capte généralement la lumière pour la photosynthèse?|Feuilles|Racines|Graines|Écorce|Les feuilles contiennent la chlorophylle nécessaire à la photosynthèse.
-Comment appelle-t-on le passage de l'eau liquide en glace?|Solidification|Évaporation|Condensation|Sublimation|La solidification est le passage de l'état liquide à l'état solide.
-Quel gaz de l'air les humains utilisent-ils pour la respiration cellulaire?|Oxygène|Hélium|Néon|Argon|L'oxygène participe à la respiration cellulaire.
-Quel satellite naturel tourne autour de la Terre?|Lune|Mars|Titan|Vénus|La Lune est le satellite naturel de la Terre.|https://science.nasa.gov/moon/facts/
-À quelle classe animale appartient le castor?|Mammifères|Reptiles|Amphibiens|Oiseaux|Le castor est un mammifère rongeur.
+Entre quelles planètes se trouve la principale ceinture d'astéroïdes?|Mars et Jupiter|Terre et Mars|Jupiter et Saturne|Vénus et Terre|La principale ceinture d'astéroïdes se situe entre Mars et Jupiter.|https://science.nasa.gov/solar-system/asteroids/facts/
+Quelle planète possède la Grande Tache rouge, une immense tempête?|Jupiter|Saturne|Neptune|Uranus|La Grande Tache rouge est une tempête géante de l'atmosphère de Jupiter.|https://science.nasa.gov/jupiter/facts/
+Qu'est-ce qui explique principalement l'alternance des saisons terrestres?|L'inclinaison de l'axe terrestre|La distance Terre-Soleil seule|La rotation de la Lune|Les variations de taille du Soleil|L'axe incliné modifie l'angle des rayons et la durée du jour au cours de l'année.|https://science.nasa.gov/earth/facts/
+Quelle planète possède Titan comme satellite naturel?|Saturne|Jupiter|Neptune|Mars|Titan est le plus grand satellite naturel de Saturne.|https://science.nasa.gov/saturn/moons/titan/facts/
+Quelle substance est surtout responsable de la couleur rouge du sang?|Hémoglobine|Mélanine|Chlorophylle|Insuline|L'hémoglobine des globules rouges contient le pigment qui donne sa couleur au sang.
+Quel organe produit l'insuline?|Pancréas|Foie|Rate|Vésicule biliaire|Le pancréas produit l'insuline, une hormone qui participe à la régulation de la glycémie.
+Quelle forme d'énergie un panneau solaire photovoltaïque fournit-il directement?|Électrique|Mécanique|Nucléaire|Sonore|Les cellules photovoltaïques convertissent une partie de l'énergie lumineuse en électricité.
+Quel phénomène fait dévier la lumière lorsqu'elle passe de l'air à l'eau?|Réfraction|Diffraction|Réflexion seule|Polarisation seule|La réfraction correspond au changement de direction de la lumière entre deux milieux.
+Dans un atome électriquement neutre, que peut-on dire des protons et des électrons?|Ils sont aussi nombreux|Les protons sont deux fois plus nombreux|Les électrons sont absents|Ils ont la même charge|Leurs charges opposées se compensent quand leurs nombres sont égaux.
+Comment appelle-t-on un animal dont l'activité se concentre à l'aube et au crépuscule?|Crépusculaire|Strictement nocturne|Strictement diurne|Hivernant|Une espèce crépusculaire est particulièrement active aux transitions entre le jour et la nuit.|words
 `);
 add('science',2,'science',`
 Quelle est la plus grande planète du Système solaire?|Jupiter|Saturne|Neptune|Terre|Jupiter est la planète la plus grande et la plus massive du Système solaire.|https://science.nasa.gov/jupiter/facts/
@@ -213,16 +213,16 @@ Quel scientifique formule la loi de la gravitation universelle au XVIIe siècle?
 Quel est le principal constituant du Soleil par masse?|Hydrogène|Oxygène|Fer|Carbone|Le Soleil est surtout composé d'hydrogène, puis d'hélium.|sun
 `);
 add('mots',1,'math',`
-Combien font 7 × 8?|56|48|54|64|Sept groupes de huit donnent 56.
-Combien de minutes compte une heure?|60|30|90|100|Une heure correspond à soixante minutes.
-Quel est le double de 25?|50|40|75|100|Doubler 25 donne 25 + 25, soit 50.
-Combien de côtés possède un triangle?|3|4|5|6|Un triangle est un polygone à trois côtés.
-Quelle fraction équivaut à la moitié?|1/2|1/3|1/4|2/3|Une moitié représente une part sur deux parts égales.
-Quel mot est un verbe?|Courir|Maison|Bleu|Demain|« Courir » est un verbe à l'infinitif.|words
-Quel est le contraire de « généreux » parmi ces choix?|Avare|Patient|Souriant|Courageux|« Avare » s'oppose ici à « généreux ».|words
-Quel mot désigne un animal?|Orignal|Érable|Granite|Ruisseau|L'orignal est un grand mammifère de la famille des cervidés.|words
-Quel nombre complète 2, 4, 6, 8, ... si l'on ajoute toujours 2?|10|9|11|12|On ajoute deux à chaque étape; après huit vient dix.
-Combien vaut 10 % de 100?|10|1|20|100|Dix pour cent signifie dix parts sur cent.
+Un prix baisse de 25 %, puis augmente de 25 %. Par rapport au prix de départ, le prix final est...|Plus bas de 6,25 %|Identique|Plus élevé de 6,25 %|Plus bas de 25 %|Pour 100 $ : 75 $, puis 93,75 $. Le pourcentage s'applique à une nouvelle base.
+Quelle est la probabilité d'obtenir un nombre supérieur à 4 avec un dé équilibré à six faces?|1/3|1/2|1/6|2/3|Deux issues conviennent, 5 et 6, sur les six possibles : 2/6 = 1/3.
+Un rectangle mesure 8 cm sur 5 cm. Quelle est son aire?|40 cm²|26 cm²|13 cm²|80 cm²|L'aire se calcule en multipliant la longueur par la largeur : 8 × 5.
+Quelle valeur complète 3, 6, 12, 24 si chaque terme double?|48|36|42|72|On multiplie chaque terme par deux, donc 24 × 2 = 48.
+Deux cyclistes partent ensemble. L'un roule à 20 km/h, l'autre à 15 km/h. Quel écart les sépare après 2 h dans la même direction?|10 km|5 km|20 km|35 km|La différence de vitesse est de 5 km/h; en deux heures, l'écart atteint 10 km.
+Quel mot est un paronyme de « conjoncture »?|Conjecture|Situation|Économie|Circonstance|« Conjecture » a une forme proche de « conjoncture », mais un sens différent.|words
+Que signifie « à l'instar de »?|À l'exemple de|À l'opposé de|À l'insu de|À la place de|« À l'instar de » signifie « à l'exemple de », et non « contrairement à ».|words
+Quelle phrase emploie correctement « censé »?|Il est censé arriver à huit heures.|Il est très censé et réfléchi.|Cette décision paraît censée et raisonnable.|Elle fait preuve d'un esprit censé.|« Censé » signifie « supposé ». « Sensé » signifie « raisonnable ».|words
+Dans « Cette nouvelle m'a laissé de glace », quelle figure trouve-t-on?|Métaphore|Comparaison avec outil|Pléonasme|Anaphore|La métaphore présente l'insensibilité à travers l'image de la glace, sans mot comparatif.|words
+Trois personnes mettent 6 h à accomplir une tâche. À rendement identique et sans se gêner, combien de temps faut-il à six personnes?|3 h|2 h|6 h|12 h|La tâche représente 18 heures-personnes; répartie entre six personnes, elle prend trois heures.
 `);
 add('mots',2,'math',`
 Un article coûte 80 $. Quel montant représente un rabais de 25 %?|20 $|15 $|25 $|30 $|Le quart de 80 $ vaut 20 $.

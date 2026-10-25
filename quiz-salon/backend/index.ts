@@ -57,7 +57,7 @@ Deno.serve(async(req:Request)=>{
    if(!Number.isInteger(data.choice)||data.choice<0||data.choice>3||!Number.isInteger(data.round)||typeof data.gameId!=='string')throw new HttpError('Cette réponse est invalide.');
    const g=await db('rpc/quiz_salon_answer','POST',{p_code:code,p_id:actor.id,p_hash:actor.hash,p_game_id:data.gameId,p_round:data.round,p_choice:data.choice});
    if(g.error)throw new HttpError(g.error,g.error.includes('connexion')?403:g.error.includes('introuvable')?404:g.error.includes('fermé')?410:400);
-   return reply({code,state:publicState(g,actor,Date.now())});
+   return reply({code,state:publicState(g,actor,Date.now(),false)});
   }
   // Optimistic retry protects other simultaneous room changes.
 
