@@ -8,15 +8,26 @@ const actor={role:'player',id:'p1',hash:'hash1'};
 function game(options={}) { return createGame({count:10,difficulty:'mix',categories:[],seconds:30,...options},QUESTIONS,t); }
 function ready(options={}) {const g=game(options);joinGame(g,'Alice','p1','hash1');return g;}
 function advance(g,now=t) {return applyAction(g,host,'advance',{expected:`${g.phase}:${g.round}`},now);}
-test('bank: 210 original questions, all category/level pairs, 4 distinct choices, valid correct index and HTTPS source',()=>{
- assert.equal(QUESTIONS.length,210);assert.equal(new Set(QUESTIONS.map(q=>q.id)).size,210);
- assert.equal(new Set(QUESTIONS.map(q=>q.text)).size,210);
- for(const c of CATEGORIES)for(const l of [1,2,3])assert.equal(QUESTIONS.filter(q=>q.category===c.id&&q.level===l).length,10);
+test('bank: 200 new questions with 60 geography items, no old IDs and valid answers',()=>{
+ assert.equal(QUESTIONS.length,200);assert.equal(new Set(QUESTIONS.map(q=>q.id)).size,200);
+ assert.equal(new Set(QUESTIONS.map(q=>q.text)).size,200);assert.equal(QUESTIONS.filter(q=>q.category==='geo').length,60);assert.ok(QUESTIONS.every(q=>q.id.startsWith('2026-')));
+ for(const c of CATEGORIES)for(const l of [1,2,3])assert.ok(QUESTIONS.some(q=>q.category===c.id&&q.level===l));
  for(const q of QUESTIONS){assert.equal(q.options.length,4);assert.equal(new Set(q.options).size,4);assert.ok(Number.isInteger(q.correct)&&q.correct>=0&&q.correct<4);assert.ok(q.explanation.length>10);assert.match(q.source,/^https:\/\//);}
 });
 test('deck filters, no repeats, limited to available and progressive levels',()=>{
- const d=selectDeck(QUESTIONS,{count:30,difficulty:'1',categories:['geo']});assert.equal(d.length,10);assert.ok(d.every(q=>q.level===1&&q.category==='geo'));
+ const d=selectDeck(QUESTIONS,{count:30,difficulty:'1',categories:['geo']});assert.equal(d.length,Math.min(30,QUESTIONS.filter(q=>q.category==='geo'&&q.level===1).length));assert.ok(d.every(q=>q.level===1&&q.category==='geo'));
  const p=selectDeck(QUESTIONS,{count:30,difficulty:'progressive',categories:[]});assert.equal(p.length,30);assert.equal(new Set(p.map(q=>q.id)).size,30);assert.deepEqual(p.map(q=>q.level),[...p].map(q=>q.level).sort());
+});
+test('three consecutive 20-question geography games do not repeat before exhausting the bank',()=>{
+ const g=ready({count:20,categories:['geo']});
+ const seen=new Set(g.deck.map(q=>q.id));
+ for(let i=0;i<2;i++){
+  g.phase='finished';g.round=g.deck.length-1;
+  applyAction(g,host,'rematch',{expected:`finished:${g.round}`},t+i*1000,QUESTIONS);
+  assert.equal(g.deck.length,20);
+  for(const q of g.deck){assert.ok(!seen.has(q.id));seen.add(q.id);}
+ }
+ assert.equal(seen.size,60);
 });
 test('membership validates names, prevents duplicates and limits to 32',()=>{const g=ready();assert.throws(()=>joinGame(g,' alice ','p2','h2'),/déjà/);assert.throws(()=>joinGame(g,'<img src=x>','p2','h2'),/nom/);for(let i=2;i<=32;i++)joinGame(g,'Joueur '+i,'p'+i,'h'+i);assert.throws(()=>joinGame(g,'Un de plus','extra','extra'),/32/);});
 test('no start with zero players, host only, stale advance does not skip',()=>{assert.throws(()=>advance(game()),/joueur/);const g=ready();assert.throws(()=>applyAction(g,actor,'advance',{expected:'lobby:0'},t),/hôte/);advance(g);assert.equal(g.phase,'question');applyAction(g,host,'advance',{expected:'lobby:0'},t+100);assert.equal(g.phase,'question');});
