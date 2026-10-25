@@ -6,7 +6,7 @@ https://techno-cardi.github.io/Exercices-francais/quiz-salon/
 ## Jouer sur la télé et les téléphones
 
 1. Ouvrir le lien dans le navigateur de la télé ou sur un ordinateur affiché sur la télé.
-2. Choisir « Créer une partie », le nombre de questions (1 à 210), les catégories, le niveau et le chrono, puis ouvrir le salon.
+2. Choisir « Créer une partie », le nombre de questions (1 à 200), les catégories, le niveau et le chrono, puis ouvrir le salon.
 3. Chaque joueur scanne le QR de la télé et entre son prénom. Le téléphone passe automatiquement en mode joueur.
 4. L'hôte lance la partie, puis avance entre les explications. Il peut aussi jouer depuis un autre appareil en scannant le QR.
 
@@ -14,17 +14,17 @@ Sur Fire TV Stick, ouvrir **Amazon Silk / Internet**, entrer l'adresse du jeu et
 
 ## Contenu et règles
 
-- 210 questions originales, quatre réponses et une explication accompagnée d'un lien de référence.
-- Sept catégories : Québec et Saint-Émile (30 questions), Québec et Canada, histoire, arts et culture, sports et jeux, sciences et nature, mots et logique.
-- Trois niveaux ou progression de difficulté. Chaque couple catégorie/niveau contient dix questions.
-- Nombre personnalisé de 1 à 210, limité explicitement au nombre disponible pour les filtres choisis.
+- 200 questions entièrement nouvelles, avec quatre choix, une explication et un lien de référence. Les 210 questions de la première banque ont été retirées du tirage.
+- Sept catégories : Québec et Saint-Émile (20 questions), géographie (60), histoire (20), arts et culture (25), sports et jeux (25), sciences et nature (25), mots et logique (25).
+- Trois niveaux de difficulté, avec un contenu renouvelé et des quantités adaptées à chaque catégorie.
+- Nombre personnalisé de 1 à 200, limité explicitement au nombre disponible pour les filtres choisis.
 - 1 à 32 joueurs; parties indépendantes par code de six caractères.
 - Bonne réponse : 1000 points. Avec chrono : bonus de vitesse de 0 à 500 points, calculé au serveur. Sans chrono : 1000 points fixes.
 - Les scores de la question sont masqués jusqu'à la révélation. Égalités de points : même rang.
 - Son original par synthèse Web Audio; activation après un geste utilisateur, bouton pour couper le son.
 - Animations et confettis désactivés avec la préférence système de réduction des mouvements.
 - Déconnexion temporaire : reconnexion avec le même accès et le même score. L'hôte peut retirer un joueur pendant la partie.
-- Revanche sans rescanner; préférence pour des questions non utilisées quand la banque filtrée le permet.
+- Revanche sans rescanner; historique complet des questions jouées dans le salon. Aucune répétition avant épuisement du bassin disponible pour les catégories et le niveau sélectionnés.
 - Les salles expirent après 24 h et sont nettoyées lors des créations suivantes.
 
 ## Architecture
