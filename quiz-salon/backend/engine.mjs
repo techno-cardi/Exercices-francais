@@ -93,10 +93,15 @@ export function applyAction(g,actor,action,data={},now=Date.now(),bank=[]){
   if(correct){p.correct++;if(!p.categories.includes(q.category))p.categories.push(q.category);}
  }else if(action==='rematch'){
   if(g.phase!=='finished')throw new Error('Termine cette partie avant la revanche.');
-  const previousIds=new Set(g.deck.map(q=>q.id));
-  const fresh=bank.filter(q=>!previousIds.has(q.id));
+  // Keep all rounds already played in this room out of the draw, including earlier rematches.
+  const seen=new Set([...(g.seenQuestionIds||[]),...g.deck.map(q=>q.id)]);
   const next=createGame(g.options,bank,now);
-  if(selectDeck(fresh,g.options).length>=next.deck.length)next.deck=selectDeck(fresh,g.options);
+  const fresh=selectDeck(bank.filter(q=>!seen.has(q.id)),{...g.options,count:next.deck.length});
+  const inNext=new Set(fresh.map(q=>q.id));
+  const rest=selectDeck(bank.filter(q=>!inNext.has(q.id)),{...g.options,count:next.deck.length-fresh.length});
+  next.deck=[...fresh,...rest];
+  if(g.options.difficulty==='progressive')next.deck.sort((a,b)=>a.level-b.level);
+  next.seenQuestionIds=[...seen];
   next.players=g.players.map(p=>({...p,score:0,correct:0,categories:[],answers:{}}));next.hostHash=g.hostHash;
   Object.assign(g,next);
  }else if(action==='kick'){
