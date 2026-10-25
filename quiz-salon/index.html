@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="fr-CA">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0c1d3a"><meta name="description" content="Un quiz de salon en français. Affichez le jeu à la télé, scannez le code QR et jouez ensemble avec vos téléphones.">
+<meta name="referrer" content="no-referrer"><title>Quiz de salon - À vous de jouer</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml"><link rel="stylesheet" href="style.css?v=1">
+<script src="vendor/qrcode.js" defer></script><script type="module" src="app.mjs?v=1"></script>
+</head>
+<body>
+<div class="ambient" aria-hidden="true"></div>
+<header class="topbar"><a class="brand" href="./" aria-label="Quiz de salon, accueil"><svg viewBox="0 0 40 40" aria-hidden="true"><path d="M20 2 35.6 11v18L20 38 4.4 29V11Z" fill="#8ebcff"/><path d="M20 9v22M10.5 14.5l19 11M29.5 14.5l-19 11" stroke="#0c1d3a" stroke-width="2.2"/></svg><span>QUIZ<span class="brand-bottom">DE SALON<span class="brand-dot">.</span></span></span></a><nav aria-label="Options"><button class="text-button" id="help">Comment jouer</button><button class="icon-button" id="sound" aria-label="Activer le son" title="Son">♪</button><button class="icon-button" id="fullscreen" aria-label="Plein écran" title="Plein écran">⛶</button></nav></header>
+<div id="connection" class="connection" hidden role="status"></div>
+<main id="app" tabindex="-1"><p class="loading">Le salon ouvre ses portes…</p></main>
+<footer><span>Un écran. Vos téléphones. Tout le monde joue.</span><span>Fait pour les soirées d’ici <span aria-hidden="true">⚜</span></span></footer>
+<div id="toast" role="status" class="toast" hidden></div>
+<dialog id="help-dialog"><button class="dialog-close icon-button" aria-label="Fermer">×</button><p class="eyebrow">C’EST TOUT SIMPLE</p><h2>Trois gestes.<br>Une bonne soirée.</h2><ol class="steps"><li><b>Ouvre le jeu sur la télé.</b><span>Utilise son navigateur, ou un ordinateur relié en HDMI ou en recopie d’écran.</span></li><li><b>Crée une partie.</b><span>Le code QR s’affiche. Chacun le scanne et entre son prénom sur son téléphone.</span></li><li><b>Répondez. Comparez. Recommencez.</b><span>Quatre choix par question. L’hôte avance après les explications.</span></li></ol><p class="muted">Internet est nécessaire pour jouer ensemble. Aucun compte à créer. Jusqu’à 32 joueurs, un téléphone par joueur. Les parties expirent après 24 heures.</p><p class="muted">1000 points par bonne réponse. Avec chrono : jusqu’à 500 points de vitesse en plus. Sans chrono : 1000 points fixes. Une pastille s’allume pour chaque catégorie réussie. Le total des points détermine le classement; les égalités sont partagées.</p><p class="muted">Les prénoms et scores sont conservés dans la partie, puis supprimés lors du nettoyage après son expiration. Le code QR contient uniquement le lien et le code de partie.</p></dialog>
+<noscript>Active JavaScript pour jouer au Quiz de salon.</noscript>
+</body></html>

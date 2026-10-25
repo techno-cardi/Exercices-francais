@@ -1,0 +1,47 @@
+name: Quiz de salon - application TV
+on:
+  push:
+    branches: [main]
+    paths: ['quiz-salon/tv/**', '.github/workflows/quiz-salon-tv.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Build native TV launcher
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdkmanager 'platforms;android-35' 'build-tools;35.0.0' >/dev/null
+          SDK="$ANDROID_HOME"
+          BT="$SDK/build-tools/35.0.0"
+          PLATFORM="$SDK/platforms/android-35/android.jar"
+          mkdir -p /tmp/quiz-tv/classes /tmp/quiz-tv/dex
+          "$BT/aapt" package -f -M quiz-salon/tv/AndroidManifest.xml -S quiz-salon/tv/res -I "$PLATFORM" -F /tmp/quiz-tv/unsigned.apk
+          javac -source 8 -target 8 -bootclasspath "$PLATFORM" -d /tmp/quiz-tv/classes $(find quiz-salon/tv/src -name '*.java')
+          jar cf /tmp/quiz-tv/classes.jar -C /tmp/quiz-tv/classes .
+          "$BT/d8" --min-api 22 --lib "$PLATFORM" --output /tmp/quiz-tv/dex /tmp/quiz-tv/classes.jar
+          cd /tmp/quiz-tv/dex
+          zip -q /tmp/quiz-tv/unsigned.apk classes.dex
+          "$BT/zipalign" -f 4 /tmp/quiz-tv/unsigned.apk /tmp/quiz-tv/quiz-salon-tv-unsigned.apk
+          cp "$BT/lib/apksigner.jar" /tmp/quiz-tv/apksigner.jar
+      - uses: actions/upload-artifact@v4
+        with:
+          name: quiz-salon-tv-build
+          path: |
+            /tmp/quiz-tv/quiz-salon-tv-unsigned.apk
+            /tmp/quiz-tv/apksigner.jar
+          retention-days: 30
+      - name: Make unsigned build available for signing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view quiz-salon-tv-build >/dev/null 2>&1 || gh release create quiz-salon-tv-build --title 'Quiz de salon TV - build technique' --notes 'Paquet de compilation non installable. Utiliser le fichier signé publié dans quiz-salon/tv/.' --prerelease
+          gh release upload quiz-salon-tv-build /tmp/quiz-tv/quiz-salon-tv-unsigned.apk /tmp/quiz-tv/apksigner.jar --clobber

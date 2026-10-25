@@ -1,0 +1,2 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';import {SOUNDS} from '../sound.mjs';
+test('game sound patterns cover all events, remain brief and use bounded gain',()=>{for(const key of ['select','join','start','question','tick','timeout','correct','wrong','reveal','finish']){const notes=SOUNDS[key];assert.ok(notes.length);for(const n of notes){assert.ok(n.frequency>0&&n.frequency<5000);assert.ok(n.at>=0&&n.at<3);assert.ok(n.duration>0&&n.duration<2);assert.ok(n.gain>0&&n.gain<=.12);}}});

@@ -1,0 +1,3 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';import {retrySlots} from '../backend/retry.mjs';
+test('32 simultaneous optimistic writers all persist without dropped answers',async()=>{let value=0,revision=0;await Promise.all(Array.from({length:32},async()=>{for await(const attempt of retrySlots()){const seen=revision,old=value;await Promise.resolve();if(seen!==revision)continue;value=old+1;revision++;return;}throw new Error('exhausted');}));assert.equal(value,32);assert.equal(revision,32);});
+test('retry budget is finite',async()=>{let n=0;for await(const attempt of retrySlots(3,async()=>{})){assert.equal(attempt,n++);}assert.equal(n,3);});

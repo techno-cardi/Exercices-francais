@@ -1,0 +1,4 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';import {resumeOutcome,isExpiredSession} from '../session.mjs';
+test('offline, timeout and 503 preserve the existing capability for retry',async()=>{for(const e of [new TypeError('Failed to fetch'),new Error('La connexion est lente'),Object.assign(new Error('Serveur occupé'),{status:503})])assert.equal((await resumeOutcome(async()=>{throw e;})).kind,'retry');});
+test('definitive invalid/expired/removed capabilities require a new join',async()=>{for(const status of [403,404,410])assert.equal((await resumeOutcome(async()=>{throw Object.assign(new Error('connexion'),{status});})).kind,'invalid');assert.ok(isExpiredSession(new Error('Ce joueur a été retiré.')));});
+test('successful reconnect retains the received state',async()=>assert.deepEqual(await resumeOutcome(async()=>({state:{phase:'question'}})),{kind:'ready',data:{state:{phase:'question'}}}));
