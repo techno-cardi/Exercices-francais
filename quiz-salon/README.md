@@ -55,3 +55,15 @@ Le deuxième test utilise le vrai serveur et crée une salle jetable avec 16 jou
 ## Déployer et maintenir
 
 GitHub Pages publie la branche main du dépôt existant, sans changer la page d'accueil. Les sources du jeu sont entièrement contenues dans ce dossier. Pour modifier le serveur, inspecter la fonction déployée, puis déployer les trois fichiers de `backend/` avec `index.ts` comme point d'entrée et `verify_jwt=false` (authentification par capacités dans le corps). Une modification du fichier SQL doit passer par une migration. Ne pas réappliquer le schéma initial à des tables déjà présentes.
+
+## Application Fire TV plein écran
+
+`tv.apk` est l'application native signée, version 1.0.0, pour Fire TV sous Fire OS. Elle ouvre exclusivement l'adresse publique du jeu dans un WebView immersif en paysage, garde l'écran éveillé et traduit le pavé directionnel en commandes du jeu. Elle préserve l'adresse du salon au retour et le site conserve les accès de reprise localement. Les modèles Vega OS ne prennent pas en charge les APK Android.
+
+La page `installation.html` contient les consignes d'installation. Le certificat privé de signature est sauvegardé séparément dans `Quiz_salon_TV_signature_privee.zip`; ne jamais publier cette archive ni la clé dans GitHub. Conserver ce certificat pour signer une mise à jour avec le même identifiant d'application.
+
+Le workflow `quiz-salon-tv.yml` compile un paquet non signé et publie un build technique. Il doit ensuite être signé avec le certificat conservé, puis vérifié avec `apksigner verify --verbose`. Le fichier de production signé reste `tv.apk`.
+
+Mise à jour fonctionnelle : les sons, questions et écrans sont servis par le site, sans réinstallation de l'APK. Le fichier APK doit être réinstallé seulement si le conteneur Android change.
+
+Realtime Broadcast signale les changements de salle sans publier les questions, jetons, noms ou scores sur les canaux. Les clients rechargent l'état au serveur avec leur capacité. WebSocket avec reprise, heartbeat, et vérification périodique de secours. Une notification de modification n'est jamais utilisée comme donnée de score.
