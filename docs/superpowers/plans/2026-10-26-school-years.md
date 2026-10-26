@@ -25,10 +25,11 @@
 7. Group overview: one row per pupil, one column per work, all steps by default, step/search filters, percent/points, red failure cells, explicit missing/unassigned states; frozen annual scope and rejection of delayed replies. No fabricated overall weighted mean.
 
 **Tasks**
-- [ ] SQL regression harness with2026/2027 same-code cohorts, moved/departed students and comment-only rows; additive schema/bootstrap, guard triggers, year preview/confirm, roster snapshots and operations integration.
-- [ ] Year-aware teacher dashboard/detail/import/manual-save, roster discovery/configuration, external sync and all student readers (results, Formative feedback, dictation). Preserve old slugs through historical membership. Archived dictation loads perform no writes.
-- [ ] Year selector/manager, CSV preview, archive read-only state, new-year creation/reuse and late-member update. Reject delayed responses from previous year; stale clients cannot silently create into a different year.
-- [ ] Tests for archive guards on all write paths, stale previews, repeated confirmation, credentials, incomplete rosters, group reuse, missing grades, pending sync, old slugs and account visibility. Exercise transactions using PGlite; use real PostgreSQL concurrent sessions if available and disclose limits otherwise.
-- [ ] Astra high review, full test suite and synthetic native UI smoke. Deploy staged components, compare before/after data fingerprints, enable annual context only after compatible readers/writers are deployed. Do not actually archive the real current year during installation.
+- [x] SQL regression harness with2026/2027 same-code cohorts, moved/departed students and comment-only rows; additive schema/bootstrap, guard triggers, year preview/confirm, roster snapshots and operations integration.
+- [x] Year-aware teacher dashboard/detail/import/manual-save, roster discovery/configuration, external sync and all student readers (results, Formative feedback, dictation). Preserve old slugs through historical membership. Archived dictation loads perform no writes.
+- [x] Year selector/manager, CSV preview, archive read-only state, new-year creation/reuse and late-member update. Reject delayed responses from previous year; stale clients cannot silently create into a different year.
+- [x] Tests for archive guards on all write paths, stale previews, repeated confirmation, credentials, incomplete rosters, group reuse, missing grades, pending sync, old slugs and account visibility. Exercise transactions using PGlite; use real PostgreSQL concurrent sessions if available and disclose limits otherwise.
+- [x] Astra high review, full test suite and synthetic native UI smoke. Deploy staged components, compare before/after data fingerprints, enable annual context only after compatible readers/writers are deployed. Do not actually archive the real current year during installation.
 
 **Safety:** No raw fiche, student credentials, private copy URLs or actual records in public Git or test fixtures. No deletion of identities, notes or comments for year changes. No inferred historical enrollment presented as original truth. No migration publication until full regression and independent review pass.
+

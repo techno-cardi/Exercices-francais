@@ -11,3 +11,5 @@ Validation: 205 tests Gestion passent, dont SQL réel exécuté dans PGlite avec
 Déploiement serveur: school-teacher-api v7, school-roster v6, school-results v3, school-formative-feedback v2, school-formative-link v2, school-teacher-delete-assignment v2, fr-dictee-feedback v10, mozaik-sync v6. Le bootstrap conserve 2026–2027 ouverte. Comparaison serveur avant/après: les 581 résultats, les 59 parcours de dictée et les accès des 91 comptes sont inchangés (empreintes identiques); aucun commentaire Formative séparé n’existait. Les commentaires intégrés aux résultats sont inclus dans la comparaison intégrale.
 
 Les essais d’activation ont utilisé des données fictives; aucune année réelle n’a été archivée pendant l’installation. Les anciens RPC eleonore_identify/eleonore_update_progress n’existent pas dans le projet déployé.
+
+Interface publiée et contrôlée dans Chrome sur les groupes réels 31, 32 et 51, y compris ouverture du travail depuis son en-tête. Contexte annuel explicite activé après vérification des dix fichiers publiés. Comparaison finale après navigation: mêmes empreintes des résultats, parcours et accès. Aucun essai de saisie sur les notes réelles.
