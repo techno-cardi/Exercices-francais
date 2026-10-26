@@ -14,7 +14,14 @@ export function createImportApi(deps:any) {
   async function rpc(db:any,name:string,args:any){const {data,error}=await db.rpc(name,args);if(error)databaseError(error);return data;}
   async function snapshot(db:any,id:string){const data=await rpc(db,'cardinal_assignment_snapshot',{p_assignment_id:id});if(!data?.assignment)fail('Travail introuvable.',404);return data;}
   function singleGroup(a:any,group?:string){if(!Array.isArray(a?.group_codes)||a.group_codes.length!==1||(group&&a.group_codes[0]!==group))fail('Ce travail est encore partagé ou appartient à un autre groupe. Sépare ses groupes avant de modifier ses notes.',409);return a.group_codes[0];}
-  async function rosterFor(db:any,group:string,results:any[]=[]){
+  async function rosterFor(db:any,group:string,results:any[]=[],scope:any=null,assignment:any=null){
+    if(scope&&deps.annualEnrollments){
+      const enrolled=await deps.annualEnrollments(db,scope.year,group);
+      const captured=assignment&&deps.assignmentRoster?await deps.assignmentRoster(db,assignment):[];
+      // Captured membership preserves historical scores; only the annual current
+      // enrollment can authorize replacing a score from an external import.
+      return [...new Map([...captured.map((s:any)=>({...s,active:false})),...enrolled].map((s:any)=>[s.email,s])).values()];
+    }
     // Include historic students referenced by results, while the core separately
     // checks eligibility for new incoming scores.
     const {data,error}=await db.from('school_students').select('email,name,first_name,last_name,group_code,active');
@@ -30,11 +37,12 @@ export function createImportApi(deps:any) {
   }
   async function formativePreview(db:any,token:string,body:any){
     const teacher=await teacherFromToken(db,token),f=body.formative||{},group=String(f.groupCode||'').trim();
-    await validateKnownGroups(db,[group]);
     const destination=String(body.destinationAssignmentId||'').trim();
     const before=destination?await snapshot(db,destination):null;
+    const scope=deps.yearContext?await deps.yearContext(db,body.schoolYear,{write:true,external:true,assignment:before?.assignment}):null;
+    await validateKnownGroups(db,[group],scope?.year);
     if(before)singleGroup(before.assignment,group);
-    const roster=await rosterFor(db,group,before?.results||[]);
+    const roster=await rosterFor(db,group,before?.results||[],scope,before?.assignment);
     const preview=core.buildPreview({formative:f,selectedQuestionIds:body.selectedQuestionIds,assignment:before?.assignment||null,results:before?.results||[],roster,selectedEmails:body.selectedEmails,scaleMode:body.scaleMode});
     const patch:any={max_score:preview.targetMaxScore,import_state:'ready',formative_scale_mode:preview.scaleMode};
     const existing=before?.assignment;
@@ -47,6 +55,7 @@ export function createImportApi(deps:any) {
     if(!before){
       const cleaned=cleanAssignment({...body.settings,title:body.settings?.title||f.title||'Formative',groups:[group],maxScore:preview.targetMaxScore,importState:'ready'});
       newAssignment=cleanPatch(cleaned);
+      if(scope)newAssignment.school_year=scope.year;
     }
     const plan={assignmentId:destination||null,beforeSnapshot:before,assignmentPatch:patch,newAssignment,groupCode:group,writes:preview.writes,sourceLink,summary:{counts:preview.counts,questionCount:preview.questionMeta.length,skippedIncomplete:preview.rows.filter((r:any)=>r.reason.includes('incomplet')).length,skippedUnknown:preview.unmatched.length}};
     const request={formativeId:sourceLink.formative_id,formativeAssignmentId:sourceLink.formative_assignment_id,formativeSectionId:sourceLink.formative_section_id,groupCode:group,destinationAssignmentId:destination,selectedQuestionIds:body.selectedQuestionIds,scaleMode:preview.scaleMode};
@@ -57,17 +66,21 @@ export function createImportApi(deps:any) {
   }
   async function formativeConfirm(db:any,token:string,body:any){
     const teacher=await teacherFromToken(db,token);
+    if(deps.yearContext)await deps.yearContext(db,body.schoolYear,{write:true,external:true});
     if(!uuid(body.previewId))fail('Identifiant d’aperçu invalide. Prépare un nouvel aperçu.');
     return rpc(db,'cardinal_confirm_assignment_operation',{p_teacher:teacher.email,p_preview_id:body.previewId});
   }
   async function saveAssignment(db:any,token:string,body:any){
     const teacher=await teacherFromToken(db,token),input=body.assignment||{},payload=cleanAssignment(input);
-    await validateKnownGroups(db,payload.group_codes);
+    const before=input.id?await snapshot(db,String(input.id)):null;
+    const scope=deps.yearContext?await deps.yearContext(db,body.schoolYear,{write:true,external:!input.id,assignment:before?.assignment}):null;
+    if(scope)payload.school_year=scope.year;
+    if(!input.id)await validateKnownGroups(db,payload.group_codes,scope?.year);
     if(!input.id){
       if(!uuid(body.operationId))fail('Actualise Gestion des notes pour créer les travaux avec un identifiant d’opération.',409);
       return rpc(db,'cardinal_create_assignment_batch',{p_teacher:teacher.email,p_operation_id:body.operationId,p_assignment:cleanPatch(payload),p_groups:payload.group_codes});
     }
-    const before=await snapshot(db,String(input.id)),group=singleGroup(before.assignment);
+    const group=singleGroup(before.assignment);
     if(payload.mozaik_competence_kind!==before.assignment.mozaik_competence_kind)payload.mozaik_competence_code=null;
     if(before.assignment.source_metadata?.mozaik){
       const fields:any={reportCardEnabled:'report_card_enabled',resultsVisible:'mozaik_results_visible',showInSchedule:'mozaik_show_in_schedule',homework:'mozaik_homework',weight:'weight'};
@@ -80,7 +93,7 @@ export function createImportApi(deps:any) {
     const maxChanged=payload.max_score!==before.assignment.max_score;
     if(maxChanged&&before.results.some((r:any)=>r.grade!==null)){
       if(!(payload.max_score>0))fail('Un travail comportant des notes doit conserver un maximum valide.');
-      const roster=await rosterFor(db,group,before.results);
+      const roster=await rosterFor(db,group,before.results,scope,before.assignment);
       preview=core.buildPreview({assignment:before.assignment,results:before.results,roster,scaleMode:'origin',selectedQuestionIds:['scale'],formative:{formativeId:'settings',assignmentId:'settings',sectionId:'settings',groupCode:group,questions:[{id:'scale',possiblePoints:payload.max_score}],students:[]}});
       if(preview.counts.blocked)fail('Certaines notes ne peuvent pas être remises à l’échelle. Vérifie-les avant de modifier le maximum.',409);
       writes=preview.writes;
@@ -94,8 +107,9 @@ export function createImportApi(deps:any) {
   async function saveResult(db:any,token:string,body:any){
     const teacher=await teacherFromToken(db,token),id=String(body.assignmentId||''),email=normalizeEmail(body.email);
     const before=await snapshot(db,id),a=before.assignment,group=singleGroup(a);
+    if(deps.yearContext)await deps.yearContext(db,body.schoolYear,{write:true,assignment:a});
     if(!(a.max_score>0))fail('Complète d’abord le maximum de ce travail.');
-    const {data:student,error}=await db.from('school_students').select('email,group_code,active').eq('email',email).maybeSingle();
+    const {data:student,error}=deps.assignmentRoster?{data:(await deps.assignmentRoster(db,a)).find((s:any)=>s.email===email),error:null}:await db.from('school_students').select('email,group_code,active').eq('email',email).maybeSingle();
     if(error||!student?.active||student.group_code!==group)fail('Cet élève ne correspond pas au groupe du travail.');
     const grade=body.grade===null||body.grade===''||body.grade===undefined?null:Number(body.grade);
     if(grade!==null&&(!Number.isFinite(grade)||grade<0||grade>a.max_score))fail('La note est hors du barème du travail.');

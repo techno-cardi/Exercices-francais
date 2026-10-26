@@ -24,17 +24,22 @@ const state = {
   dashboardGroup: localStorage.getItem("results_dashboard_group") || "",
   passingThreshold: 60,
   dashboardTerm: ['1','2','3'].includes(localStorage.getItem('results_dashboard_term')) ? localStorage.getItem('results_dashboard_term') : '1',
+  schoolYear: Number(new URLSearchParams(location.search).get('annee') || localStorage.getItem('results_school_year')) || null,
+  schoolYearRevision: 0,
+  yearContext: null,
 };
 
 const pendingExtension = new Map();
 let toastTimer = null;
 
 async function api(endpoint, payload) {
+  const body = {...payload};
+  if (state.schoolYear && String(endpoint).startsWith('https://ojyswaxuqwnqilrvtjll.supabase.co/functions/')) body.schoolYear ??= state.schoolYear;
   const res = await fetch(endpoint, {
     method: "POST",
     cache: "no-store",
     headers: { "Content-Type": "application/json", apikey: PUBLIC_KEY },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(body),
   });
   let data = {};
   try { data = await res.json(); } catch {}
@@ -292,6 +297,7 @@ async function loadStudentDashboard() {
       <div class="eyebrow">${a.result ? "Travail corrigé" : "Travail"}</div>
       <h2>${esc(a.title)}</h2>
       <div class="meta-row">
+        ${a.schoolYearLabel ? `<span class="pill gray">${esc(a.schoolYearLabel)} · Groupe ${esc(a.group)}${a.archived ? ' · Archive' : ''}</span>` : ''}
         <span class="pill">${(a.competencies || []).map(esc).join(" · ") || "Français"}</span>
         ${a.weight !== null ? `<span class="pill gray">${a.weight}%</span>` : ""}
       </div>
@@ -304,15 +310,20 @@ function setTeacherSection(name) {
   show($("teacherDashboard"), name === "dashboard");
   show($("assignmentsView"), name === "assignments");
   show($("assignmentDetail"), name === "detail");
+  show($("groupOverviewView"), name === "overview");
+  if (name === 'overview') window.CardinalGroupOverview?.show();
   document.querySelectorAll(".nav-item[data-teacher-view]").forEach(b => b.classList.toggle("active", b.dataset.teacherView === name));
 }
 
 document.querySelectorAll(".nav-item[data-teacher-view]").forEach(b => b.onclick = async () => {
   if (!await prepareAssignmentNavigation()) return;
+  if (state.teacherDataYear !== state.schoolYear) await refreshTeacherData();
   state.navigationRevision = (state.navigationRevision || 0) + 1;
   if (b.dataset.teacherView === "dashboard") {
     setTeacherSection("dashboard");
     renderDashboard();
+  } else if (b.dataset.teacherView === 'overview') {
+    setTeacherSection('overview');
   } else {
     setTeacherSection("assignments");
     renderAssignmentList();
@@ -324,6 +335,7 @@ document.querySelectorAll(".group-nav").forEach(b => b.onclick = () => selectDas
 
 function setGroupRoute(assignmentId = "", group = state.dashboardGroup, mode = "push", section = "assignments") {
   const url = new URL(location.href);
+  if (state.schoolYear) url.searchParams.set('annee', String(state.schoolYear));
   if (assignmentId) url.searchParams.set("travail", assignmentId);
   else url.searchParams.delete("travail");
   if (group) url.searchParams.set("groupe", group);
@@ -382,15 +394,19 @@ async function selectDashboardGroup(group, openAssignments = false, routeMode = 
     return false;
   }
   state.navigationRevision = (state.navigationRevision || 0) + 1;
+  if (state.teacherDataYear !== state.schoolYear && state.schoolYear) await refreshTeacherData();
+  const overview = state.teacherSection === 'overview';
   activateAssignmentGroup(group || state.dashboardGroup, true);
-  if (openAssignments) {
+  if (overview) {
+    setTeacherSection('overview');
+  } else if (openAssignments) {
     setTeacherSection("assignments");
     renderAssignmentList();
   } else {
     setTeacherSection("dashboard");
     renderDashboard();
   }
-  setGroupRoute("", state.dashboardGroup, routeMode, openAssignments ? "assignments" : "dashboard");
+  setGroupRoute("", state.dashboardGroup, routeMode, overview ? 'overview' : openAssignments ? "assignments" : "dashboard");
   window.dispatchEvent?.(new CustomEvent("cardinal-group-changed", { detail: { group: state.dashboardGroup } }));
   return true;
 }
@@ -403,6 +419,7 @@ async function beginAssignmentOpen() {
 
 function acceptAssignmentOpen(data, revision, requestedGroup = "") {
   if (revision !== state.navigationRevision) return false;
+  if (data.context) window.CardinalSchoolYears?.adopt(data.context);
   const groups = data.assignment.groups || [];
   const group = groups.includes(requestedGroup) ? requestedGroup : groups.includes(state.dashboardGroup) ? state.dashboardGroup : groups[0] || "";
   activateAssignmentGroup(group);
@@ -421,7 +438,13 @@ function activeAssignmentGroups() {
 }
 
 async function refreshTeacherData() {
-  const d = await api(TEACHER_ENDPOINT, { action: "teacherDashboard", token: state.teacherToken });
+  const year = state.schoolYear, revision = state.schoolYearRevision, token = state.teacherToken;
+  const d = await api(TEACHER_ENDPOINT, { action: "teacherDashboard", token, schoolYear: year });
+  if (revision !== state.schoolYearRevision || token !== state.teacherToken) return false;
+  if (d.context) {
+    state.schoolYear = d.context.year; state.yearContext = d.context; state.teacherDataYear = d.context.year;
+    window.CardinalSchoolYears?.adopt(d.context);
+  }
   state.teacherAssignments = d.assignments || [];
   state.groupStats = d.groups || {};
   state.teacherEmail = d.user?.email || '';
@@ -429,6 +452,7 @@ async function refreshTeacherData() {
   const threshold = saved === null || saved === '' ? 60 : Number(saved);
   state.passingThreshold = Number.isFinite(threshold) && threshold >= 0 && threshold <= 100 ? threshold : 60;
   window.CardinalGroupUI?.refresh();
+  return true;
 }
 
 async function loadTeacherDashboard() {
@@ -532,12 +556,16 @@ $('assignmentTermFilter').addEventListener('change', () => selectDashboardTerm($
 
 async function newAssignment() {
   if (!await prepareAssignmentNavigation()) return false;
+  if (state.yearContext && !state.yearContext.isActive) { notify('Crée les nouveaux travaux dans l’année active.', 'error'); return false; }
   const activeGroups = activeAssignmentGroups();
   if (!activeGroups.length) { notify('Aucun groupe actif. Charge une liste d’élèves avant de créer un travail.', 'error'); return false; }
   state.navigationRevision = (state.navigationRevision || 0) + 1;
   state.creationOperationId = crypto.randomUUID();
   state.currentAssignment = {
     id: null,
+    schoolYear: state.schoolYear,
+    readOnly: false,
+    isActiveYear: true,
     title: "Nouveau travail",
     competencies: ["Lecture"],
     competenceKind: "lecture",
@@ -639,6 +667,7 @@ function fillWorkPage() {
   });
   $("syncMozaikBtn").disabled = !a.id || !(a.maxScore > 0);
   updateVisibilityLabels();
+  window.CardinalSchoolYears?.applyAssignmentAccess(a);
 }
 
 function collectAssignment() {
@@ -841,6 +870,7 @@ function renderGradeRows() {
     </tr>`).join("") + '<tr id="gradeFilterEmpty" hidden><td colspan="5" class="grade-empty">Aucun échec pour cette sélection.</td></tr>' : `<tr><td colspan="5" class="grade-empty">${$('gradeFilter')?.value === 'failures' ? 'Aucun échec pour cette sélection.' : 'Aucun élève pour cette sélection.'}</td></tr>`;
   updateGradeSummary();
   wireGradeInputs();
+  window.CardinalSchoolYears?.applyAssignmentAccess(state.currentAssignment);
 }
 function wireGradeInputs() {
   const inputs = [...document.querySelectorAll(".grade-input")];
@@ -890,6 +920,7 @@ async function commitGrade(input) {
   finally { if (input.cardinalSavePending === task) delete input.cardinalSavePending; }
 }
 async function performGradeCommit(input) {
+  if (state.currentAssignment?.readOnly) return;
   const assignmentId = state.currentAssignment?.id, token = state.teacherToken;
   const email = input.dataset.email;
   const s = state.currentStudents.find(x => x.email === email);
@@ -932,6 +963,7 @@ async function performGradeCommit(input) {
       action: "saveResult",
       token,
       assignmentId,
+      schoolYear: state.currentAssignment.schoolYear,
       email: s.email,
       response: s.response,
       grade: parsed.grade,
@@ -969,10 +1001,13 @@ function openStudentDialog(email) {
   $("dialogStudentName").textContent = s.name;
   $("dialogResponse").textContent = s.response || "Aucune réponse enregistrée.";
   $("dialogFeedback").value = s.feedback || "";
+  $("dialogFeedback").disabled = !!state.currentAssignment?.readOnly;
+  $("saveFeedbackBtn").disabled = !!state.currentAssignment?.readOnly;
   $("resultDialog").showModal();
 }
 $("closeResultDialog").onclick = () => $("resultDialog").close();
 $("saveFeedbackBtn").onclick = async () => {
+  if (state.currentAssignment?.readOnly) return;
   const s = state.currentStudent;
   if (!s) return;
   try {

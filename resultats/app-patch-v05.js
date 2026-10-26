@@ -1,6 +1,6 @@
 (() => {
   const V04_ID = 'cardinal-app-patch-v04';
-  const V04_SRC = 'https://techno-cardi.github.io/Exercices-francais/resultats/app-patch-v04.js?v=1324';
+  const V04_SRC = 'https://techno-cardi.github.io/Exercices-francais/resultats/app-patch-v04.js?v=1325';
 
   function ensureV04() {
     if (document.getElementById(V04_ID) || window.__cardinalV04Installed) return;
@@ -22,7 +22,7 @@
     if (!document.getElementById('cardinal-formative-integration')) {
       const script = document.createElement('script');
       script.id = 'cardinal-formative-integration';
-      script.src = 'formative-integration.js?v=1324b';
+      script.src = 'formative-integration.js?v=1325';
       script.async = false;
       (document.body || document.documentElement).appendChild(script);
     }
@@ -39,7 +39,7 @@
     if (document.getElementById('cardinal-app-patch-v08') || window.__cardinalV08Installed) return;
     const script = document.createElement('script');
     script.id = 'cardinal-app-patch-v08';
-    script.src = 'app-patch-v08.js?v=1324f';
+    script.src = 'app-patch-v08.js?v=1325';
     script.async = false;
     (document.body || document.documentElement).appendChild(script);
   }
@@ -48,7 +48,7 @@
     if (document.getElementById('cardinal-app-patch-v09') || window.__cardinalV09Installed) return;
     const script = document.createElement('script');
     script.id = 'cardinal-app-patch-v09';
-    script.src = 'app-patch-v09.js?v=1324f';
+    script.src = 'app-patch-v09.js?v=1325';
     script.async = false;
     (document.body || document.documentElement).appendChild(script);
   }
@@ -57,7 +57,7 @@
     if (document.getElementById('cardinal-app-patch-v10') || window.__cardinalV10Installed) return;
     const script = document.createElement('script');
     script.id = 'cardinal-app-patch-v10';
-    script.src = 'app-patch-v10.js?v=1324';
+    script.src = 'app-patch-v10.js?v=1325';
     script.async = false;
     (document.body || document.documentElement).appendChild(script);
   }
@@ -66,7 +66,7 @@
     if (document.getElementById('cardinal-app-patch-v11') || window.__cardinalV11Installed) return;
     const script = document.createElement('script');
     script.id = 'cardinal-app-patch-v11';
-    script.src = 'app-patch-v11.js?v=1';
+    script.src = 'app-patch-v11.js?v=1325';
     script.async = false;
     (document.body || document.documentElement).appendChild(script);
   }
@@ -75,7 +75,7 @@
     if (document.getElementById('cardinal-app-patch-v14') || window.__cardinalV14Installed) return;
     const script = document.createElement('script');
     script.id = 'cardinal-app-patch-v14';
-    script.src = 'app-patch-v14.js?v=1324';
+    script.src = 'app-patch-v14.js?v=1325';
     script.async = false;
     (document.body || document.documentElement).appendChild(script);
   }
@@ -110,7 +110,9 @@
     const params = new URLSearchParams(location.search);
     return {
       assignmentId: params.get('travail') || '',
-      group: params.get('groupe') || ''
+      group: params.get('groupe') || '',
+      year: Number(params.get('annee')) || null,
+      section: params.get('vue') || 'assignments'
     };
   }
 
@@ -171,6 +173,8 @@
 
       restoring = true;
       try {
+        if(route.year && route.year!==state.schoolYear && !await window.CardinalSchoolYears?.selectYear(route.year,{route:false,section:route.section}))return;
+        if(route.section==='overview')setTeacherSection('overview');
         if (route.assignmentId) await openAssignment(route.assignmentId);
         else await selectDashboardGroup(route.group, new URLSearchParams(location.search).get('vue') !== 'dashboard', 'replace');
       } catch {
@@ -183,6 +187,9 @@
     window.addEventListener('popstate', async () => {
       const route = currentRoute();
       let ok = true;
+      if(route.year && route.year!==state.schoolYear)ok=await window.CardinalSchoolYears?.selectYear(route.year,{route:false,section:route.section});
+      if(ok===false)return;
+      if(route.section==='overview')setTeacherSection('overview');
       if (route.assignmentId) {
         restoring = true;
         try { ok = await openAssignment(route.assignmentId); } finally { restoring = false; }

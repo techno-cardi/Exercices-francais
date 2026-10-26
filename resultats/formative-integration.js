@@ -12,6 +12,7 @@
   let importRevision = 0;
   let preparedPreview = null;
   let frozenGroup = '';
+  let frozenYear = null;
   let importBusy = false;
   const excludedEmails = new Set();
 
@@ -230,11 +231,13 @@
   }
 
   function showImportModal(snapshot, destinationId = '') {
+    if(state.yearContext && (!state.yearContext.isActive||state.yearContext.readOnly)){notify('Choisis l’année active pour importer depuis Formative.','error');return;}
     ensureUi();
     invalidatePreview();
     currentImport = JSON.parse(JSON.stringify(snapshot));
     excludedEmails.clear();
     frozenGroup = String(state.dashboardGroup || state.detailGroup || snapshot.groupCode || '');
+    frozenYear = state.schoolYear;
     lockedDestinationId = destinationId || '';
     const linked = (state.teacherAssignments || []).filter(a => a.formativeId === snapshot.formativeId && a.groups?.length === 1 && a.groups.map(String).includes(frozenGroup));
     const suggestedDestinationId = linked.length === 1 ? String(linked[0].id) : '';
@@ -388,9 +391,10 @@
         return;
       }
       stateEl.textContent = confirming ? 'Importation…' : 'Préparation de l’aperçu…';
+      if(frozenYear!==state.schoolYear)throw new Error('L’année a changé. Rouvre l’import depuis la bonne année.');
       const result = await api(TEACHER_ENDPOINT, confirming
-        ? {action:'formativeConfirm',token:state.teacherToken,previewId:preparedPreview.previewId}
-        : {action:'formativePreview',token:state.teacherToken,formative:currentImport,selectedEmails:excludedEmails.size ? (currentImport.students || []).map(s => String(s.email || '').trim().toLowerCase()).filter(email => email && !excludedEmails.has(email)) : undefined,selectedQuestionIds:ids,destinationAssignmentId:dest,scaleMode:document.getElementById('formativeScaleMode').value || 'origin',settings});
+        ? {action:'formativeConfirm',token:state.teacherToken,schoolYear:frozenYear,previewId:preparedPreview.previewId}
+        : {action:'formativePreview',token:state.teacherToken,schoolYear:frozenYear,formative:currentImport,selectedEmails:excludedEmails.size ? (currentImport.students || []).map(s => String(s.email || '').trim().toLowerCase()).filter(email => email && !excludedEmails.has(email)) : undefined,selectedQuestionIds:ids,destinationAssignmentId:dest,scaleMode:document.getElementById('formativeScaleMode').value || 'origin',settings});
       if (revision !== importRevision || !currentImport) return;
       if (result?.ok === false) throw new Error(result.message || result.error || 'Import Formative impossible.');
       if (!confirming) {
@@ -524,7 +528,8 @@
     const pull = document.getElementById('formativePullBtn');
     const push = document.getElementById('formativePushBtn');
     associate.textContent = linked ? 'Changer le lien' : 'Associer à Formative ouvert';
-    associate.disabled = !formativeReady;
+    const yearBlocked=!!a.readOnly||a.isActiveYear===false;
+    associate.disabled = !formativeReady||yearBlocked;
     pull.classList.toggle('hidden', !linked);
     push.classList.toggle('hidden', !linked);
     if (!linked) {
@@ -535,8 +540,8 @@
     title.textContent = a.formativeTitle || 'Formative lié';
     const qs = a.formativeQuestionMeta || [];
     meta.textContent = qs.length ? qs.map(q => `${q.number ? `Q${q.number}` : 'Question'} · ${maxLabel(q.possiblePoints)} pt${Number(q.possiblePoints)===1?'':'s'}`).join(' + ') : `${a.formativeQuestionIds?.length || 0} question(s) liée(s)`;
-    push.disabled = !formativeReady || (a.formativeQuestionIds || []).length !== 1;
-    pull.disabled = !formativeReady;
+    push.disabled = !formativeReady || yearBlocked || (a.formativeQuestionIds || []).length !== 1;
+    pull.disabled = !formativeReady || yearBlocked;
     push.title = (a.formativeQuestionIds || []).length === 1 ? '' : 'L’envoi vers Formative exige un lien vers une seule question.';
   }
 

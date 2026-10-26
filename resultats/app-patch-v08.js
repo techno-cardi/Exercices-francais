@@ -169,7 +169,7 @@
       if (typeof state === 'undefined') return;
       const groups = knownGroups();
       const activeGroups = typeof activeAssignmentGroups === 'function' ? activeAssignmentGroups() : groups;
-      const fingerprint = groups.join('|') + ':' + activeGroups.join('|') + ':' + (state.currentAssignment?.id || 'new');
+      const fingerprint = state.schoolYear + ':' + groups.join('|') + ':' + activeGroups.join('|') + ':' + (state.currentAssignment?.id || 'new');
       if (fingerprint === groupUiFingerprint) return;
       groupUiFingerprint = fingerprint;
 

@@ -1,3 +1,4 @@
+import {yearContext} from '../_shared/school-years.ts';
 import { createClient } from "npm:@supabase/supabase-js@2.116.0";
 
 const ALLOWED_ORIGIN = "https://techno-cardi.github.io";
@@ -73,7 +74,7 @@ Deno.serve(async (req: Request) => {
     if (origin && origin !== ALLOWED_ORIGIN) fail("Origine non autorisée.", 403);
     requireKey(req);
 
-    const body = await req.json().catch(() => null) as { token?: string; assignmentId?: string } | null;
+    const body = await req.json().catch(() => null) as { token?: string; assignmentId?: string; schoolYear?:number } | null;
     if (!body) fail("Requête invalide.");
 
     const db = admin();
@@ -84,11 +85,12 @@ Deno.serve(async (req: Request) => {
 
     const { data: assignment, error: readError } = await db
       .from("school_assignments")
-      .select("id,title")
+      .select("id,title,school_year")
       .eq("id", assignmentId)
       .maybeSingle();
     if (readError) fail("Impossible de vérifier le travail.", 500);
     if (!assignment) fail("Travail introuvable.", 404);
+    await yearContext(db,body.schoolYear,{assignment,write:true});
 
     const { error: deleteError } = await db
       .from("school_assignments")

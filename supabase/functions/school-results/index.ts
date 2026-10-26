@@ -155,39 +155,11 @@ async function actionStudentLogin(db: any, body: any) {
   return { token, user: { email: student.email, name: student.name, group: student.group_code }, expiresAt };
 }
 
-async function actionStudentDashboard(db: any, body: any) {
-  const student = await studentFromToken(db, String(body.token || ""));
-  const { data: assignments, error } = await db.from("school_assignments")
-    .select("id,title,competencies,weight,max_score,group_codes,published,instructions,created_at,updated_at")
-    .eq("published", true)
-    .contains("group_codes", [student.group_code])
-    .order("created_at", { ascending: false });
-  if (error) fail("Impossible de charger les travaux.", 500);
-  const ids = (assignments || []).map((a: any) => a.id);
-  let results: any[] = [];
-  if (ids.length) {
-    const query = await db.from("school_results").select("assignment_id,response,grade,feedback,visible,updated_at").eq("student_email", student.email).in("assignment_id", ids).eq("visible", true);
-    if (query.error) fail("Impossible de charger les résultats.", 500);
-    results = query.data || [];
-  }
-  const resultMap = new Map(results.map((r: any) => [r.assignment_id, r]));
-  return {
-    user: { email: student.email, name: student.name, group: student.group_code },
-    assignments: (assignments || []).map((a: any) => ({
-      id: a.id,
-      title: a.title,
-      competencies: a.competencies || [],
-      weight: a.weight === null ? null : Number(a.weight),
-      maxScore: a.max_score === null ? null : Number(a.max_score),
-      instructions: a.instructions || "",
-      result: resultMap.has(a.id) ? {
-        response: resultMap.get(a.id).response || "",
-        grade: resultMap.get(a.id).grade === null ? null : Number(resultMap.get(a.id).grade),
-        feedback: resultMap.get(a.id).feedback || "",
-        updatedAt: resultMap.get(a.id).updated_at,
-      } : null,
-    })),
-  };
+async function actionStudentDashboard(db:any,body:any){
+ const student=await studentFromToken(db,String(body.token||''));
+ const {data,error}=await db.rpc('cardinal_student_year_results',{p_email:student.email});
+ if(error)fail('Impossible de charger tes travaux.',500);
+ return{user:{email:student.email,name:student.name,group:student.group_code},assignments:data||[]};
 }
 
 async function actionTeacherLogin(body: any) {
@@ -338,8 +310,8 @@ Deno.serve(async (req: Request) => {
       case "studentLogin": data = await actionStudentLogin(db, body); break;
       case "studentDashboard": data = await actionStudentDashboard(db, body); break;
       case "teacherLogin": data = await actionTeacherLogin(body); break;
-      case "teacherDashboard": data = await actionTeacherDashboard(db, body); break;
-      case "teacherAssignment": data = await actionTeacherAssignment(db, body); break;
+      case "teacherDashboard": fail("Actualise Gestion pour consulter les résultats par année scolaire.",409);
+      case "teacherAssignment": fail("Actualise Gestion pour consulter les listes historiques.",409);
       case "saveAssignment":
       case "saveResult": fail("Actualise Gestion des notes pour utiliser l’enregistrement vérifié des travaux et des notes.", 409);
       default: fail("Demande inconnue.", 400);

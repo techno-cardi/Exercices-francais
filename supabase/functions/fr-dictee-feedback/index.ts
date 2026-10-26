@@ -1,5 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.116.0';
 import { resolveDictationWorks } from './split-work.ts';
+import {yearContext} from '../_shared/school-years.ts';
 
 // Fonction préparée, non déployée. verify_jwt = false uniquement parce que
 // la fonction vérifie elle-même la clé publiable ET le jeton serveur de session.
@@ -28,12 +29,16 @@ async function getStudent(db:any,token:string) {
   const {data:session,error}=await db.from('school_student_sessions').select('student_email,expires_at').eq('token_hash',digest).maybeSingle();
   if(error||!session||Date.parse(session.expires_at)<=Date.now()) fail('Session expirée. Reconnecte-toi.',401);
   const {data:student}=await db.from('school_students').select('email,name,group_code,active').eq('email',session.student_email).maybeSingle();
-  if(!student?.active||!['31','32'].includes(student.group_code)) fail('Ce travail ne t’est pas attribué.',403);
+  if(!student?.active) fail('Ce travail ne t’est pas attribué.',403);
   return student;
 }
 async function getAssignedWork(db:any,student:any,workSlug:string) {
-  const [assignment]=await resolveDictationWorks(db,workSlug,student.group_code);
-  if(!assignment||(assignment.group_codes||[]).indexOf(student.group_code)<0) fail('Travail indisponible.',404);
+  const [assignment]=await resolveDictationWorks(db,workSlug,null,student.email);
+  if(!assignment) fail('Travail indisponible.',404);
+  const {data:member,error:memberError}=await db.from('school_assignment_roster').select('group_code').eq('assignment_id',assignment.id).eq('student_email',student.email).maybeSingle();
+  if(memberError||!member)fail('Ce travail ne t’est pas attribué.',403);
+  const context=await yearContext(db,assignment.school_year,{assignment});
+  assignment.readOnly=context.readOnly;assignment.historicalGroup=member.group_code;
   const {data:feedback,error}=await db.from('fr_dictee_feedback').select('*').eq('assignment_id',assignment.id).eq('student_email',student.email).maybeSingle();
   if(error||!feedback) fail('Copie individuelle non disponible.',404);
   return {assignment,feedback};
@@ -57,11 +62,11 @@ async function teacherAllowed(db:any,token:string) {
 async function teacherCatalog(db:any,body:any) {
   await teacherAllowed(db,String(body.token||''));
   const {data,error}=await db.from('school_assignments')
-    .select('slug,title,group_codes,max_score,activity_date,activity_type')
+    .select('slug,title,group_codes,max_score,activity_date,activity_type,school_year')
     .not('slug','is',null).eq('split_archived',false).order('activity_date',{ascending:false});
   if(error)fail('Impossible de charger les travaux.',500);
   const dictations=(data||[]).filter((item:any)=>String(item.slug||'').startsWith('dictee-'));
-  return {works:dictations.map((w:any)=>({slug:w.slug,title:w.title,groups:w.group_codes||[],maxScore:w.max_score,date:w.activity_date||null}))};
+  return {works:dictations.map((w:any)=>({slug:w.slug,title:w.title,schoolYear:w.school_year,groups:w.group_codes||[],maxScore:w.max_score,date:w.activity_date||null}))};
 }
 function choicePosition(email:string,key:string) {
   const input=email+'|'+key; let hash=0;
@@ -75,7 +80,7 @@ async function teacherStatus(db:any, body:any) {
   if(!assignments.length) fail('Travail indisponible.',404);
   const assignment=assignments[0], ids=assignments.map((a:any)=>a.id);
   const groups=selected==='all'?[...new Set(assignments.flatMap((a:any)=>a.group_codes||[]))]:[selected];
-  let q=db.from('school_students').select('email,name,group_code').eq('active',true).in('group_code',groups);
+  let q=db.from('school_assignment_roster').select('assignment_id,student_email,name,group_code').in('assignment_id',ids).in('group_code',groups);
   const {data:students,error:e1}=await q;
   const {data:details,error:e2}=await db.from('fr_dictee_feedback').select('assignment_id,student_email,errors,errors_verified,released,started_at,copy_opened_at,bilan_seen_at,understood_keys,completed_at,attempt_number,attempt_history').in('assignment_id',ids);
   const {data:results,error:e3}=await db.from('school_results').select('assignment_id,student_email,grade').in('assignment_id',ids);
@@ -83,8 +88,8 @@ async function teacherStatus(db:any, body:any) {
   const dmap=new Map((details||[]).map((x:any)=>[x.assignment_id+'|'+x.student_email,x]));
   const rmap=new Map((results||[]).map((x:any)=>[x.assignment_id+'|'+x.student_email,x]));
   const rows=(students||[]).map((s:any)=>{
-    const work=assignments.find((a:any)=>a.group_codes?.includes(s.group_code));
-    const key=work?.id+'|'+s.email;
+    s.email=s.student_email;
+    const key=s.assignment_id+'|'+s.email;
     const d=dmap.get(key);const r=rmap.get(key);
     const total=d?.errors_verified&&Array.isArray(d.errors)?d.errors.length:null;
     const count=total===null?null:(d.understood_keys||[]).filter((key:string)=>d.errors.some((e:any)=>e.key===key)).length;
@@ -97,10 +102,10 @@ async function teacherPreview(db:any,body:any) {
   const email=String(body.studentEmail||'').trim().toLowerCase();
   if(!/^[^\s@]+@educ\.cscapitale\.qc\.ca$/.test(email))fail('Élève invalide.',400);
   const {data:student}=await db.from('school_students').select('email,name,group_code,active').eq('email',email).maybeSingle();
-  if(!student?.active||!['31','32'].includes(student.group_code))fail('Élève introuvable.',404);
+  if(!student)fail('Élève introuvable.',404);
   const {assignment,feedback:f}=await getAssignedWork(db,student,slugFrom(body));
   const {data:result}=await db.from('school_results').select('grade').eq('assignment_id',assignment.id).eq('student_email',email).maybeSingle();
-  return {ok:true,attemptNumber:f.attempt_number||1,preview:true,ready:!!f.errors_verified,unreleased:!f.released,first:student.name.split(' ')[0],studentName:student.name,assignment:assignment.title,group:student.group_code,grade:result?.grade??null,maxScore:assignment.max_score,copyUrl:f.copy_url,errors:f.errors_verified?f.errors:[],progress:{copyOpened:!!f.copy_opened_at,bilanSeen:!!f.bilan_seen_at,understoodKeys:f.understood_keys||[],strategyKeys:f.strategy_passed_keys||[],completedAt:f.completed_at||null}};
+  return {ok:true,readOnly:assignment.readOnly,attemptNumber:f.attempt_number||1,preview:true,ready:!!f.errors_verified,unreleased:!f.released,first:student.name.split(' ')[0],studentName:student.name,assignment:assignment.title,group:assignment.historicalGroup,grade:result?.grade??null,maxScore:assignment.max_score,copyUrl:f.copy_url,errors:f.errors_verified?f.errors:[],progress:{copyOpened:!!f.copy_opened_at,bilanSeen:!!f.bilan_seen_at,understoodKeys:f.understood_keys||[],strategyKeys:f.strategy_passed_keys||[],completedAt:f.completed_at||null}};
 }
 Deno.serve(async (req:Request)=>{
   if(req.method==='OPTIONS')return new Response(null,{status:204,headers:cors});
@@ -117,10 +122,11 @@ Deno.serve(async (req:Request)=>{
     if(!['load','copyOpened','bilanSeen','strategy','understood','finish','restart'].includes(action))fail('Action inconnue.');
     const student=await getStudent(db,String(body.token||''));
     const {assignment,feedback:f}=await getAssignedWork(db,student,slugFrom(body));
+    if(assignment.readOnly&&action!=='load')fail('Cette année est archivée : ton parcours reste consultable, sans modification.',409);
     if(!f.released) {
       // Les corrections peuvent être suspendues sans priver les élèves de leurs scans originaux.
       if(action!=='load') fail('Corrections interactives temporairement suspendues.',409);
-      return respond({ok:true,ready:false,unreleased:true,underReview:true,copyUrl:f.copy_url,first:student.name.split(' ')[0],group:student.group_code,progress:{completedAt:f.completed_at||null,copyOpened:!!f.copy_opened_at}});
+      return respond({ok:true,readOnly:assignment.readOnly,ready:false,unreleased:true,underReview:true,copyUrl:f.copy_url,first:student.name.split(' ')[0],group:assignment.historicalGroup,progress:{completedAt:f.completed_at||null,copyOpened:!!f.copy_opened_at}});
     }
     if(action!=='load' && Number(body.attemptNumber||1)!==f.attempt_number)fail('Le parcours a été recommencé. Actualise la page avant de continuer.',409);
     if(action==='restart'){
@@ -129,10 +135,10 @@ Deno.serve(async (req:Request)=>{
       return respond({ok:true,attemptNumber:data});
     }
     if(action==='load'){
-      if(!f.started_at) await update(db,assignment.id,student.email,{started_at:new Date().toISOString()},f.attempt_number);
+      if(!f.started_at&&!assignment.readOnly) await update(db,assignment.id,student.email,{started_at:new Date().toISOString()},f.attempt_number);
       const {data:result}=await db.from('school_results').select('grade').eq('assignment_id',assignment.id).eq('student_email',student.email).maybeSingle();
       const errors=f.errors_verified?f.errors:[];
-      return respond({ok:true,attemptNumber:f.attempt_number||1,ready:!!f.errors_verified,first:student.name.split(' ')[0],assignment:assignment.title,group:student.group_code,grade:result?.grade??null,maxScore:assignment.max_score,copyUrl:f.copy_url,errors,progress:{copyOpened:!!f.copy_opened_at,bilanSeen:!!f.bilan_seen_at,understoodKeys:f.understood_keys||[],strategyKeys:f.strategy_passed_keys||[],completedAt:f.completed_at||null}});
+      return respond({ok:true,readOnly:assignment.readOnly,attemptNumber:f.attempt_number||1,ready:!!f.errors_verified,first:student.name.split(' ')[0],assignment:assignment.title,group:assignment.historicalGroup,grade:result?.grade??null,maxScore:assignment.max_score,copyUrl:f.copy_url,errors,progress:{copyOpened:!!f.copy_opened_at,bilanSeen:!!f.bilan_seen_at,understoodKeys:f.understood_keys||[],strategyKeys:f.strategy_passed_keys||[],completedAt:f.completed_at||null}});
     }
     // Conserver l'heure de la première validation tout en permettant de revoir de nouvelles corrections.
     if(f.completed_at && action==='finish')return respond({ok:true,completedAt:f.completed_at,alreadyCompleted:true,progress:{copyOpened:true,bilanSeen:true,understoodKeys:f.understood_keys}});

@@ -17,7 +17,7 @@
     if (document.getElementById('cardinal-formative-feedback-bridge-v01')) return;
     const script = document.createElement('script');
     script.id = 'cardinal-formative-feedback-bridge-v01';
-    script.src = 'formative-feedback-bridge-v01.js?v=1';
+    script.src = 'formative-feedback-bridge-v01.js?v=1325';
     script.async = false;
     (document.body || document.documentElement).appendChild(script);
   }

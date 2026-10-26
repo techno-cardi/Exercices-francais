@@ -1,3 +1,4 @@
+import {yearRpc} from '../_shared/school-years.ts';
 import { createClient } from "npm:@supabase/supabase-js@2.116.0";
 
 const ALLOWED_ORIGIN = "https://techno-cardi.github.io";
@@ -83,115 +84,23 @@ function cleanText(value: unknown, max = 12000) {
   return String(value ?? "").replace(/\r\n/g, "\n").trim().slice(0, max);
 }
 
-async function saveBatch(db: any, body: any) {
-  await teacherFromToken(db, String(body.token || ""));
-  const formativeId = cleanText(body.formativeId, 200);
-  const rows = Array.isArray(body.items) ? body.items : [];
-  if (!formativeId || !rows.length) fail("Aucun commentaire Formative à enregistrer.");
-
-  const assignmentIds = [...new Set(rows.map((x: any) => String(x.assignmentId || "")).filter(Boolean))];
-  if (!assignmentIds.length) fail("Aucun travail de destination n’a été trouvé.");
-
-  const { data: assignments, error: aErr } = await db.from("school_assignments")
-    .select("id,group_codes,formative_id,formative_question_ids")
-    .in("id", assignmentIds);
-  if (aErr) fail("Impossible de vérifier les travaux de destination.", 500);
-  const assignmentMap = new Map((assignments || []).map((a: any) => [String(a.id), a]));
-
-  const emails = [...new Set(rows.map((x: any) => String(x.email || "").trim().toLowerCase()).filter(Boolean))];
-  const { data: students, error: sErr } = emails.length
-    ? await db.from("school_students").select("email,group_code,active").in("email", emails)
-    : { data: [], error: null };
-  if (sErr) fail("Impossible de vérifier les élèves.", 500);
-  const studentMap = new Map((students || []).map((s: any) => [String(s.email).toLowerCase(), s]));
-
-  const upserts: any[] = [];
-  const deletes: { assignmentId: string; email: string; itemId: string }[] = [];
-  let skipped = 0;
-
-  for (const raw of rows) {
-    const assignmentId = String(raw.assignmentId || "");
-    const email = String(raw.email || "").trim().toLowerCase();
-    const itemId = cleanText(raw.formativeItemId || raw.questionId, 200);
-    const assignment = assignmentMap.get(assignmentId);
-    const student = studentMap.get(email);
-    if (!assignment || !student?.active || !(assignment.group_codes || []).includes(student.group_code)) { skipped++; continue; }
-    if (assignment.formative_id && String(assignment.formative_id) !== formativeId) { skipped++; continue; }
-    const linkedIds = Array.isArray(assignment.formative_question_ids) ? assignment.formative_question_ids.map(String) : [];
-    if (linkedIds.length && !linkedIds.includes(itemId)) { skipped++; continue; }
-
-    const feedback = cleanText(raw.feedback, 12000);
-    if (!feedback) {
-      deletes.push({ assignmentId, email, itemId });
-      continue;
-    }
-
-    upserts.push({
-      assignment_id: assignmentId,
-      student_email: email,
-      formative_id: formativeId,
-      formative_item_id: itemId,
-      question_number: cleanText(raw.questionNumber, 40),
-      question_label: cleanText(raw.questionLabel, 500),
-      feedback,
-      feedback_message_id: cleanText(raw.feedbackMessageId, 200) || null,
-      updated_at: new Date().toISOString(),
-    });
-  }
-
-  if (upserts.length) {
-    const { error } = await db.from("school_formative_feedbacks")
-      .upsert(upserts, { onConflict: "assignment_id,student_email,formative_item_id" });
-    if (error) fail("Impossible d’enregistrer les commentaires dans Gestion des notes.", 500);
-  }
-  for (const d of deletes) {
-    await db.from("school_formative_feedbacks")
-      .delete()
-      .eq("assignment_id", d.assignmentId)
-      .eq("student_email", d.email)
-      .eq("formative_item_id", d.itemId);
-  }
-  return { savedCount: upserts.length, removedCount: deletes.length, skipped };
+async function saveBatch(db:any,body:any){
+ const teacher=await teacherFromToken(db,String(body.token||''));
+ if(!String(body.formativeId||'').trim()||!Array.isArray(body.items)||!body.items.length||body.items.length>5000)fail('Lot de commentaires invalide.');
+ const result=await yearRpc(db,'cardinal_save_annual_feedback',{p_teacher:teacher.email,p_formative:String(body.formativeId).trim(),p_rows:body.items,p_year:body.schoolYear==null?null:Number(body.schoolYear)});
+ return{...result,savedCount:result.saved,removedCount:result.deleted};
 }
 
 async function teacherList(db: any, body: any) {
   await teacherFromToken(db, String(body.token || ""));
   const assignmentId = String(body.assignmentId || "");
   if (!assignmentId) fail("Travail invalide.");
-  const { data, error } = await db.from("school_formative_feedbacks")
-    .select("student_email,formative_id,formative_item_id,question_number,question_label,feedback,feedback_message_id,updated_at")
-    .eq("assignment_id", assignmentId)
-    .order("question_number", { ascending: true });
-  if (error) fail("Impossible de charger les commentaires Formative.", 500);
-  return { items: data || [] };
+  return {items:await yearRpc(db,'cardinal_teacher_annual_feedback',{p_id:assignmentId})};
 }
 
-async function studentList(db: any, body: any) {
-  const student = await studentFromToken(db, String(body.token || ""));
-  const { data: rows, error } = await db.from("school_formative_feedbacks")
-    .select("assignment_id,formative_item_id,question_number,question_label,feedback,updated_at")
-    .eq("student_email", student.email)
-    .order("question_number", { ascending: true });
-  if (error) fail("Impossible de charger les rétroactions.", 500);
-  if (!(rows || []).length) return { items: [] };
-
-  const ids = [...new Set((rows || []).map((r: any) => r.assignment_id))];
-  const { data: assignments, error: aErr } = await db.from("school_assignments")
-    .select("id,published,group_codes")
-    .in("id", ids);
-  if (aErr) fail("Impossible de vérifier les travaux.", 500);
-  const visible = new Set((assignments || [])
-    .filter((a: any) => a.published && (a.group_codes || []).includes(student.group_code))
-    .map((a: any) => String(a.id)));
-
-  return { items: (rows || []).filter((r: any) => visible.has(String(r.assignment_id))).map((r: any) => ({
-    assignmentId: r.assignment_id,
-    questionId: r.formative_item_id,
-    questionNumber: r.question_number || "",
-    questionLabel: r.question_label || "",
-    feedback: r.feedback || "",
-    updatedAt: r.updated_at,
-  })) };
+async function studentList(db:any,body:any){
+ const student=await studentFromToken(db,String(body.token||''));
+ return{items:await yearRpc(db,'cardinal_student_annual_feedback',{p_email:student.email})};
 }
 
 Deno.serve(async (req: Request) => {

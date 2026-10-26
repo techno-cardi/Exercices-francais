@@ -10,6 +10,7 @@
   <link rel="shortcut icon" href="assets/cardinal-extension-icon-v1004.svg?v=1004">
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="grade-view.css?v=1324f">
+  <link rel="stylesheet" href="school-years.css?v=1325">
 </head>
 <body>
 <div class="app-shell">
@@ -63,6 +64,7 @@
         <div class="sidebar-label">Gestion</div>
         <button class="nav-item active" data-teacher-view="dashboard" type="button">Tableau de bord</button>
         <button class="nav-item" data-teacher-view="assignments" type="button">Tous les travaux</button>
+        <button class="nav-item" data-teacher-view="overview" type="button">Vue d’ensemble du groupe</button>
         <div class="sidebar-divider"></div>
         <div class="sidebar-label">Groupes</div>
         <button class="nav-item group-nav" data-group="31" type="button">Groupe 31</button>
@@ -71,6 +73,8 @@
       </aside>
 
       <div class="teacher-main">
+        <div id="schoolYearToolbar" class="school-year-toolbar"><label>Année scolaire<select id="schoolYearSelect" class="select" aria-label="Année scolaire"></select></label><span id="schoolYearStatus" class="pill gray"></span><button id="manageSchoolYears" class="btn btn-ghost" type="button">Gérer les années et les listes</button></div>
+        <div id="schoolYearArchiveBanner" class="year-archive-banner hidden" role="status"></div>
         <section id="teacherDashboard">
           <div class="page-head">
             <div><div class="eyebrow">Gestion des notes</div><h1>Tableau de bord</h1><p class="muted">Choisis un groupe pour voir ses travaux et ses pondérations.</p></div>
@@ -99,6 +103,11 @@
           <div id="assignmentList" class="assignment-list"></div>
         </section>
 
+        <section id="groupOverviewView" class="hidden">
+          <div class="page-head"><div><div class="eyebrow">Vue d’ensemble</div><h1 id="overviewTitle">Résultats du groupe</h1><p class="muted">Tous les travaux sur une seule page. Les cases rouges indiquent un échec; une case vide n’est pas un zéro.</p></div></div>
+          <div class="card overview-toolbar"><label>Groupe<select id="overviewGroup" class="select"></select></label><label>Étape<select id="overviewTerm" class="select"><option value="all">Toutes les étapes</option><option value="1">Étape 1</option><option value="2">Étape 2</option><option value="3">Étape 3</option></select></label><label>Notes<select id="overviewScale" class="select"><option value="percent">Pourcentage</option><option value="points">Points</option></select></label><label>Élève<input id="overviewSearch" class="input" type="search" placeholder="Rechercher"></label><label class="overview-threshold">Seuil de réussite (%)<input id="overviewThreshold" class="input" type="number" min="0" max="100" step="1" value="60"></label></div>
+          <p id="overviewSummary" class="hint" role="status" aria-live="polite"></p><div id="overviewContent" class="card overview-scroll" tabindex="0" aria-label="Tableau des résultats du groupe"></div>
+        </section>
         <section id="assignmentDetail" class="hidden work-page">
           <div class="work-topbar">
             <button id="backToAssignments" class="btn btn-ghost" type="button">← Retour</button>
@@ -107,6 +116,8 @@
               <button id="syncMozaikBtn" class="btn btn-primary" type="button">Envoyer dans Mozaïk</button>
               <button id="resumeMozaikBtn" class="btn btn-ghost hidden" type="button">Reprendre l’envoi interrompu</button>
               <button id="recoverMozaikBtn" class="btn btn-ghost hidden" type="button">Résoudre l’envoi interrompu</button>
+              <button id="appendAssignmentStudents" class="btn btn-ghost" type="button">Mettre à jour les élèves</button>
+              <button id="reuseArchivedAssignment" class="btn btn-ghost hidden" type="button">Réutiliser les paramètres</button>
             </div>
           </div>
 
@@ -184,10 +195,13 @@
   <div class="dialog-actions"><button id="saveFeedbackBtn" class="btn btn-primary" type="button">Enregistrer</button></div>
 </dialog>
 <script src="assignment-actions.js?v=1324"></script>
-<script src="app.js?v=1324f"></script>
-<script src="gestion-imports.js?v=1324e"></script>
-<script id="cardinal-app-patch-v04" src="app-patch-v04.js?v=1324"></script>
-<script id="cardinal-app-patch-v05" src="app-patch-v05.js?v=1324f"></script>
-<script id="cardinal-app-patch-v06" src="app-patch-v06.js?v=1324f"></script>
+<script src="app.js?v=1325"></script>
+<script src="year-roster-csv.js?v=1325"></script>
+<script src="school-years.js?v=1325"></script>
+<script src="group-overview.js?v=1325"></script>
+<script src="gestion-imports.js?v=1325"></script>
+<script id="cardinal-app-patch-v04" src="app-patch-v04.js?v=1325"></script>
+<script id="cardinal-app-patch-v05" src="app-patch-v05.js?v=1325"></script>
+<script id="cardinal-app-patch-v06" src="app-patch-v06.js?v=1325"></script>
 </body>
 </html>

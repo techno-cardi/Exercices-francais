@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2.116.0";
+import {yearContext,annualEnrollments} from '../_shared/school-years.ts';
 
 const ORIGIN="https://techno-cardi.github.io";
 const enc=new TextEncoder();
@@ -41,7 +42,11 @@ async function prepare(client:any,body:any){
   if(!g)fail("Configuration Mozaïk du groupe introuvable. Lance d’abord la détection automatique.",409);
   const scope=mozaikScope(groupCode,g);
   if(link&&([['school_year','schoolYear'],['school_id','schoolId'],['subject_id','subjectId'],['mozaik_group_id','mozaikGroupId']] as const).some(([field,key])=>link[field]!=null&&String(link[field])!==scope[key]))fail("Le lien Mozaïk appartient à une autre année, école ou matière.",409);
-  const map=new Map((students||[]).map((s:any)=>[s.email,s]));
+  const year=await yearContext(client,body.schoolYear,{assignment:a,write:true,external:true});
+  if(String(scope.schoolYear)!==String(year.year))fail('Les identifiants Mozaïk appartiennent à une autre année scolaire.',409);
+  const enrolled=(await annualEnrollments(client,year.year,groupCode)).filter((s:any)=>s.active);
+  const map=new Map(enrolled.map((s:any)=>[s.email,s]));
+  if((results||[]).some((r:any)=>!map.has(r.student_email)))fail('Des notes historiques concernent des élèves qui ne sont plus inscrits dans ce groupe. Elles restent conservées dans Gestion; vérifie la liste avant un envoi Mozaïk.',409);
   const rows=(results||[]).filter((r:any)=>map.has(r.student_email)).map((r:any)=>({email:r.student_email,name:map.get(r.student_email).name,grade:r.grade===null||String(r.grade).trim()===""?NaN:Number(r.grade)}));
   if(rows.some((r:any)=>!Number.isFinite(r.grade)))fail("Une note est illisible. Aucune valeur ne sera remplacée par zéro.");
   if(!rows.length)fail("Aucune note à synchroniser pour ce groupe.");

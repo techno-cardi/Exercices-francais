@@ -44,7 +44,7 @@ async function loadWorks(){
   const response=await api('fr-dictee-feedback',{action:'teacherCatalog',token});
   works=response.works||[];
   const selector=$('#work');selector.replaceChildren();
-  for(const work of works)selector.add(new Option(work.title+(work.date?' ('+work.date+')':''),work.slug));
+  for(const work of works)selector.add(new Option((work.schoolYear?work.schoolYear+'–'+(work.schoolYear+1)+' · ':'')+work.title+(work.date?' ('+work.date+')':''),work.slug));
   if(!works.length){selector.add(new Option('Aucune dictée disponible',''));$('#msg').textContent='Aucune dictée disponible.';}
   selectGroups();
 }

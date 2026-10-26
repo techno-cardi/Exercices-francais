@@ -15,15 +15,19 @@ export function createMozaikImportApi(deps:any){
  }
  async function mozaikPreview(db:any,token:string,body:any){
   const teacher=await teacherFromToken(db,token),group=String(body.scope?.groupCode||'').trim();
-  await validateKnownGroups(db,[group]);
-  const responses=await Promise.all([
-   db.from('school_assignments').select('*').contains('group_codes',[group]),
-   db.from('school_mozaik_links').select('*').eq('group_code',group)
-  ]);
+  const context=deps.yearContext?await deps.yearContext(db,body.schoolYear,{write:true,external:true}):null;
+  if(context&&String(body.scope?.schoolYear)!==String(context.year))fail('La liste Mozaïk appartient à une autre année scolaire.',409);
+  await validateKnownGroups(db,[group],context?.year);
+  let assignmentQuery=db.from('school_assignments').select('*').contains('group_codes',[group]);
+  if(context)assignmentQuery=assignmentQuery.eq('school_year',context.year);
+  const assignmentResponse=await assignmentQuery;
+  const selectedIds=(assignmentResponse.data||[]).map((a:any)=>a.id);
+  const linkResponse=selectedIds.length?await db.from('school_mozaik_links').select('*').eq('group_code',group).in('assignment_id',selectedIds):{data:[],error:null};
+  const responses=[assignmentResponse,linkResponse];
   if(responses.some(r=>r.error))fail('Impossible de vérifier les travaux et leurs associations Mozaïk.',503);
-  const assignments=responses[0].data||[];
+  const assignments=(responses[0].data||[]).filter((a:any)=>!context||a.school_year===context.year);
   // Retain legacy links for destination conflicts but never upgrade their missing scope by guessing a year.
-  const links=(responses[1].data||[]).map((l:any)=>({assignmentId:l.assignment_id,activityId:l.activity_id,groupCode:l.group_code,schoolYear:l.school_year,schoolId:l.school_id,subjectId:l.subject_id,mozaikGroupId:l.mozaik_group_id}));
+  const links=(responses[1].data||[]).filter((l:any)=>!context||assignments.some((a:any)=>a.id===l.assignment_id)).map((l:any)=>({assignmentId:l.assignment_id,activityId:l.activity_id,groupCode:l.group_code,schoolYear:l.school_year,schoolId:l.school_id,subjectId:l.subject_id,mozaikGroupId:l.mozaik_group_id}));
   const snapshots:any={};
   for(const s of body.selections||[]){
    if(s.mode!=='associate')continue;
@@ -39,6 +43,7 @@ export function createMozaikImportApi(deps:any){
   try{preview=core.buildMetadataPreview({scope:body.scope,activities:body.activities,complete:body.complete,selections:body.selections,assignments,links,snapshots});}
   catch(error){fail(error instanceof Error?error.message:'Métadonnées Mozaïk invalides.',409);}
   const {plans,...display}=preview;
+  if(context)for(const plan of plans)if(plan.newAssignment)plan.newAssignment.school_year=context.year;
   if(!plans.length)return{previewId:null,expiresAt:null,preview:display};
   const id=crypto.randomUUID(),expiresAt=new Date(Date.now()+15*60*1000).toISOString();
   const request={scope:preview.scope,selections:plans.map((p:any)=>({activityId:p.mozaikLink.activity_id,assignmentId:p.assignmentId,mode:p.assignmentId?'associate':'create'}))};
@@ -48,6 +53,7 @@ export function createMozaikImportApi(deps:any){
  }
  async function mozaikConfirm(db:any,token:string,body:any){
   const teacher=await teacherFromToken(db,token);
+  if(deps.yearContext)await deps.yearContext(db,body.schoolYear,{write:true,external:true});
   if(!uuid(body.previewId))fail('Identifiant d’aperçu invalide. Prépare un nouvel aperçu.');
   const {data,error}=await db.rpc('cardinal_confirm_mozaik_metadata_batch',{p_teacher:teacher.email,p_preview_id:body.previewId});
   if(error)dbError(error);

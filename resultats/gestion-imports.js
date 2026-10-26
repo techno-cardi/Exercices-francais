@@ -16,7 +16,7 @@
   function close() { cleanup(); el('gestionImportsDialog')?.close(); }
   function valid(s) {
     return session === s && el('gestionImportsDialog')?.open && s.token === state.teacherToken &&
-      s.group === String(state.dashboardGroup || '') && s.navigation === state.navigationRevision &&
+      s.group === String(state.dashboardGroup || '') && s.schoolYear === state.schoolYear && s.navigation === state.navigationRevision &&
       (s.kind !== 'split' || s.assignmentId === state.currentAssignment?.id);
   }
   function create(kind, title) {
@@ -32,7 +32,7 @@
       el('gestionImportsClose').onclick = close; el('gestionImportsCancel').onclick = close;
       el('gestionImportsSubmit').onclick = submit; el('gestionImportsContent').onchange = change;
     }
-    session = {kind, group:String(state.dashboardGroup || ''), navigation:state.navigationRevision, token:state.teacherToken, busy:false, previewId:null, choices:new Map(), resultGroups:{}, unresolved:[]};
+    session = {kind, schoolYear:state.schoolYear,group:String(state.dashboardGroup || ''), navigation:state.navigationRevision, token:state.teacherToken, busy:false, previewId:null, choices:new Map(), resultGroups:{}, unresolved:[]};
     el('gestionImportsTitle').textContent = title;
     el('gestionImportsScope').textContent = `Groupe ${session.group}`;
     el('gestionImportsContent').textContent = 'Lecture en cours…';
@@ -41,7 +41,7 @@
     dialog.showModal(); return session;
   }
   function error(s, value) { if (valid(s)) el('gestionImportsError').textContent = value?.message || String(value); }
-  function request(s, action, data) { return api(TEACHER_ENDPOINT, {action, token:s.token, ...data}); }
+  function request(s, action, data) { return api(TEACHER_ENDPOINT, {action, token:s.token,schoolYear:s.schoolYear, ...data}); }
   function invalidate(s) {
     s.previewId = null; el('gestionImportsError').textContent = '';
     el('gestionImportsSubmit').textContent = s.kind === 'copies' ? 'Ouvrir ce groupe' : 'Prévisualiser';

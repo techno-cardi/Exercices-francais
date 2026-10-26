@@ -71,6 +71,7 @@
             <div class="eyebrow">${a.result ? 'Travail corrigé' : 'Travail'}</div>
             <h2>${esc(a.title)}</h2>
             <div class="meta-row">
+              ${a.schoolYearLabel ? `<span class="pill gray">${esc(a.schoolYearLabel)} · Groupe ${esc(a.group)}${a.archived ? ' · Archive' : ''}</span>` : ''}
               <span class="pill">${(a.competencies || []).map(esc).join(' · ') || 'Français'}</span>
               ${a.weight !== null ? `<span class="pill gray">${a.weight}%</span>` : ''}
             </div>
