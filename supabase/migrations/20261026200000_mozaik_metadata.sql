@@ -55,4 +55,3 @@ end $$;
 revoke all on function public.cardinal_confirm_mozaik_metadata_batch(text,uuid) from public,anon,authenticated;
 grant execute on function public.cardinal_confirm_mozaik_metadata_batch(text,uuid) to service_role;
 commit;
-

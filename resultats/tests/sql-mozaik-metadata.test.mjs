@@ -35,4 +35,3 @@ await db.query("insert into school_mozaik_links(assignment_id,group_code,activit
 id=await store([plan('legacy-a')]);await assert.rejects(confirm(id),/mozaik_link_conflict/);
 console.log('PASS SQL Mozaik metadata: atomic batch, replay, exact scopes, rollback, no grades, retained settings/weight/visibility, no implicit replacement, scope validation, grants');
 await db.close();
-

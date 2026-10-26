@@ -179,4 +179,3 @@ end $$;
 revoke all on function public.cardinal_split_write_guard(),public.cardinal_split_dependencies(uuid),public.cardinal_split_snapshot(uuid),public.cardinal_preview_assignment_split(text,uuid,jsonb,text),public.cardinal_confirm_assignment_split(text,uuid) from public,anon,authenticated;
 grant execute on function public.cardinal_preview_assignment_split(text,uuid,jsonb,text),public.cardinal_confirm_assignment_split(text,uuid) to service_role;
 commit;
-

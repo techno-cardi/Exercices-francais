@@ -351,4 +351,3 @@ Deno.serve(async (req: Request) => {
     return response({ ok: false, message: err.message || "Une erreur est survenue." }, err.status || 500, origin);
   }
 });
-

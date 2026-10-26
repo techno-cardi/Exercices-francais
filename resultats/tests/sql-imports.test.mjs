@@ -75,4 +75,3 @@ const newImport=await call('cardinal_confirm_assignment_operation',['teacher@tes
 assert.deepEqual((await call('cardinal_assignment_snapshot',[newImport.assignmentId])).assignment.group_codes,['101']);
 console.log('PASS SQL imports: independent/idempotent batch; conflicts; teacher binding; replay; canonical bases/rescale; stale notes; roster rollback; metadata null; grants; expiry; duplicate/unknown fields; dirty links; revision delete; legacy shared rejection; new import; moved/inactive historical rescale; unknown new row rollback');
 await db.close();
-

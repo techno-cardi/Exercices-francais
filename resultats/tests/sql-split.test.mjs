@@ -102,4 +102,3 @@ assert.equal((await call('cardinal_assignment_snapshot',[second])).results[0].gr
 assert.equal((await db.query("select assignment_id from school_assignment_splits where old_assignment_id=$1 and group_code='101'",[old])).rows[0].assignment_id,null);
 console.log('PASS historical split: unresolved/manual attribution, historical moved students, snapshot dependencies, active jobs, atomic copies, all notes/docs/links, tombstone write guards, idempotency, independent edits and conservative unknown dependencies');
 await db.close();
-
