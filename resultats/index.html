@@ -87,11 +87,11 @@
         <section id="assignmentsView" class="hidden">
           <div class="page-head">
             <div><div class="eyebrow">Travaux</div><h1>Tous les travaux</h1></div>
-            <button id="newAssignmentBtn2" class="btn btn-primary" type="button">+ Nouveau travail</button>
+            <div><button id="importMozaikWorks" class="btn btn-ghost" type="button">Importer depuis Mozaïk</button> <button id="newAssignmentBtn2" class="btn btn-primary" type="button">+ Nouveau travail</button></div>
           </div>
           <div class="card toolbar">
             <input id="assignmentSearch" class="input" type="search" placeholder="Rechercher un travail">
-            <select id="assignmentGroupFilter" class="select"><option value="">Tous les groupes</option><option value="31">31</option><option value="32">32</option><option value="51">51</option></select>
+            <select id="assignmentGroupFilter" class="select" aria-label="Changer de groupe"><option value="31">31</option><option value="32">32</option><option value="51">51</option></select>
             <select id="assignmentCompetenceFilter" class="select"><option value="">Toutes les compétences</option><option value="lecture">Lire</option><option value="ecriture">Écrire</option><option value="oral">Communiquer oralement</option></select>
           </div>
           <div id="assignmentList" class="assignment-list"></div>
@@ -103,6 +103,8 @@
             <div class="work-actions">
               <span id="extensionStatus" class="extension-pill">Extension…</span>
               <button id="syncMozaikBtn" class="btn btn-primary" type="button">Envoyer dans Mozaïk</button>
+              <button id="resumeMozaikBtn" class="btn btn-ghost hidden" type="button">Reprendre l’envoi interrompu</button>
+              <button id="recoverMozaikBtn" class="btn btn-ghost hidden" type="button">Résoudre l’envoi interrompu</button>
             </div>
           </div>
 
@@ -117,12 +119,15 @@
               <select id="detailGroupSelect" class="select compact"></select>
               <div class="visibility-actions">
                 <label class="toggle-card">
-                  <span><strong>Visible aux élèves et parents</strong><small id="platformVisibilityText">Masqué</small></span>
+                  <span><strong>Visibilité dans Gestion</strong><small id="platformVisibilityText">Masqué</small></span>
                   <input id="topPublishedToggle" type="checkbox">
                   <i></i>
                 </label>
-                <input id="topMozaikVisibleToggle" type="checkbox" hidden aria-hidden="true" tabindex="-1">
-                <span id="mozaikVisibilityText" hidden></span>
+                <label class="toggle-card">
+                  <span><strong>Visibilité dans Mozaïk</strong><small id="mozaikVisibilityText">Masqué</small></span>
+                  <input id="topMozaikVisibleToggle" type="checkbox">
+                  <i></i>
+                </label>
               </div>
               <div id="syncState" class="sync-state"></div>
             </div>
@@ -139,14 +144,14 @@
               <div><label class="field-label" for="editTerm">Étape</label><select id="editTerm" class="select"><option value="1">Étape 1</option><option value="2">Étape 2</option><option value="3">Étape 3</option></select></div>
               <div><label class="field-label" for="editActivityDate">Date</label><input id="editActivityDate" class="input" type="date"></div>
               <div><label class="field-label" for="editPeriod">Période</label><input id="editPeriod" class="input" type="number" min="1" max="20"></div>
-              <div class="span2"><div class="field-label">Groupes</div><div id="groupChoices" class="choice-row"><label class="check-chip"><input type="checkbox" value="31"> 31</label><label class="check-chip"><input type="checkbox" value="32"> 32</label><label class="check-chip"><input type="checkbox" value="51"> 51</label></div></div>
+              <div class="span2"><div class="field-label">Groupes</div><div id="groupChoices" class="choice-row"><label class="check-chip"><input type="checkbox" value="31"> 31</label><label class="check-chip"><input type="checkbox" value="32"> 32</label><label class="check-chip"><input type="checkbox" value="51"> 51</label></div><p id="independentGroupHint" class="hint" hidden>Un travail indépendant sera créé pour chaque groupe coché.</p></div>
               <div class="span2 toggle-grid">
                 <label class="switch-line"><input id="editReportCard" type="checkbox"> Porté au bulletin</label>
                 <label class="switch-line"><input id="editShowSchedule" type="checkbox"> Afficher dans l’horaire</label>
                 <label class="switch-line"><input id="editHomework" type="checkbox"> Devoir</label>
               </div>
               <div class="span2"><label class="field-label" for="editInstructions">Description</label><textarea id="editInstructions" class="textarea" rows="3"></textarea></div>
-              <div class="span2 settings-actions"><span id="saveState" class="save-state"></span><button id="saveAssignmentBtn" class="btn btn-primary" type="button">Enregistrer les paramètres</button></div>
+              <div class="span2 settings-actions"><span id="saveState" class="save-state"></span><button id="splitAssignmentBtn" class="btn btn-ghost hidden" type="button">Séparer les groupes</button><button id="saveAssignmentBtn" class="btn btn-primary" type="button">Enregistrer les paramètres</button></div>
             </div>
           </details>
 
@@ -175,9 +180,11 @@
   <div class="dialog-body"><div><div class="field-label">Réponse originale</div><div id="dialogResponse" class="response-box"></div></div><div><label class="field-label" for="dialogFeedback">Rétroaction</label><textarea id="dialogFeedback" class="textarea" rows="7"></textarea></div></div>
   <div class="dialog-actions"><button id="saveFeedbackBtn" class="btn btn-primary" type="button">Enregistrer</button></div>
 </dialog>
-<script src="app.js?v=1003"></script>
-<script id="cardinal-app-patch-v04" src="app-patch-v04.js?v=7"></script>
-<script id="cardinal-app-patch-v05" src="app-patch-v05.js?v=15"></script>
+<script src="assignment-actions.js?v=1324"></script>
+<script src="app.js?v=1324"></script>
+<script src="gestion-imports.js?v=1324"></script>
+<script id="cardinal-app-patch-v04" src="app-patch-v04.js?v=1324"></script>
+<script id="cardinal-app-patch-v05" src="app-patch-v05.js?v=1324"></script>
 <script id="cardinal-app-patch-v06" src="app-patch-v06.js?v=4"></script>
 </body>
 </html>

@@ -61,66 +61,18 @@
 
   function ensureNewWorkGroupSelect() {
     if (typeof state === 'undefined') return;
+    // The real checkbox list is the only source of selected creation groups.
+    // Each checked group creates its own work in the server transaction.
+    document.getElementById('cardinalNewWorkGroupRow')?.remove();
+    setLegacyGroupChoicesVisible(true);
+    const creating = isNewWork();
+    hideDisplayedGroupSelector(creating);
     const settings = document.getElementById('workSettings');
-    const grid = settings?.querySelector('.settings-grid');
-    if (!settings || !grid) return;
-
-    let row = document.getElementById('cardinalNewWorkGroupRow');
-    const summary = settings.querySelector('summary');
-
-    if (!isNewWork()) {
-      row?.remove();
-      setLegacyGroupChoicesVisible(true);
-      hideDisplayedGroupSelector(false);
-      if (summary) summary.textContent = 'Paramètres du travail';
-      return;
-    }
-
-    settings.open = true;
-    if (summary) summary.textContent = 'Paramètres du nouveau travail';
-
-    const groups = knownGroups();
-    if (!groups.length) return;
-
-    let selected = String(state.currentAssignment?.groups?.[0] || state.dashboardGroup || groups[0]);
-    if (!groups.includes(selected)) selected = groups[0];
-
-    state.currentAssignment.groups = [selected];
-    state.detailGroup = selected;
-
-    if (!row) {
-      row = document.createElement('div');
-      row.id = 'cardinalNewWorkGroupRow';
-      row.className = 'span2';
-      row.innerHTML = `
-        <label class="field-label" for="cardinalNewWorkGroupSelect">Groupe du travail</label>
-        <select id="cardinalNewWorkGroupSelect" class="select"></select>
-        <div class="hint">Le groupe affiché dans la page sert à consulter les notes d’un travail déjà créé. Pour un nouveau travail, choisis simplement le groupe ici.</div>`;
-      grid.insertAdjacentElement('afterbegin', row);
-
-      row.querySelector('#cardinalNewWorkGroupSelect')?.addEventListener('change', event => {
-        const group = String(event.target.value || '');
-        if (!group || !state.currentAssignment || state.currentAssignment.id) return;
-        state.currentAssignment.groups = [group];
-        state.detailGroup = group;
-        syncHiddenGroupChoices(group);
-        const detail = document.getElementById('detailGroupSelect');
-        if (detail) {
-          detail.innerHTML = `<option value="${escAttr(group)}">Groupe ${escAttr(group)}</option>`;
-          detail.value = group;
-        }
-      });
-    }
-
-    const select = document.getElementById('cardinalNewWorkGroupSelect');
-    if (select) {
-      select.innerHTML = groups.map(g => `<option value="${escAttr(g)}">Groupe ${escAttr(g)}</option>`).join('');
-      select.value = selected;
-    }
-
-    syncHiddenGroupChoices(selected);
-    setLegacyGroupChoicesVisible(false);
-    hideDisplayedGroupSelector(true);
+    const summary = settings?.querySelector('summary');
+    if (creating && settings) settings.open = true;
+    if (summary) summary.textContent = creating ? 'Paramètres des nouveaux travaux' : 'Paramètres du travail';
+    const hint = document.getElementById('independentGroupHint');
+    if (hint) hint.hidden = !creating;
   }
 
   function install() {

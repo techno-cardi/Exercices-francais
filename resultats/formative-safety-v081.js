@@ -48,7 +48,7 @@
 
   function ensureSafetyControls() {
     const dialog = document.getElementById('formativeImportDialog');
-    if (!dialog) return;
+    if (!dialog || dialog.dataset.cardinalNativeDestinationV2 === '1') return;
 
     const options = dialog.querySelector('.formative-options');
     if (options && !document.getElementById('formativeImportGrades')) {
@@ -108,7 +108,7 @@
 
   document.addEventListener('click', event => {
     const pull = event.target instanceof Element ? event.target.closest('#formativePullBtn') : null;
-    if (!pull || pull.disabled) return;
+    if (!pull || pull.disabled || document.getElementById('formativeImportDialog')?.dataset.cardinalNativeDestinationV2 === '1') return;
     if (!window.confirm('Importer depuis Formative remplacera les notes locales correspondantes qui sont déjà corrigées dans Formative. Continuer?')) {
       event.preventDefault();
       event.stopImmediatePropagation();

@@ -103,15 +103,6 @@
     return [...set].sort((a,b) => a.localeCompare(b, 'fr', { numeric:true, sensitivity:'base' }));
   }
 
-  function clearWorkRoute() {
-    try {
-      const url = new URL(location.href);
-      url.searchParams.delete('travail');
-      url.searchParams.delete('groupe');
-      history.replaceState({}, '', url);
-    } catch {}
-  }
-
   function installDynamicDashboard() {
     try {
       if (
@@ -198,7 +189,6 @@
             b.type = 'button';
             b.textContent = `Groupe ${group}`;
             b.onclick = () => {
-              clearWorkRoute();
               if (typeof selectDashboardGroup === 'function') selectDashboardGroup(group, true);
             };
             anchor.insertAdjacentElement('afterend', b);
@@ -209,9 +199,8 @@
 
       const filter = document.getElementById('assignmentGroupFilter');
       if (filter) {
-        const old = filter.value;
-        filter.innerHTML = '<option value="">Tous les groupes</option>' + groups.map(g => `<option value="${String(g).replace(/"/g,'&quot;')}">${g}</option>`).join('');
-        filter.value = groups.includes(old) ? old : '';
+        filter.innerHTML = groups.map(g => `<option value="${String(g).replace(/"/g,'&quot;')}">${g}</option>`).join('');
+        filter.value = groups.includes(String(state.dashboardGroup)) ? state.dashboardGroup : groups[0];
       }
 
       const choices = document.getElementById('groupChoices');

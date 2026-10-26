@@ -9,6 +9,17 @@
   let currentImport = null;
   let lockedDestinationId = '';
   let lastIncomingKey = '';
+  let importRevision = 0;
+  let preparedPreview = null;
+  let frozenGroup = '';
+  let importBusy = false;
+  const excludedEmails = new Set();
+
+  function importableQuestions(snapshot) {
+    const questions=snapshot.questions || [];
+    const parents=new Set([...questions,...(snapshot.hierarchy || [])].map(q=>String(q.parentId || '')).filter(Boolean));
+    return questions.filter(q=>!parents.has(String(q.id)));
+  }
 
   function escF(v) {
     return String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
@@ -50,6 +61,10 @@
     }
     if (data.type === 'FORMATIVE_IMPORT_AVAILABLE' && data.payload?.formativeId) {
       const key = `${data.payload.formativeId}|${data.payload.assignmentId}|${data.payload.sectionId}`;
+      if (document.getElementById('formativeImportDialog')?.open) {
+        invalidatePreview();
+        document.getElementById('formativeImportDialog').close();
+      }
       currentImport = data.payload;
       sessionStorage.setItem('pending_formative_import', JSON.stringify(data.payload));
       if (key !== lastIncomingKey || !document.getElementById('formativeImportDialog')?.open) {
@@ -87,6 +102,7 @@
       const dialog = document.createElement('dialog');
       dialog.id = 'formativeImportDialog';
       dialog.className = 'dialog formative-dialog';
+      dialog.dataset.cardinalNativeDestinationV2 = '1';
       dialog.innerHTML = `
         <div class="dialog-head">
           <div><div class="eyebrow">Import Formative</div><h2 id="formativeDialogTitle">Importer des notes</h2></div>
@@ -94,15 +110,19 @@
         </div>
         <div class="formative-dialog-body">
           <div class="formative-summary" id="formativeSummary"></div>
-          <div>
+          <section class="formative-section"><h3>1. Questions</h3>
             <div class="field-label">Questions à importer</div>
             <div id="formativeQuestionList" class="formative-question-list"></div>
             <div id="formativeSelectedTotal" class="hint"></div>
-          </div>
+          </section><section class="formative-section"><h3>2. Destination et total de points</h3>
           <div class="formative-destination">
             <label class="field-label" for="formativeDestination">Destination</label>
             <select id="formativeDestination" class="select"></select>
+            <p id="formativeDestinationSummary" class="hint"></p>
           </div>
+          <label class="field-label" for="formativeScaleMode">Total de points</label>
+          <select id="formativeScaleMode" class="select"><option value="origin">Maximum d’origine</option><option value="hundred">Convertir sur 100 points</option></select>
+          <p id="formativeScaleSummary" class="hint"></p>
           <div class="formative-settings-grid">
             <div class="span2"><label class="field-label" for="formativeWorkTitle">Titre du travail</label><input id="formativeWorkTitle" class="input" type="text"></div>
             <div><label class="field-label" for="formativeCompetence">Compétence</label><select id="formativeCompetence" class="select"><option value="lecture">Lire</option><option value="ecriture">Écrire</option><option value="oral">Communiquer oralement</option></select></div>
@@ -115,14 +135,15 @@
           <div class="formative-options">
             <label class="switch-line"><input id="formativeVisible" type="checkbox"> Visible aux élèves et parents</label>
             <label class="switch-line"><input id="formativeReportCard" type="checkbox"> Porté au bulletin</label>
-            <label class="switch-line"><input id="formativeSyncMozaik" type="checkbox"> Synchroniser ensuite dans Mozaïk</label>
+            <label class="switch-line hidden"><input id="formativeSyncMozaik" type="checkbox"> Synchroniser ensuite dans Mozaïk</label>
           </div>
+          </section><section class="formative-section"><h3>3. Aperçu avant import</h3><div id="formativePreview" aria-live="polite">Les notes seront comparées à la demande, avant confirmation.</div></section>
           <div id="formativeImportWarning" class="alert alert-error hidden"></div>
         </div>
         <div class="dialog-actions">
           <span id="formativeImportState" class="save-state"></span>
           <button id="cancelFormativeImport" class="btn btn-ghost" type="button">Annuler</button>
-          <button id="confirmFormativeImport" class="btn btn-primary" type="button">Importer</button>
+          <button id="confirmFormativeImport" class="btn btn-primary" type="button">Prévisualiser les notes</button>
         </div>`;
       document.body.appendChild(dialog);
       dialog.querySelector('#closeFormativeDialog').onclick = () => dialog.close();
@@ -130,6 +151,12 @@
       dialog.querySelector('#formativeDestination').addEventListener('change', fillSettingsFromDestination);
       dialog.querySelector('#formativeQuestionList').addEventListener('change', updateSelectedTotal);
       dialog.querySelector('#confirmFormativeImport').onclick = confirmImport;
+      dialog.querySelector('#formativeScaleMode').addEventListener('change', () => { invalidatePreview(); updateScaleSummary(); });
+      dialog.addEventListener('input', event => { if (event.target?.id !== 'confirmFormativeImport') invalidatePreview(); });
+      dialog.addEventListener('change', event => {
+        if (!['formativeDestination','formativeScaleMode'].includes(event.target?.id) && !event.target?.closest?.('#formativeQuestionList')) invalidatePreview();
+      });
+      dialog.addEventListener('close', invalidatePreview);
     }
   }
 
@@ -148,14 +175,16 @@
     return (currentImport?.questions || []).filter(q => ids.has(String(q.id)));
   }
   function updateSelectedTotal() {
+    invalidatePreview();
     const qs = selectedQuestions();
-    const max = qs.reduce((s,q) => s + Number(q.possiblePoints || 0),0);
+    const max = qs.every(q => q.possiblePoints !== null && q.possiblePoints !== undefined && Number.isFinite(Number(q.possiblePoints))) ? qs.reduce((s,q) => s + Number(q.possiblePoints),0) : null;
     const incomplete = (currentImport?.students || []).filter(s => qs.some(q => {
       const a = (s.answers || []).find(x => String(x.questionId) === String(q.id));
       return a?.points === null || a?.points === undefined || !Number.isFinite(Number(a.points));
     })).length;
     const el = document.getElementById('formativeSelectedTotal');
-    if (el) el.textContent = qs.length ? `${qs.length} question${qs.length===1?'':'s'} · note sur ${formatNumber(max)}${incomplete ? ` · ${incomplete} élève${incomplete===1?'':'s'} incomplet${incomplete===1?'':'s'} (non écrasé${incomplete===1?'':'s'})` : ''}` : 'Choisis au moins une question.';
+    if (el) el.textContent = qs.length ? `${qs.length} question${qs.length===1?'':'s'} · note sur ${maxLabel(max)}${incomplete ? ` · ${incomplete} élève${incomplete===1?'':'s'} incomplet${incomplete===1?'':'s'} (non écrasé${incomplete===1?'':'s'})` : ''}` : 'Choisis au moins une question.';
+    updateScaleSummary();
     const title = document.getElementById('formativeWorkTitle');
     const dest = document.getElementById('formativeDestination');
     if (title && dest?.value === '' && qs.length === 1) {
@@ -175,12 +204,13 @@
     document.getElementById('formativeType').value = [...document.getElementById('formativeType').options].some(o => o.value === a.activityType) ? a.activityType : 'Autre';
     document.getElementById('formativeWeight').value = a.weight ?? '';
     document.getElementById('formativeTerm').value = String(a.term || 1);
-    document.getElementById('formativeDate').value = a.activityDate || today();
+    document.getElementById('formativeDate').value = a.activityDate || '';
     document.getElementById('formativePeriod').value = a.period || 3;
     document.getElementById('formativeVisible').checked = !!a.published || !!a.resultsVisible;
     document.getElementById('formativeReportCard').checked = !!a.reportCardEnabled;
   }
   function fillSettingsFromDestination() {
+    invalidatePreview();
     const select = document.getElementById('formativeDestination');
     const a = assignmentForDestination(select.value);
     if (a) fillFieldsFromAssignment(a);
@@ -196,33 +226,45 @@
       document.getElementById('formativeReportCard').checked = false;
       updateSelectedTotal();
     }
+    setDestinationMode(a);
   }
 
   function showImportModal(snapshot, destinationId = '') {
     ensureUi();
-    currentImport = snapshot;
+    invalidatePreview();
+    currentImport = JSON.parse(JSON.stringify(snapshot));
+    excludedEmails.clear();
+    frozenGroup = String(state.dashboardGroup || state.detailGroup || snapshot.groupCode || '');
     lockedDestinationId = destinationId || '';
+    const linked = (state.teacherAssignments || []).filter(a => a.formativeId === snapshot.formativeId && (a.groups || []).map(String).includes(frozenGroup));
+    const suggestedDestinationId = linked.length === 1 ? String(linked[0].id) : '';
+    const initialDestinationId = destinationId || suggestedDestinationId;
     const dialog = document.getElementById('formativeImportDialog');
+    dialog.dataset.cardinalNativeDestinationV2 = '1';
     document.getElementById('formativeDialogTitle').textContent = snapshot.title || 'Importer depuis Formative';
     document.getElementById('formativeSummary').innerHTML = `<strong>${escF(snapshot.sectionTitle || `Groupe ${snapshot.groupCode || '?'}`)}</strong><span>${snapshot.students?.length || 0} élèves détectés</span>`;
 
-    const questions = snapshot.questions || [];
+    const questions = importableQuestions(snapshot);
     let defaults = questions.filter(q => Number(q.gradedCount || 0) > 0).map(q => String(q.id));
     if (!defaults.length && questions[0]) defaults = [String(questions[0].id)];
-    if (destinationId) {
-      const existing = assignmentForDestination(destinationId) || state.currentAssignment;
-      if (existing?.formativeId === snapshot.formativeId && existing?.formativeQuestionIds?.length) defaults = existing.formativeQuestionIds.map(String);
+    if (initialDestinationId) {
+      const existing = assignmentForDestination(initialDestinationId) || state.currentAssignment;
+      if (existing?.formativeId === snapshot.formativeId && existing?.formativeQuestionIds?.length) {
+        const available=new Set(questions.map(q=>String(q.id)));
+        const retained=existing.formativeQuestionIds.map(String).filter(id=>available.has(id));
+        if(retained.length)defaults=retained;
+      }
     }
     const defaultSet = new Set(defaults);
     document.getElementById('formativeQuestionList').innerHTML = questions.map(q => `
       <label class="formative-question">
         <input type="checkbox" value="${escF(q.id)}" ${defaultSet.has(String(q.id)) ? 'checked' : ''}>
-        <span><strong>${escF(questionLabel(q))}</strong><small>${formatNumber(q.possiblePoints)} pt${Number(q.possiblePoints)===1?'':'s'} · ${Number(q.gradedCount||0)}/${snapshot.students?.length || snapshot.studentCount || 0} notés</small></span>
+        <span><strong>${escF(questionLabel(q))}</strong><small>${maxLabel(q.possiblePoints)} pt${Number(q.possiblePoints)===1?'':'s'} · ${Number(q.gradedCount||0)}/${snapshot.students?.length || snapshot.studentCount || 0} notés</small></span>
       </label>`).join('');
 
-    const available = (state.teacherAssignments || []).filter(a => (a.groups || []).includes(String(snapshot.groupCode || '')));
+    const available = (state.teacherAssignments || []).filter(a => (a.groups || []).map(String).includes(frozenGroup));
     const dest = document.getElementById('formativeDestination');
-    dest.innerHTML = `<option value="">Créer un nouveau travail</option>` + available.map(a => `<option value="${escF(a.id)}">${escF(a.title)}</option>`).join('');
+    dest.innerHTML = `<option value="">Créer un nouveau travail</option>` + available.map(a => `<option value="${escF(a.id)}">${escF(a.title)} · Étape ${escF(a.term || 1)} · ${escF(a.activityDate || "Date à compléter")} · ${escF(maxLabel(a.maxScore))}</option>`).join('');
     if (destinationId) {
       if (![...dest.options].some(o => o.value === destinationId)) {
         const a = assignmentForDestination(destinationId) || state.currentAssignment;
@@ -233,9 +275,10 @@
       fillFieldsFromAssignment(assignmentForDestination(destinationId) || state.currentAssignment);
     } else {
       dest.disabled = false;
-      dest.value = '';
+      dest.value = suggestedDestinationId;
       fillSettingsFromDestination();
     }
+    setDestinationMode(assignmentForDestination(dest.value) || (destinationId ? state.currentAssignment : null));
     document.getElementById('formativeSyncMozaik').checked = false;
     document.getElementById('formativeImportWarning').classList.add('hidden');
     document.getElementById('formativeImportState').textContent = '';
@@ -256,79 +299,140 @@
     }
   }
 
+  function maxLabel(value) {
+    return value === null || value === undefined || value === '' || !Number.isFinite(Number(value)) ? 'À compléter' : formatNumber(Number(value));
+  }
+  function invalidatePreview() {
+    importRevision++;
+    preparedPreview = null;
+    const button = document.getElementById('confirmFormativeImport');
+    if (button) { button.textContent = 'Prévisualiser les notes'; button.disabled = false; }
+    const preview = document.getElementById('formativePreview');
+    if (preview) preview.textContent = 'Prévisualise les notes avec les choix actuels avant de confirmer.';
+  }
+  function setDestinationMode(a) {
+    const ids = ['formativeWorkTitle','formativeCompetence','formativeType','formativeWeight','formativeTerm','formativeDate','formativePeriod','formativeVisible','formativeReportCard'];
+    ids.forEach(id => { document.getElementById(id).disabled = !!a; });
+    document.getElementById('formativeDestinationSummary').textContent = a
+      ? `Maximum actuel : ${maxLabel(a.maxScore)} · Pondération conservée : ${a.weight === null || a.weight === undefined ? 'À compléter' : formatNumber(a.weight) + ' %'}. Les paramètres du travail sont conservés.`
+      : `Nouveau travail du groupe ${frozenGroup}.`;
+    document.getElementById('formativeScaleMode').value = a?.formativeScaleMode === 'hundred' ? 'hundred' : 'origin';
+    updateScaleSummary();
+  }
+  function updateScaleSummary() {
+    const qs = selectedQuestions();
+    const max = qs.length && qs.every(q => q.possiblePoints !== null && q.possiblePoints !== undefined && Number.isFinite(Number(q.possiblePoints)))
+      ? qs.reduce((sum,q) => sum + Number(q.possiblePoints),0) : null;
+    document.getElementById('formativeScaleSummary').textContent = `Maximum d’origine : ${maxLabel(max)} points · Cible : ${document.getElementById('formativeScaleMode').value === 'hundred' ? '100' : maxLabel(max)} points. Le serveur valide le total dans l’aperçu.`;
+  }
+  function renderPreview(preview) {
+    const labels = {add:'Ajoutées',replace:'Remplacées',rescale:'Remises à l’échelle',unchanged:'Identiques',blocked:'Conservées / bloquées'};
+    const counts = preview.counts || {};
+    const sourceEmails = new Set((currentImport?.students || []).map(s => String(s.email || '').trim().toLowerCase()).filter(Boolean));
+    const rows = [...(preview.rows || [])].sort((a,b) => {
+      const surname = row => String(row.lastName || row.name || row.email || '').trim().split(/\s+/).slice(-1)[0];
+      return surname(a).localeCompare(surname(b),'fr') || String(a.name || a.email).localeCompare(String(b.name || b.email),'fr');
+    });
+    const grade = (value,max) => value === null || value === undefined ? 'Non noté' : `${maxLabel(value)}/${maxLabel(max)}`;
+    document.getElementById('formativePreview').innerHTML = `${(preview.warnings || []).map(message => `<p class="alert alert-error">${escF(message)}</p>`).join('')}<p>Maximum source : ${escF(maxLabel(preview.sourceMaxScore))} · Nouveau maximum : ${escF(maxLabel(preview.targetMaxScore))}</p><div class="formative-preview-counts">${Object.entries(labels).map(([key,label]) => `<button type="button" class="btn btn-ghost" data-preview-filter="${key}">${label} : ${Number(counts[key] || 0)}</button>`).join('')}<button type="button" class="btn btn-ghost" data-preview-filter="">Toutes · ${Number(counts.modified || 0)} modifications</button></div><div class="formative-preview-scroll"><table class="formative-preview-table"><thead><tr><th>Importer</th><th>Élève</th><th>Action</th><th>Avant → après</th><th>Motif</th></tr></thead><tbody>${rows.map(row => `<tr data-preview-action="${escF(row.action)}"><td>${sourceEmails.has(row.email) ? `<input type="checkbox" data-import-email="${escF(row.email)}" aria-label="Importer la note de ${escF(row.name || row.email)}" ${excludedEmails.has(row.email) ? "" : "checked"}>` : "—"}</td><td>${escF(row.name || row.email)}</td><td>${escF(labels[row.action] || row.action)}</td><td>${escF(grade(row.beforeGrade,row.beforeMax))} → ${escF(grade(row.afterGrade,row.targetMaxScore ?? preview.targetMaxScore))}</td><td>${escF(row.reason || '')}</td></tr>`).join('')}</tbody></table></div>`;
+    document.getElementById('formativePreview').onchange = event => {
+      const email = event.target?.dataset?.importEmail;
+      if (!email) return;
+      event.target.checked ? excludedEmails.delete(email) : excludedEmails.add(email);
+      importRevision++; preparedPreview = null;
+      document.getElementById('confirmFormativeImport').textContent = 'Recalculer l’aperçu';
+      document.getElementById('formativeImportState').textContent = 'La sélection a changé : recalcule l’aperçu avant de confirmer. Les anciennes notes exclues restent conservées et seront remises à l’échelle si le maximum change.';
+    };
+    document.getElementById('formativePreview').onclick = event => {
+      const filter = event.target.closest?.('[data-preview-filter]');
+      if (!filter) return;
+      document.querySelectorAll('#formativePreview [data-preview-action]').forEach(row => { row.hidden = !!filter.dataset.previewFilter && row.dataset.previewAction !== filter.dataset.previewFilter; });
+    };
+  }
   async function confirmImport() {
+    if (!currentImport || importBusy) return;
     const btn = document.getElementById('confirmFormativeImport');
     const stateEl = document.getElementById('formativeImportState');
     const warning = document.getElementById('formativeImportWarning');
     const ids = selectedQuestionIds();
-    if (!ids.length) {
-      warning.textContent = 'Choisis au moins une question.';
-      warning.classList.remove('hidden');
-      return;
-    }
-    const dest = document.getElementById('formativeDestination').value;
+    if (!ids.length) { warning.textContent = 'Choisis au moins une question.'; warning.classList.remove('hidden'); return; }
+    const dest = document.getElementById('formativeDestination').value || lockedDestinationId || '';
+    const a = assignmentForDestination(dest) || (lockedDestinationId ? state.currentAssignment : null);
     const visible = document.getElementById('formativeVisible').checked;
     const kind = document.getElementById('formativeCompetence').value;
-    const settings = {
-      title: document.getElementById('formativeWorkTitle').value.trim(),
-      competenceKind: kind,
-      competencies: competencyArray(kind),
+    const settings = a ? currentSettings(a) : {
+      title: document.getElementById('formativeWorkTitle').value.trim(), competenceKind:kind, competencies:competencyArray(kind),
       weight: document.getElementById('formativeWeight').value === '' ? null : Number(document.getElementById('formativeWeight').value),
-      term: Number(document.getElementById('formativeTerm').value || 1),
-      activityDate: document.getElementById('formativeDate').value || today(),
-      activityType: document.getElementById('formativeType').value,
-      published: visible,
-      resultsVisible: visible,
-      reportCardEnabled: document.getElementById('formativeReportCard').checked,
-      showInSchedule: true,
-      homework: false,
-      period: Number(document.getElementById('formativePeriod').value || 3),
-      instructions: ''
+      term:Number(document.getElementById('formativeTerm').value || 1),activityDate:document.getElementById('formativeDate').value || today(),
+      activityType:document.getElementById('formativeType').value,published:visible,resultsVisible:visible,
+      reportCardEnabled:document.getElementById('formativeReportCard').checked,showInSchedule:true,homework:false,
+      period:Number(document.getElementById('formativePeriod').value || 3),instructions:'',groups:[frozenGroup]
     };
-    if (!settings.title) {
-      warning.textContent = 'Entre un titre pour le travail.';
-      warning.classList.remove('hidden');
-      return;
-    }
+    if (!settings.title) { warning.textContent = 'Entre un titre pour le travail.'; warning.classList.remove('hidden'); return; }
+    const revision = importRevision;
+    const confirming = !!preparedPreview;
     try {
-      btn.disabled = true;
-      stateEl.textContent = 'Importation...';
-      warning.classList.add('hidden');
-      const result = await api(TEACHER_ENDPOINT, {
-        action: 'formativeImport',
-        token: state.teacherToken,
-        formative: currentImport,
-        selectedQuestionIds: ids,
-        destinationAssignmentId: dest || lockedDestinationId || '',
-        settings
-      });
-      sessionStorage.removeItem('pending_formative_import');
-      currentImport = null;
-      document.getElementById('formativeImportDialog').close();
-      await openAssignment(result.assignmentId);
-      notify(`Formative : ${result.importedCount} note${result.importedCount===1?'':'s'} importée${result.importedCount===1?'':'s'}${result.skippedIncomplete ? `, ${result.skippedIncomplete} incomplète${result.skippedIncomplete===1?'':'s'} laissée${result.skippedIncomplete===1?'':'s'} intacte${result.skippedIncomplete===1?'':'s'}` : ''}.`);
-      if (document.getElementById('formativeSyncMozaik').checked) setTimeout(() => document.getElementById('syncMozaikBtn')?.click(), 350);
+      importBusy = true; btn.disabled = true; warning.classList.add('hidden');
+      const version=String(state.extensionVersion || '').split('.').map(Number);
+      if ((version[0] || 0)<1 || version[0]===1 && ((version[1] || 0)<3 || version[1]===3 && (version[2] || 0)<24)) throw new Error('Cardinal 1.3.24 est requis pour vérifier les questions et leurs sous-parties. Recharge l’extension mise à jour.');
+      if (!Array.isArray(currentImport.hierarchy)) {
+        stateEl.textContent = 'Actualisation des questions et de leurs sous-parties…';
+        const previous=currentImport;
+        const fresh=await formativeRequest('pull',{formativeId:previous.formativeId});
+        if(revision!==importRevision)return;
+        if(!fresh?.ok || !Array.isArray(fresh.payload?.hierarchy))throw new Error(fresh?.message || 'La source Formative doit être relue pour vérifier les sous-parties.');
+        if(['formativeId','assignmentId','sectionId','groupCode'].some(key=>String(fresh.payload[key] || '')!==String(previous[key] || '')))throw new Error('La classe Formative ouverte a changé. Rouvre l’import depuis la bonne classe.');
+        showImportModal(fresh.payload,dest);
+        stateEl.textContent='Questions actualisées. Prévisualise les notes avant de confirmer.';
+        return;
+      }
+      stateEl.textContent = confirming ? 'Importation…' : 'Préparation de l’aperçu…';
+      const result = await api(TEACHER_ENDPOINT, confirming
+        ? {action:'formativeConfirm',token:state.teacherToken,previewId:preparedPreview.previewId}
+        : {action:'formativePreview',token:state.teacherToken,formative:currentImport,selectedEmails:excludedEmails.size ? (currentImport.students || []).map(s => String(s.email || '').trim().toLowerCase()).filter(email => email && !excludedEmails.has(email)) : undefined,selectedQuestionIds:ids,destinationAssignmentId:dest,scaleMode:document.getElementById('formativeScaleMode').value || 'origin',settings});
+      if (revision !== importRevision || !currentImport) return;
+      if (result?.ok === false) throw new Error(result.message || result.error || 'Import Formative impossible.');
+      if (!confirming) {
+        if (!result?.previewId || !result?.preview) throw new Error('Le serveur n’a pas fourni un aperçu valide.');
+        preparedPreview = {previewId:result.previewId,expiresAt:result.expiresAt};
+        renderPreview(result.preview); btn.textContent = 'Confirmer l’import'; stateEl.textContent = 'Vérifie les changements avant de confirmer.';
+      } else {
+        if (!result?.assignmentId) throw new Error('Le serveur n’a pas confirmé le travail importé.');
+        sessionStorage.removeItem('pending_formative_import'); currentImport = null;
+        document.getElementById('formativeImportDialog').close();
+        await openAssignment(result.assignmentId);
+        notify(`Formative : ${result.importedCount || 0} note(s) importée(s).`);
+      }
     } catch (error) {
-      warning.textContent = error?.message || String(error);
-      warning.classList.remove('hidden');
-      stateEl.textContent = '';
-    } finally {
-      btn.disabled = false;
-    }
+      if (revision !== importRevision) return;
+      const definitive=/aperçu.*(?:expiré|introuvable)|notes ou les paramètres ont changé|prépare un nouvel aperçu|prépare-le à nouveau/i.test(error?.message || '');
+      if (!confirming || definitive) invalidatePreview();
+      else btn.textContent = 'Réessayer la confirmation';
+      warning.textContent = error?.message || String(error); warning.classList.remove('hidden'); stateEl.textContent = confirming ? 'La confirmation peut être réessayée sans créer un deuxième travail.' : '';
+    } finally { importBusy = false; btn.disabled = false; }
   }
+  function onGroupChanged() {
+    invalidatePreview();
+    const dialog = document.getElementById('formativeImportDialog');
+    if (!dialog?.open) return;
+    currentImport = null;
+    sessionStorage.removeItem('pending_formative_import'); dialog.close();
+    notify('Le groupe a changé. Rouvre l’import Formative pour vérifier sa destination.', 'error');
+  }
+  document.addEventListener('cardinal-group-changed', onGroupChanged);
+  window.addEventListener('cardinal-group-changed', onGroupChanged);
 
   function currentSettings(a) {
-    const visible = !!a.published || !!a.resultsVisible;
     return {
       title: a.title,
       competenceKind: a.competenceKind,
       competencies: a.competencies || competencyArray(a.competenceKind),
       weight: a.weight,
       term: a.term || 1,
-      activityDate: a.activityDate || today(),
+      activityDate: a.activityDate ?? null,
       activityType: a.activityType || 'Évaluation',
-      published: visible,
-      resultsVisible: visible,
+      published: !!a.published,
+      resultsVisible: !!a.resultsVisible,
       reportCardEnabled: !!a.reportCardEnabled,
       showInSchedule: a.showInSchedule !== false,
       homework: !!a.homework,
@@ -340,18 +444,16 @@
   async function pullCurrentAssignment() {
     const a = state.currentAssignment;
     if (!a?.formativeId) return;
+    const revision = importRevision;
+    const group = state.dashboardGroup;
     const btn = document.getElementById('formativePullBtn');
     try {
       btn.disabled = true;
       btn.textContent = 'Importation...';
       const r = await formativeRequest('pull', { formativeId: a.formativeId });
       if (!r?.ok || !r.payload) throw new Error(r?.message || 'Impossible de lire Formative.');
-      const out = await api(TEACHER_ENDPOINT, {
-        action:'formativeImport', token:state.teacherToken, formative:r.payload,
-        selectedQuestionIds:a.formativeQuestionIds || [], destinationAssignmentId:a.id, settings:currentSettings(a)
-      });
-      await openAssignment(a.id);
-      notify(`Formative : ${out.importedCount} note${out.importedCount===1?'':'s'} mise${out.importedCount===1?'':'s'} à jour.`);
+      if (revision !== importRevision || state.currentAssignment?.id !== a.id || state.dashboardGroup !== group) return;
+      showImportModal(r.payload, a.id);
     } catch (error) { notify(error?.message || String(error), 'error'); }
     finally { btn.disabled = false; btn.textContent = 'Importer depuis Formative'; }
   }
@@ -391,13 +493,17 @@
 
   async function associateCurrentAssignment() {
     if (!state.currentAssignment?.id) return;
+    const assignmentId = state.currentAssignment.id;
+    const revision = importRevision;
+    const group = state.dashboardGroup;
     const btn = document.getElementById('formativeAssociateBtn');
     try {
       btn.disabled = true;
       btn.textContent = 'Lecture...';
       const r = await formativeRequest('captureActive', {});
       if (!r?.ok || !r.payload) throw new Error(r?.message || 'Aucun Formative ouvert n’a été trouvé.');
-      showImportModal(r.payload, state.currentAssignment.id);
+      if (revision !== importRevision || state.currentAssignment?.id !== assignmentId || state.dashboardGroup !== group) return;
+      showImportModal(r.payload, assignmentId);
     } catch (error) { notify(error?.message || String(error), 'error'); }
     finally { btn.disabled = false; btn.textContent = state.currentAssignment?.formativeId ? 'Changer le lien' : 'Associer à Formative ouvert'; }
   }
@@ -427,7 +533,7 @@
     }
     title.textContent = a.formativeTitle || 'Formative lié';
     const qs = a.formativeQuestionMeta || [];
-    meta.textContent = qs.length ? qs.map(q => `${q.number ? `Q${q.number}` : 'Question'} · ${formatNumber(q.possiblePoints)} pt${Number(q.possiblePoints)===1?'':'s'}`).join(' + ') : `${a.formativeQuestionIds?.length || 0} question(s) liée(s)`;
+    meta.textContent = qs.length ? qs.map(q => `${q.number ? `Q${q.number}` : 'Question'} · ${maxLabel(q.possiblePoints)} pt${Number(q.possiblePoints)===1?'':'s'}`).join(' + ') : `${a.formativeQuestionIds?.length || 0} question(s) liée(s)`;
     push.disabled = !formativeReady || (a.formativeQuestionIds || []).length !== 1;
     pull.disabled = !formativeReady;
     push.title = (a.formativeQuestionIds || []).length === 1 ? '' : 'L’envoi vers Formative exige un lien vers une seule question.';

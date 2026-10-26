@@ -298,13 +298,16 @@ async function loadStudentDashboard() {
 }
 
 function setTeacherSection(name) {
+  state.teacherSection = name;
   show($("teacherDashboard"), name === "dashboard");
   show($("assignmentsView"), name === "assignments");
   show($("assignmentDetail"), name === "detail");
   document.querySelectorAll(".nav-item[data-teacher-view]").forEach(b => b.classList.toggle("active", b.dataset.teacherView === name));
 }
 
-document.querySelectorAll(".nav-item[data-teacher-view]").forEach(b => b.onclick = () => {
+document.querySelectorAll(".nav-item[data-teacher-view]").forEach(b => b.onclick = async () => {
+  if (!await prepareAssignmentNavigation()) return;
+  state.navigationRevision = (state.navigationRevision || 0) + 1;
   if (b.dataset.teacherView === "dashboard") {
     setTeacherSection("dashboard");
     renderDashboard();
@@ -312,21 +315,98 @@ document.querySelectorAll(".nav-item[data-teacher-view]").forEach(b => b.onclick
     setTeacherSection("assignments");
     renderAssignmentList();
   }
+  setGroupRoute("", state.dashboardGroup, "push", b.dataset.teacherView);
 });
 
 document.querySelectorAll(".group-nav").forEach(b => b.onclick = () => selectDashboardGroup(b.dataset.group, true));
 
-function selectDashboardGroup(group, openAssignments = false) {
+function setGroupRoute(assignmentId = "", group = state.dashboardGroup, mode = "push", section = "assignments") {
+  const url = new URL(location.href);
+  if (assignmentId) url.searchParams.set("travail", assignmentId);
+  else url.searchParams.delete("travail");
+  if (group) url.searchParams.set("groupe", group);
+  else url.searchParams.delete("groupe");
+  url.searchParams.set("vue", assignmentId ? "detail" : section);
+  history[mode === "replace" ? "replaceState" : "pushState"]({ travail: assignmentId || null, groupe: group, vue: section }, "", url);
+}
+
+function activateAssignmentGroup(group, resetFilters = false) {
+  group = String(group || "");
   state.dashboardGroup = group;
   localStorage.setItem("results_dashboard_group", group);
   document.querySelectorAll(".group-nav").forEach(b => b.classList.toggle("active", b.dataset.group === group));
+  $("assignmentGroupFilter").value = group;
+  if (resetFilters) {
+    $("assignmentSearch").value = "";
+    $("assignmentCompetenceFilter").value = "";
+  }
+}
+
+async function prepareAssignmentNavigation() {
+  if (window.cardinalActiveSync) { notify('Termine ou annule l’envoi Mozaïk avant de changer de travail.', 'error'); return false; }
+  if (state.teacherSection !== "detail" || !state.currentAssignment) return true;
+  try {
+    const active = document.activeElement;
+    if (active?.classList?.contains("grade-input")) await commitGrade(active);
+    const started = Date.now();
+    while (document.querySelector(".grade-input.saving")) {
+      if (Date.now() - started > 7000) throw new Error("Une note est encore en cours d’enregistrement. Réessaie après sa sauvegarde.");
+      await new Promise(resolve => setTimeout(resolve, 80));
+    }
+    if (document.querySelector(".grade-input.error")) throw new Error("Corrige la note en erreur avant de quitter ce travail.");
+    if (typeof window.cardinalFlushPendingAssignmentSaves === "function") {
+      let timer;
+      try {
+        await Promise.race([window.cardinalFlushPendingAssignmentSaves(), new Promise((_, reject) => {
+          timer = setTimeout(() => reject(new Error("Les paramètres sont encore en cours d’enregistrement.")), 7000);
+        })]);
+      } finally { clearTimeout(timer); }
+    } else if (typeof collectAssignment === "function") {
+      const form = collectAssignment();
+      if (!state.currentAssignment.id || Object.keys(form).some(key => JSON.stringify(form[key]) !== JSON.stringify(state.currentAssignment[key]))) {
+        throw new Error("Enregistre les paramètres du travail avant de quitter.");
+      }
+    }
+    return true;
+  } catch (error) {
+    notify(error.message, "error");
+    return false;
+  }
+}
+
+async function selectDashboardGroup(group, openAssignments = false, routeMode = "push") {
+  if (!await prepareAssignmentNavigation()) {
+    $("assignmentGroupFilter").value = state.dashboardGroup;
+    return false;
+  }
+  state.navigationRevision = (state.navigationRevision || 0) + 1;
+  activateAssignmentGroup(group || state.dashboardGroup, true);
   if (openAssignments) {
-    $("assignmentGroupFilter").value = group;
     setTeacherSection("assignments");
     renderAssignmentList();
   } else {
+    setTeacherSection("dashboard");
     renderDashboard();
   }
+  setGroupRoute("", state.dashboardGroup, routeMode, openAssignments ? "assignments" : "dashboard");
+  window.dispatchEvent?.(new CustomEvent("cardinal-group-changed", { detail: { group: state.dashboardGroup } }));
+  return true;
+}
+
+async function beginAssignmentOpen() {
+  if (!await prepareAssignmentNavigation()) return null;
+  state.navigationRevision = (state.navigationRevision || 0) + 1;
+  return state.navigationRevision;
+}
+
+function acceptAssignmentOpen(data, revision, requestedGroup = "") {
+  if (revision !== state.navigationRevision) return false;
+  const groups = data.assignment.groups || [];
+  const group = groups.includes(requestedGroup) ? requestedGroup : groups.includes(state.dashboardGroup) ? state.dashboardGroup : groups[0] || "";
+  activateAssignmentGroup(group);
+  state.currentAssignment = data.assignment;
+  state.detailGroup = group;
+  return true;
 }
 
 async function refreshTeacherData() {
@@ -401,21 +481,24 @@ function wireAssignmentCards(root) {
 
 function renderAssignmentList() {
   const q = $("assignmentSearch")?.value.trim().toLowerCase() || "";
-  const g = $("assignmentGroupFilter")?.value || "";
+  const g = state.dashboardGroup || "";
+  $("assignmentGroupFilter").value = g;
+  const heading = document.querySelector("#assignmentsView h1");
+  if (heading) heading.textContent = `Travaux du groupe ${g}`;
   const k = $("assignmentCompetenceFilter")?.value || "";
   const list = state.teacherAssignments.filter(a => (!q || a.title.toLowerCase().includes(q)) && (!g || a.groups.includes(g)) && (!k || a.competenceKind === k));
   $("assignmentList").innerHTML = assignmentCards(list);
   wireAssignmentCards($("assignmentList"));
 }
 
-["assignmentSearch", "assignmentGroupFilter", "assignmentCompetenceFilter"].forEach(id => $(id)?.addEventListener("input", renderAssignmentList));
-$("showAllAssignments").onclick = () => {
-  $("assignmentGroupFilter").value = state.dashboardGroup || "";
-  setTeacherSection("assignments");
-  renderAssignmentList();
-};
+["assignmentSearch", "assignmentCompetenceFilter"].forEach(id => $(id)?.addEventListener("input", renderAssignmentList));
+$("assignmentGroupFilter")?.addEventListener("input", () => selectDashboardGroup($("assignmentGroupFilter").value, true));
+$("showAllAssignments").onclick = () => selectDashboardGroup(state.dashboardGroup, true);
 
-function newAssignment() {
+async function newAssignment() {
+  if (!await prepareAssignmentNavigation()) return false;
+  state.navigationRevision = (state.navigationRevision || 0) + 1;
+  state.creationOperationId = crypto.randomUUID();
   state.currentAssignment = {
     id: null,
     title: "Nouveau travail",
@@ -447,22 +530,33 @@ $("newAssignmentBtn").onclick = newAssignment;
 $("newAssignmentBtn2").onclick = newAssignment;
 
 $("backToAssignments").onclick = async () => {
+  if (!await prepareAssignmentNavigation()) return;
+  const revision = state.navigationRevision = (state.navigationRevision || 0) + 1;
+  const group = state.detailGroup || state.dashboardGroup;
   await refreshTeacherData();
-  $("assignmentGroupFilter").value = state.detailGroup || state.dashboardGroup || "";
+  if (revision !== state.navigationRevision) return;
+  activateAssignmentGroup(group);
   setTeacherSection("assignments");
   renderAssignmentList();
+  setGroupRoute("", group);
 };
 
 async function openAssignment(id) {
+  const revision = await beginAssignmentOpen();
+  if (revision === null) return false;
   const d = await api(TEACHER_ENDPOINT, { action: "teacherAssignment", token: state.teacherToken, assignmentId: id });
-  state.currentAssignment = d.assignment;
+  if (d.splitRequired) {
+    const selected = await window.CardinalGestionImports?.resolveOldWork(d);
+    return selected ? openAssignment(selected) : false;
+  }
+  if (!acceptAssignmentOpen(d, revision)) return false;
   state.currentStudents = d.students || [];
-  state.detailGroup = state.currentAssignment.groups[0] || "";
   setTeacherSection("detail");
   fillWorkPage();
   renderGradeRows();
   await refreshSyncState();
   setTimeout(pingExtension, 100);
+  return true;
 }
 
 function updateVisibilityLabels() {
@@ -476,16 +570,18 @@ function fillWorkPage() {
   const a = state.currentAssignment;
   if (!a) return;
   $("workTitle").textContent = a.title;
-  $("workMeta").innerHTML = `<span class="pill">${competenceLabel(a.competenceKind)}</span><span class="pill gray">Étape ${a.term || 1}</span>${a.weight !== null ? `<span class="pill gray">${formatNumber(a.weight)} %</span>` : ""}<span class="pill gray">Note sur ${formatNumber(a.maxScore)}</span>`;
+  $("workMeta").innerHTML = `<span class="pill">${competenceLabel(a.competenceKind)}</span><span class="pill gray">Étape ${a.term || 1}</span>${a.weight !== null ? `<span class="pill gray">${formatNumber(a.weight)} %</span>` : ""}<span class="pill gray">${a.maxScore > 0 ? `Note sur ${formatNumber(a.maxScore)}` : 'Maximum à compléter'}</span>`;
+  $("splitAssignmentBtn")?.classList.toggle('hidden', !a.id || a.groups.length < 2);
+  $("saveAssignmentBtn").disabled = !!a.id && a.groups.length > 1;
   $("detailGroupSelect").innerHTML = a.groups.map(g => `<option value="${g}">Groupe ${g}</option>`).join("");
   $("detailGroupSelect").value = state.detailGroup || a.groups[0] || "";
   $("editTitle").value = a.title || "";
   $("editCompetenceKind").value = a.competenceKind || "lecture";
   $("editActivityType").value = [...$("editActivityType").options].some(o => o.value === a.activityType) ? a.activityType : "Autre";
-  $("editMaxScore").value = a.maxScore ?? 10;
+  $("editMaxScore").value = a.maxScore ?? "";
   $("editWeight").value = a.weight ?? "";
   $("editTerm").value = String(a.term || 1);
-  $("editActivityDate").value = a.activityDate || today();
+  $("editActivityDate").value = a.activityDate || "";
   $("editPeriod").value = a.period || 3;
   $("topPublishedToggle").checked = !!a.published;
   $("topMozaikVisibleToggle").checked = !!a.resultsVisible;
@@ -493,8 +589,11 @@ function fillWorkPage() {
   $("editShowSchedule").checked = a.showInSchedule !== false;
   $("editHomework").checked = !!a.homework;
   $("editInstructions").value = a.instructions || "";
-  document.querySelectorAll("#groupChoices input").forEach(i => i.checked = a.groups.includes(i.value));
-  $("syncMozaikBtn").disabled = !a.id;
+  document.querySelectorAll("#groupChoices input").forEach(i => {
+    i.checked = a.groups.includes(i.value);
+    i.disabled = !!a.id;
+  });
+  $("syncMozaikBtn").disabled = !a.id || !(a.maxScore > 0);
   updateVisibilityLabels();
 }
 
@@ -506,7 +605,8 @@ function collectAssignment() {
     competenceKind: kind,
     competencies: competencyArray(kind),
     weight: $("editWeight").value === "" ? null : Number($("editWeight").value),
-    maxScore: Number($("editMaxScore").value || 10),
+    maxScore: String($("editMaxScore").value).trim() === "" ? null : Number($("editMaxScore").value),
+    importState: String($("editMaxScore").value).trim() === "" ? "metadata_only" : "ready",
     groups: [...document.querySelectorAll("#groupChoices input:checked")].map(i => i.value),
     published: $("topPublishedToggle").checked,
     instructions: $("editInstructions").value,
@@ -521,20 +621,42 @@ function collectAssignment() {
   };
 }
 
+let assignmentSavePromise = null;
+let assignmentSaveError = null;
 async function saveAssignmentSettings({ quiet = false } = {}) {
+  if (assignmentSavePromise) return assignmentSavePromise;
   const payload = collectAssignment();
-  if (!quiet) $("saveState").textContent = "Enregistrement...";
-  const d = await api(TEACHER_ENDPOINT, { action: "saveAssignment", token: state.teacherToken, assignment: payload });
-  if (!quiet) $("saveState").textContent = "Enregistré";
-  const updated = await api(TEACHER_ENDPOINT, { action: "teacherAssignment", token: state.teacherToken, assignmentId: d.id });
-  state.currentAssignment = updated.assignment;
-  state.currentStudents = updated.students || state.currentStudents;
-  state.detailGroup = state.currentAssignment.groups.includes(state.detailGroup) ? state.detailGroup : state.currentAssignment.groups[0];
-  fillWorkPage();
-  renderGradeRows();
-  await refreshSyncState();
-  return state.currentAssignment;
+  if (!payload.id) state.creationOperationId ||= crypto.randomUUID();
+  const operationId = payload.id ? undefined : state.creationOperationId;
+  assignmentSaveError = null;
+  assignmentSavePromise = (async () => {
+    if (!quiet) $("saveState").textContent = "Enregistrement…";
+    let d = await api(TEACHER_ENDPOINT, { action: "saveAssignment", token: state.teacherToken, assignment: payload, operationId });
+    if (d.previewRequired) {
+      if (!window.CardinalAssignmentActions?.reviewPreview) throw new Error("Actualise Gestion pour afficher l’aperçu des notes.");
+      d = await window.CardinalAssignmentActions.reviewPreview(d);
+    }
+    const id = d.assignments?.find(a => a.groupCode === state.dashboardGroup)?.id || d.assignmentId || d.id;
+    const updated = await api(TEACHER_ENDPOINT, { action: "teacherAssignment", token: state.teacherToken, assignmentId: id });
+    state.currentAssignment = updated.assignment;
+    state.currentStudents = updated.students || state.currentStudents;
+    state.detailGroup = state.currentAssignment.groups.includes(state.detailGroup) ? state.detailGroup : state.currentAssignment.groups[0];
+    state.creationOperationId = null;
+    fillWorkPage();
+    renderGradeRows();
+    await refreshTeacherData();
+    await refreshSyncState();
+    $("saveState").textContent = "Enregistré";
+    return state.currentAssignment;
+  })();
+  try { return await assignmentSavePromise; }
+  catch (error) { assignmentSaveError = error; $("saveState").textContent = "Modifications non enregistrées"; throw error; }
+  finally { assignmentSavePromise = null; }
 }
+window.cardinalFlushPendingAssignmentSaves = async () => {
+  if (assignmentSavePromise) await assignmentSavePromise;
+  if (assignmentSaveError) throw assignmentSaveError;
+};
 
 $("saveAssignmentBtn").onclick = async () => {
   try {
@@ -598,7 +720,7 @@ function renderGradeRows() {
     <tr data-email="${esc(s.email)}">
       <td class="student-last">${esc(s.lastName || s.name)}</td>
       <td>${esc(s.firstName || "")}</td>
-      <td><div class="grade-input-wrap"><input class="grade-input" type="text" inputmode="decimal" autocomplete="off" data-email="${esc(s.email)}" value="${s.grade === null ? "" : formatNumber(s.grade, 3)}"><span class="max-score">/ ${formatNumber(max)}</span></div></td>
+      <td><div class="grade-input-wrap"><input class="grade-input" type="text" inputmode="decimal" autocomplete="off" ${max > 0 ? '' : 'disabled aria-label="Complète le maximum du travail"'} data-email="${esc(s.email)}" value="${s.grade === null ? "" : formatNumber(s.grade, 3)}"><span class="max-score">/ ${max > 0 ? formatNumber(max) : 'À compléter'}</span></div></td>
       <td><span class="percent-value">${s.grade === null ? "-" : `${formatNumber((Number(s.grade) / Number(max)) * 100, 1)} %`}</span></td>
       <td><button class="detail-btn" tabindex="-1" data-email="${esc(s.email)}" type="button">•••</button></td>
     </tr>`).join("") : `<tr><td colspan="5" style="padding:28px;text-align:center;color:#67758a">Aucun élève.</td></tr>`;
@@ -653,7 +775,7 @@ async function commitGrade(input) {
     return;
   }
   const old = s.grade;
-  if ((old === null && parsed.grade === null) || (old !== null && parsed.grade !== null && Number(old) === Number(parsed.grade))) {
+  if ((old === null && parsed.grade === null) || (old !== null && parsed.grade !== null && Number(old) === Number(parsed.grade) && (parsed.rawGrade === undefined || Number(old) === parsed.rawGrade))) {
     input.value = parsed.text;
     return;
   }
@@ -671,8 +793,9 @@ async function commitGrade(input) {
       email: s.email,
       response: s.response,
       grade: parsed.grade,
+      rawGrade: parsed.rawGrade,
       feedback: s.feedback,
-      visible: true,
+      visible: s.visible !== false,
     });
     input.classList.remove("saving");
     input.classList.add("saved");
@@ -726,9 +849,19 @@ $("saveFeedbackBtn").onclick = async () => {
 
 async function refreshSyncState() {
   if (!state.currentAssignment?.id) return;
+  const assignmentId = state.currentAssignment.id;
+  const group = state.detailGroup;
+  const revision = state.navigationRevision;
   try {
-    const d = await api(SYNC_ENDPOINT, { action: "status", teacherToken: state.teacherToken, assignmentId: state.currentAssignment.id });
+    const d = await api(SYNC_ENDPOINT, { action: "status", teacherToken: state.teacherToken, assignmentId });
+    if (revision !== state.navigationRevision || assignmentId !== state.currentAssignment?.id || group !== state.detailGroup) return;
     state.syncLinks = d.links || [];
+    state.pendingSyncJobs = (d.pendingJobs || []).filter(job => job.groupCode === group);
+    const resumeButton = $("resumeMozaikBtn");
+    if (resumeButton) {
+      resumeButton.classList.toggle('hidden', !state.pendingSyncJobs.length);
+      resumeButton.dataset.jobId = state.pendingSyncJobs[0]?.jobId || '';
+    }
     const link = state.syncLinks.find(x => x.group_code === state.detailGroup);
     const btn = $("syncMozaikBtn");
     if (!link) {
@@ -750,6 +883,7 @@ async function refreshSyncState() {
       btn.textContent = "Envoyer dans Mozaïk";
     }
   } catch (e) {
+    if (revision !== state.navigationRevision || assignmentId !== state.currentAssignment?.id || group !== state.detailGroup) return;
     $("syncState").textContent = e.message;
   }
 }
@@ -801,7 +935,7 @@ $("syncMozaikBtn").onclick = async () => {
 
     btn.textContent = "Connexion à Mozaïk...";
     $("syncState").textContent = "Mozaïk s’ouvre automatiquement. Connecte-toi au besoin, la synchronisation continuera toute seule.";
-    const result = await sendToExtension(job.payload);
+    const result = await sendToExtension({...job.payload, syncJob:{jobId:job.jobId,claimToken:job.claimToken,endpoint:SYNC_ENDPOINT,apiKey:PUBLIC_KEY}});
 
     let completeResponse;
     try {
@@ -813,6 +947,8 @@ $("syncMozaikBtn").onclick = async () => {
         activityId: result?.activityId || "",
         competenceCode: result?.competenceCode || "",
         syncedCount: result?.syncedCount || 0,
+        verified: result?.verified === true,
+        verifiedCount: result?.verifiedCount ?? 0,
         message: result?.message || "",
       });
       completed = true;

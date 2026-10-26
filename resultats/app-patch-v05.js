@@ -1,6 +1,6 @@
 (() => {
   const V04_ID = 'cardinal-app-patch-v04';
-  const V04_SRC = 'https://techno-cardi.github.io/Exercices-francais/resultats/app-patch-v04.js?v=6';
+  const V04_SRC = 'https://techno-cardi.github.io/Exercices-francais/resultats/app-patch-v04.js?v=1324';
 
   function ensureV04() {
     if (document.getElementById(V04_ID) || window.__cardinalV04Installed) return;
@@ -15,21 +15,21 @@
     if (!document.querySelector('link[data-cardinal-formative]')) {
       const link = document.createElement('link');
       link.rel = 'stylesheet';
-      link.href = 'formative.css?v=81';
+      link.href = 'formative.css?v=1324';
       link.dataset.cardinalFormative = '1';
       document.head.appendChild(link);
     }
     if (!document.getElementById('cardinal-formative-integration')) {
       const script = document.createElement('script');
       script.id = 'cardinal-formative-integration';
-      script.src = 'formative-integration.js?v=81';
+      script.src = 'formative-integration.js?v=1324';
       script.async = false;
       (document.body || document.documentElement).appendChild(script);
     }
     if (!document.getElementById('cardinal-formative-safety-v081')) {
       const script = document.createElement('script');
       script.id = 'cardinal-formative-safety-v081';
-      script.src = 'formative-safety-v081.js?v=2';
+      script.src = 'formative-safety-v081.js?v=1324';
       script.async = false;
       (document.body || document.documentElement).appendChild(script);
     }
@@ -39,7 +39,7 @@
     if (document.getElementById('cardinal-app-patch-v08') || window.__cardinalV08Installed) return;
     const script = document.createElement('script');
     script.id = 'cardinal-app-patch-v08';
-    script.src = 'app-patch-v08.js?v=5';
+    script.src = 'app-patch-v08.js?v=1324';
     script.async = false;
     (document.body || document.documentElement).appendChild(script);
   }
@@ -48,7 +48,7 @@
     if (document.getElementById('cardinal-app-patch-v09') || window.__cardinalV09Installed) return;
     const script = document.createElement('script');
     script.id = 'cardinal-app-patch-v09';
-    script.src = 'app-patch-v09.js?v=2';
+    script.src = 'app-patch-v09.js?v=1324';
     script.async = false;
     (document.body || document.documentElement).appendChild(script);
   }
@@ -57,7 +57,7 @@
     if (document.getElementById('cardinal-app-patch-v10') || window.__cardinalV10Installed) return;
     const script = document.createElement('script');
     script.id = 'cardinal-app-patch-v10';
-    script.src = 'app-patch-v10.js?v=1';
+    script.src = 'app-patch-v10.js?v=1324';
     script.async = false;
     (document.body || document.documentElement).appendChild(script);
   }
@@ -75,7 +75,7 @@
     if (document.getElementById('cardinal-app-patch-v14') || window.__cardinalV14Installed) return;
     const script = document.createElement('script');
     script.id = 'cardinal-app-patch-v14';
-    script.src = 'app-patch-v14.js?v=1';
+    script.src = 'app-patch-v14.js?v=1324';
     script.async = false;
     (document.body || document.documentElement).appendChild(script);
   }
@@ -114,16 +114,6 @@
     };
   }
 
-  function setAssignmentRoute(assignmentId, group, mode = 'replace') {
-    const url = new URL(location.href);
-    if (assignmentId) url.searchParams.set('travail', assignmentId);
-    else url.searchParams.delete('travail');
-    if (assignmentId && group) url.searchParams.set('groupe', group);
-    else url.searchParams.delete('groupe');
-    const method = mode === 'push' ? 'pushState' : 'replaceState';
-    history[method]({ travail: assignmentId || null, groupe: group || null }, '', url);
-  }
-
   function waitForAppNavigation() {
     try {
       if (
@@ -149,45 +139,26 @@
     const originalOpenAssignment = openAssignment;
     let restoring = false;
 
-    openAssignment = async function(id) {
-      await originalOpenAssignment(id);
+    openAssignment = async function(id, options = {}) {
       const route = currentRoute();
-      const requestedGroup = restoring ? route.group : '';
-      if (requestedGroup && state.currentAssignment?.groups?.includes(requestedGroup)) {
-        state.detailGroup = requestedGroup;
-        const select = document.getElementById('detailGroupSelect');
-        if (select) select.value = requestedGroup;
-        renderGradeRows();
-        await refreshSyncState();
-      }
-      setAssignmentRoute(
-        state.currentAssignment?.id || id,
-        state.detailGroup || state.currentAssignment?.groups?.[0] || '',
-        restoring ? 'replace' : 'push'
-      );
+      const ok = await originalOpenAssignment(id, { ...options, group: options.group || (restoring ? route.group : '') });
+      if (ok === false || state.currentAssignment?.id !== id) return false;
+      setGroupRoute(state.currentAssignment.id, state.detailGroup, restoring ? 'replace' : 'push', 'detail');
+      return true;
     };
 
     const groupSelect = document.getElementById('detailGroupSelect');
     groupSelect?.addEventListener('change', () => {
       if (!state.currentAssignment?.id) return;
-      setAssignmentRoute(state.currentAssignment.id, groupSelect.value || state.detailGroup || '', 'replace');
-    });
-
-    const back = document.getElementById('backToAssignments');
-    back?.addEventListener('click', () => {
-      setAssignmentRoute('', '', 'replace');
-    }, true);
-
-    document.querySelectorAll('.nav-item[data-teacher-view], .group-nav').forEach(el => {
-      el.addEventListener('click', () => {
-        setAssignmentRoute('', '', 'replace');
-      }, true);
+      activateAssignmentGroup(state.detailGroup);
+      setGroupRoute(state.currentAssignment.id, state.detailGroup, 'replace', 'detail');
     });
 
     async function restoreAssignmentFromUrl() {
       const route = currentRoute();
-      if (!route.assignmentId) return;
+      if (!route.assignmentId && !route.group) return;
 
+      const revision = state.navigationRevision;
       const started = Date.now();
       while (Date.now() - started < 15000) {
         const teacherView = document.getElementById('teacherView');
@@ -196,13 +167,14 @@
         await new Promise(resolve => setTimeout(resolve, 100));
       }
 
-      if (!state.teacherToken) return;
+      if (!state.teacherToken || revision !== state.navigationRevision) return;
 
       restoring = true;
       try {
-        await openAssignment(route.assignmentId);
+        if (route.assignmentId) await openAssignment(route.assignmentId);
+        else await selectDashboardGroup(route.group, new URLSearchParams(location.search).get('vue') !== 'dashboard', 'replace');
       } catch {
-        setAssignmentRoute('', '', 'replace');
+        setGroupRoute('', state.dashboardGroup, 'replace');
       } finally {
         restoring = false;
       }
@@ -210,12 +182,15 @@
 
     window.addEventListener('popstate', async () => {
       const route = currentRoute();
+      let ok = true;
       if (route.assignmentId) {
         restoring = true;
-        try { await openAssignment(route.assignmentId); } finally { restoring = false; }
+        try { ok = await openAssignment(route.assignmentId); } finally { restoring = false; }
       } else if (typeof setTeacherSection === 'function') {
-        setTeacherSection('dashboard');
-        if (typeof renderDashboard === 'function') renderDashboard();
+        ok = await selectDashboardGroup(route.group || state.dashboardGroup, new URLSearchParams(location.search).get('vue') !== 'dashboard', 'replace');
+      }
+      if (ok === false) {
+        setGroupRoute(state.teacherSection === 'detail' ? state.currentAssignment?.id || '' : '', state.dashboardGroup, 'replace', state.teacherSection);
       }
     });
 

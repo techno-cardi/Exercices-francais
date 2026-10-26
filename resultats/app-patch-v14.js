@@ -54,7 +54,11 @@
     const started = Date.now();
     while (Date.now() - started < timeout) {
       try { pingExtension(); } catch {}
-      if (state.extensionReady) return true;
+      if (state.extensionReady) {
+        const version=String(state.extensionVersion || '').split('.').map(Number);
+        if ((version[0] || 0) < 1 || version[0] === 1 && ((version[1] || 0) < 3 || version[1] === 3 && (version[2] || 0) < 24)) throw new Error('Cardinal 1.3.24 est requis pour l’aperçu et la reprise des envois Mozaïk. Recharge l’extension mise à jour.');
+        return true;
+      }
       await sleep(120);
     }
     return !!state.extensionReady;
@@ -139,11 +143,13 @@
       activityId: result?.activityId || '',
       competenceCode: result?.competenceCode || '',
       syncedCount,
+      verified: result?.verified === true,
+      verifiedCount: result?.verifiedCount ?? 0,
       message: result?.message || ''
     }), 10000, 'La confirmation finale dans Gestion des notes');
   }
 
-  async function runSync(btn) {
+  async function runSync(btn, resumeJobId = '', recoveryJob = null) {
     if (!state.currentAssignment?.id) return;
 
     let job = null;
@@ -151,6 +157,7 @@
     const originalText = btn.textContent;
 
     try {
+      window.cardinalActiveSync = true;
       btn.disabled = true;
       btn.textContent = 'Préparation...';
       showMozaikPanel();
@@ -162,20 +169,28 @@
       }
 
       await flushPendingGradeSaves();
+      if (!resumeJobId && !recoveryJob) {
+        const status = await api(SYNC_ENDPOINT,{action:'status',teacherToken:state.teacherToken,assignmentId:state.currentAssignment.id});
+        if ((status.pendingJobs || []).some(job => job.groupCode === String(state.detailGroup))) throw new Error('Un envoi attend sa reprise. Utilise « Reprendre l’envoi interrompu ».');
+        await saveAssignmentSettings({quiet:true});
+      }
 
       const group = String(state.detailGroup || state.currentAssignment?.groups?.[0] || '');
       if (!group) throw new Error('Choisis un groupe.');
 
       validateMozaikGrades();
-      const expectedCount = expectedGradeCount(group);
-      if (!expectedCount) throw new Error(`Aucune note à synchroniser pour le groupe ${group}.`);
+      let expectedCount = expectedGradeCount(group);
+      if (!expectedCount && !resumeJobId && !recoveryJob) throw new Error(`Aucune note à synchroniser pour le groupe ${group}.`);
 
       const form = currentFormSnapshot();
       syncState(`2/4 · Préparation du lot pour le groupe ${group}...`);
       pushMozaikStage(`Préparation du lot du groupe ${group}…`, 18);
 
       try {
-        job = await prepareJob(group, expectedCount, form);
+        job = recoveryJob || (resumeJobId
+          ? await withTimeout(api(SYNC_ENDPOINT,{action:'resume',teacherToken:state.teacherToken,jobId:resumeJobId}),10000,'La reprise du lot Mozaïk')
+          : await prepareJob(group, expectedCount, form));
+        if (resumeJobId || recoveryJob) expectedCount = job.payload.results.length;
       } catch (error) {
         if (isMissingMapping(error)) {
           throw new Error(`Le mapping Mozaïk du groupe ${group} est absent. La synchronisation a été arrêtée immédiatement au lieu de lancer une détection de 150 s.`);
@@ -187,9 +202,15 @@
       syncState('3/4 · Envoi dans Mozaïk...');
       pushMozaikStage('Lot prêt. Envoi dans Mozaïk…', 32);
 
-      const result = await withTimeout(sendToExtension(job.payload), 35000, 'L’envoi vers Mozaïk');
+      const syncJob={jobId:job.jobId,claimToken:job.claimToken,endpoint:SYNC_ENDPOINT,apiKey:PUBLIC_KEY};
+      const inspected = await withTimeout(sendToExtension({...job.payload,syncJob,reviewOnly:true}),35000,'La lecture de Mozaïk');
+      if (!inspected?.success || !inspected.previewRequired || !inspected.preview) throw new Error(inspected?.message || 'L’aperçu Mozaïk n’a pas pu être préparé.');
+      const approved=await window.CardinalAssignmentActions.reviewMozaik(inspected.preview,{groupCode:job.payload.group.code,title:job.payload.assignment.title,reconcilingStale:job.payload.reconcilingStale===true});
+      if (!approved) throw new Error('Envoi annulé. Aucune nouvelle écriture effectuée dans Mozaïk.');
+      const result = await withTimeout(sendToExtension({...job.payload,syncJob,checkpoint:inspected.checkpoint,confirmedReview:true,reviewOnly:false}),35000,'L’envoi vers Mozaïk');
       const syncedCount = Number(result?.syncedCount || 0);
 
+      if (result?.success === true && (result.verified !== true || Number(result.verifiedCount) !== expectedCount)) throw new Error('Les notes n’ont pas toutes été relues dans Mozaïk. La synchronisation reste à vérifier.');
       if (result?.success === true && syncedCount !== expectedCount) {
         throw new Error(`Mozaïk a confirmé ${syncedCount} note${syncedCount === 1 ? '' : 's'}, mais le lot en contient ${expectedCount}. La synchronisation n’est pas confirmée.`);
       }
@@ -203,6 +224,10 @@
 
       if (!result?.success) {
         throw new Error(result?.message || completeResponse?.message || 'La synchronisation a échoué.');
+      }
+      if (completeResponse?.staleSource) {
+        notify('L’ancien envoi est terminé. Les changements plus récents de Gestion restent à envoyer.');
+        return;
       }
 
       const label = result.competenceLabel || competenceLabel(state.currentAssignment.competenceKind);
@@ -230,9 +255,15 @@
       syncState(message);
       pushMozaikStage(message, 100, 'error');
       notify(message, 'error');
+      if (resumeJobId) {
+        const recover=document.getElementById('recoverMozaikBtn');
+        if(recover){recover.dataset.jobId=resumeJobId;recover.classList.remove('hidden');}
+      }
     } finally {
+      window.cardinalActiveSync = false;
       btn.disabled = false;
       btn.textContent = originalText || 'Envoyer dans Mozaïk';
+      try { await refreshSyncState(); } catch {}
     }
   }
 
@@ -262,6 +293,24 @@
         btn.onclick = ownedHandler;
         btn.dataset.cardinalSyncOwner = 'v14';
       }
+      const resume = document.getElementById('resumeMozaikBtn');
+      if (resume) resume.onclick = async () => {
+        if (inFlight || !resume.dataset.jobId) return;
+        inFlight = true;
+        try { await runSync(resume, resume.dataset.jobId); }
+        finally { inFlight = false; }
+      };
+      const recover=document.getElementById('recoverMozaikBtn');
+      if(recover) recover.onclick=async()=>{
+        if(inFlight || !recover.dataset.jobId)return;
+        inFlight=true;
+        try{
+          const recovered=await api(SYNC_ENDPOINT,{action:'reconcileStale',teacherToken:state.teacherToken,jobId:recover.dataset.jobId});
+          if(recovered.mode==='cancelled') {recover.classList.add('hidden');notify('L’ancien envoi n’avait rien écrit. Tu peux préparer le nouvel envoi.');await refreshSyncState();}
+          else await runSync(recover,'',recovered);
+        }catch(error){notify(error.message,'error');}
+        finally{inFlight=false;}
+      };
       return true;
     } catch {
       return false;

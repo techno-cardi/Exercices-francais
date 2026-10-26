@@ -34,7 +34,7 @@
     if (!groups.length) return;
     const selected = new Set((state.currentAssignment?.groups || []).map(String));
     choices.innerHTML = groups.map(g =>
-      `<label class="check-chip"><input type="checkbox" value="${escAttr(g)}" ${selected.has(g) ? 'checked' : ''}> ${escAttr(g)}</label>`
+      `<label class="check-chip"><input type="checkbox" value="${escAttr(g)}" ${selected.has(g) ? 'checked' : ''} ${state.currentAssignment?.id ? 'disabled' : ''}> ${escAttr(g)}</label>`
     ).join('');
   }
 
@@ -68,7 +68,7 @@
       competenceKind: source.competenceKind || state.currentAssignment.competenceKind,
       competencies: Array.isArray(source.competencies) ? [...source.competencies] : state.currentAssignment.competencies,
       weight: source.weight ?? null,
-      maxScore: Number(source.maxScore || 10),
+      maxScore: source.maxScore == null ? null : Number(source.maxScore),
       groups: groups.length ? groups : state.currentAssignment.groups,
       published: !!source.published,
       instructions: source.instructions || '',
@@ -157,7 +157,9 @@
       const key = `${groupCode}|${state.currentAssignment?.id || ''}`;
       if (!force && key === lastBadgeKey && badge.textContent) return;
       lastBadgeKey = key;
+      const revision = state.navigationRevision;
       const r = await api(ROSTER_ENDPOINT, { action:'discoveryConfig', teacherToken:state.teacherToken, groupCode });
+      if (revision !== state.navigationRevision || key !== `${state.detailGroup}|${state.currentAssignment?.id || ''}`) return;
       const g = r?.group;
       if (!g) {
         badge.textContent = `Groupe ${groupCode} : mapping Mozaïk à valider lors de la première synchronisation.`;
