@@ -3,7 +3,7 @@
  if(window.CardinalGroupOverview)return;
  const el=id=>document.getElementById(id),escape=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
  const core=window.CardinalOverviewCore;
- let data=null,revision=0,grouped=false,editing=false,lastFilters=null;
+ let data=null,revision=0,grouped=true,editing=false,lastFilters=null;
  const editor=window.CardinalOverviewEditor.create({
   parse:(value,max)=>gradeValue(value,max),
   save:async(cell,parsed)=>{
@@ -17,28 +17,33 @@
  function tableMarkup(input,options={}){
   const term=String(options.term||'all'),threshold=Number(options.threshold??60),points=options.scale==='points',search=normalize(options.search);
   const works=core.orderWorks((input.assignments||[]).filter(a=>term==='all'||Number(a.term||1)===Number(term)),options.grouped);
+  const competencyAttrs=(work,index)=>{
+   if(!options.grouped)return '';
+   const key=core.competency(work),start=index===0||core.competency(works[index-1])!==key;
+   return ` data-competency="${key}"${start?' data-competency-start':''}`;
+  };
   const students=(input.students||[]).filter(s=>!search||normalize(`${s.name} ${s.email}`).includes(search)).sort((a,b)=>String(a.lastName||a.name||'').localeCompare(String(b.lastName||b.name||''),'fr',{sensitivity:'base'})||String(a.firstName||'').localeCompare(String(b.firstName||''),'fr',{sensitivity:'base'}));
   if(!works.length)return{html:'<p class="group-empty">Aucun travail pour cette année, ce groupe et cette étape.</p>',studentCount:students.length,workCount:0,failures:0,ungraded:0};
   if(students.length*works.length>40000)return{html:'<p class="group-empty">Cette sélection est très grande. Choisis une étape ou recherche quelques élèves pour afficher le tableau rapidement.</p>',studentCount:students.length,workCount:works.length,failures:0,ungraded:0};
   let failures=0,ungraded=0;
-  const rows=students.map(s=>`<tr><th scope="row" class="overview-name">${escape([s.lastName,s.firstName].filter(Boolean).join(', ')||s.name)}</th>${works.map(a=>{
+  const rows=students.map(s=>`<tr><th scope="row" class="overview-name">${escape([s.lastName,s.firstName].filter(Boolean).join(', ')||s.name)}</th>${works.map((a,index)=>{
    const result=s.results?.[a.id],grade=result?.grade,percent=gradePercentage(grade,a.maxScore);
    const failing=isFailingGrade(grade,a.maxScore,threshold);if(failing)failures++;
    if(result&&percent===null)ungraded++;
    const text=percent===null?'—':points?`${formatNumber(grade,3)} / ${formatNumber(a.maxScore,3)}`:formatGradePercent(grade,a.maxScore,threshold);
    const editable=options.editable&&result&&Number(a.maxScore)>0;
    const content=editable?`<input class="overview-note" inputmode="decimal" type="text" value="${escape(grade==null?'':formatNumber(grade,3))}" data-work="${escape(a.id)}" data-student="${escape(s.email)}" aria-label="${escape(s.name+' · '+a.title+' · note sur '+a.maxScore)}"><span class="overview-cell-note">sur ${escape(formatNumber(a.maxScore))} · <span data-cell-percent>${escape(formatGradePercent(grade,a.maxScore,threshold))}</span></span>`:escape(text);
-   return `<td data-result-work="${escape(a.id)}" class="${failing?'overview-failure':percent===null?'overview-ungraded':''}" title="${escape(!result?'Non inscrit à ce travail':percent===null?'Non noté':s.name+' · '+text+(failing?' · Échec':''))}">${content}${failing||editable?`<span class="overview-cell-note" data-cell-failure${failing?'':' hidden'}>Échec</span>`:''}</td>`;
+   return `<td${competencyAttrs(a,index)} data-result-work="${escape(a.id)}" class="${failing?'overview-failure':percent===null?'overview-ungraded':''}" title="${escape(!result?'Non inscrit à ce travail':percent===null?'Non noté':s.name+' · '+text+(failing?' · Échec':''))}">${content}${failing||editable?`<span class="overview-cell-note" data-cell-failure${failing?'':' hidden'}>Échec</span>`:''}</td>`;
   }).join('')}</tr>`).join('');
-  const footer=works.map(a=>{
+  const footer=works.map((a,index)=>{
    const grades=students.map(s=>s.results?.[a.id]?.grade).filter(g=>gradePercentage(g,a.maxScore)!==null);
    const average=grades.length?grades.reduce((sum,g)=>sum+Number(g),0)/grades.length:null;
-   return `<td>${escape(formatGradePercent(average,a.maxScore))}<small class="overview-cell-note">${grades.length} notes</small></td>`;
+   return `<td${competencyAttrs(a,index)}>${escape(formatGradePercent(average,a.maxScore))}<small class="overview-cell-note">${grades.length} notes</small></td>`;
   }).join('');
   const spans=[];for(const work of works){const key=core.competency(work);if(spans.at(-1)?.key===key)spans.at(-1).count++;else spans.push({key,count:1});}
-  const groupsRow=options.grouped?`<tr class="overview-competency-row"><th class="overview-name" scope="col">Compétence</th>${spans.map(g=>`<th scope="colgroup" colspan="${g.count}">${escape(core.label(g.key))}</th>`).join('')}</tr>`:'';
+  const groupsRow=options.grouped?`<tr class="overview-competency-row"><th class="overview-name" scope="col">Compétence</th>${spans.map(g=>`<th scope="colgroup" colspan="${g.count}" data-competency="${g.key}" data-competency-start>${escape(core.label(g.key))}</th>`).join('')}</tr>`:'';
   const footerHtml=`<tr><th scope="row" class="overview-name">Moyenne des élèves affichés</th>${footer}</tr>`;
-  return{html:`<table class="overview-table${options.grouped?' grouped':''}"><thead>${groupsRow}<tr><th scope="col" class="overview-name">Élève</th>${works.map(a=>`<th scope="col"><button type="button" class="overview-work-link" data-overview-assignment="${escape(a.id)}">${escape(a.title)}</button><small>${escape(core.label(core.competency(a)))} · Étape ${Number(a.term||1)} · ${a.maxScore>0?'sur '+escape(formatNumber(a.maxScore))+' points':'Maximum à compléter'}</small></th>`).join('')}</tr></thead><tbody>${rows||`<tr><td colspan="${works.length+1}">Aucun élève pour cette recherche.</td></tr>`}</tbody><tfoot>${footerHtml}</tfoot></table>`,footerHtml,studentCount:students.length,workCount:works.length,failures,ungraded};
+  return{html:`<table class="overview-table${options.grouped?' grouped':''}"><thead>${groupsRow}<tr><th scope="col" class="overview-name">Élève</th>${works.map((a,index)=>`<th scope="col"${competencyAttrs(a,index)}><button type="button" class="overview-work-link" data-overview-assignment="${escape(a.id)}">${escape(a.title)}</button><small>${escape(core.label(core.competency(a)))} · Étape ${Number(a.term||1)} · ${a.maxScore>0?'sur '+escape(formatNumber(a.maxScore))+' points':'Maximum à compléter'}</small></th>`).join('')}</tr></thead><tbody>${rows||`<tr><td colspan="${works.length+1}">Aucun élève pour cette recherche.</td></tr>`}</tbody><tfoot>${footerHtml}</tfoot></table>`,footerHtml,studentCount:students.length,workCount:works.length,failures,ungraded};
  }
  function options(){return{term:el('overviewTerm').value,scale:el('overviewScale').value,search:el('overviewSearch').value,threshold:state.passingThreshold??60,grouped,editable:editing&&!data?.context?.readOnly};}
  function followUp(){

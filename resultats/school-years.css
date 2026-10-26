@@ -20,3 +20,14 @@
 .overview-competency-row th{height:42px;padding:10px;background:#dce8fa!important;color:#173961}.overview-table.grouped thead tr:nth-child(2) th{top:42px}.overview-risk{margin:14px 0;overflow:hidden}.overview-risk>summary{padding:15px 18px;cursor:pointer;font-weight:750;color:#173961}.overview-risk>summary span{font-size:.8rem;font-weight:500;margin-left:8px}.overview-risk-body{padding:0 18px 16px}.overview-risk-body>label{display:flex;align-items:center;gap:10px;font-size:.83rem;font-weight:700}.overview-risk-body>label input{width:85px}.overview-risk h3{font-size:.9rem;margin:18px 0 8px}.overview-risk-scroll{max-height:310px;overflow:auto}.overview-risk-table{width:100%;border-collapse:collapse;font-size:.82rem}.overview-risk-table th,.overview-risk-table td{padding:9px;border-bottom:1px solid #dce4ee;text-align:left}.overview-risk-table thead th{position:sticky;top:0;background:#edf3fc}.overview-risk-table small{display:block;font-size:.7rem;color:#53657d;margin-top:3px}.overview-risk-table .overview-failure{background:#ffe1e6;color:#9f1c29;font-weight:750}
 .overview-cell-note[hidden]{display:none!important}
 .overview-actions .btn-primary:not([aria-pressed=true]){color:#fff}
+/* Continuous competency boundaries span both header rows, every pupil and averages. */
+.overview-table [data-competency=lecture]{--competency-line:#4779b5;--competency-tint:#e9f1fc;--competency-ink:#234e80}
+.overview-table [data-competency=ecriture]{--competency-line:#458575;--competency-tint:#e7f3ee;--competency-ink:#275d4e}
+.overview-table [data-competency=oral]{--competency-line:#8963b1;--competency-tint:#f1ebf8;--competency-ink:#614082}
+.overview-table [data-competency=multiple]{--competency-line:#aa854a;--competency-tint:#f8f0df;--competency-ink:#715323}
+.overview-table [data-competency=unspecified]{--competency-line:#7a889c;--competency-tint:#edf1f5;--competency-ink:#46566d}
+.overview-table.grouped [data-competency-start]{border-left:4px solid var(--competency-line)}
+.overview-table.grouped thead th[data-competency]{background:var(--competency-tint)!important;color:var(--competency-ink)}
+.overview-table.grouped .overview-competency-row th{box-sizing:border-box;line-height:20px;white-space:nowrap}
+.overview-table.grouped .overview-competency-row th[data-competency]{min-width:190px;font-size:.9rem;border-bottom:2px solid var(--competency-line)}
+.overview-table.grouped tfoot td[data-competency]{background:var(--competency-tint);font-weight:750;border-top:2px solid var(--competency-line)}
