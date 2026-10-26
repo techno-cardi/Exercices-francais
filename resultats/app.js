@@ -463,7 +463,6 @@ function assignmentCards(list) {
         <h3>${esc(a.title)}</h3>
         <div class="assignment-meta">
           <span class="pill">${competenceLabel(a.competenceKind)}</span>
-          <span class="pill gray">Groupe${a.groups.length > 1 ? "s" : ""} ${a.groups.join(", ")}</span>
           ${a.weight !== null ? `<span class="pill gray">${formatNumber(a.weight)} %</span>` : ""}
           <span class="pill ${a.mozaikSyncStatus === "synced" ? "green" : a.mozaikSyncStatus === "dirty" ? "amber" : a.mozaikSyncStatus === "error" ? "red" : "gray"}">${a.mozaikSyncStatus === "synced" ? "Mozaïk synchronisé" : a.mozaikSyncStatus === "dirty" ? "Modifié" : a.mozaikSyncStatus === "error" ? "Erreur Mozaïk" : "Non synchronisé"}</span>
         </div>
