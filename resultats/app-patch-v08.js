@@ -290,7 +290,7 @@
     if (document.getElementById('cardinal-formative-global-v01')) return;
     const script = document.createElement('script');
     script.id = 'cardinal-formative-global-v01';
-    script.src = 'formative-global-v01.js?v=2';
+    script.src = 'formative-global-v01.js?v=1324b';
     script.async = false;
     (document.body || document.documentElement).appendChild(script);
   }

@@ -10,7 +10,9 @@ Les anciens travaux partagés se séparent après aperçu et attribution explici
 
 ## Validation
 
-147 tests ciblés passent, dont quatre suites SQL sur PostgreSQL WASM. Les scénarios couvrent la création indépendante/idempotente, les révisions périmées, les références canoniques, les notes nulles et nullités de métadonnées, les sous-parties, les listes incomplètes, les reprises après écriture des paramètres, les notes hors lot, les états spéciaux et les paramètres natifs.
+150 tests ciblés passent, dont quatre suites SQL sur PostgreSQL WASM. Les scénarios couvrent la création indépendante/idempotente, les révisions périmées, les références canoniques, les notes nulles et nullités de métadonnées, les sous-parties, les listes incomplètes, les reprises après écriture des paramètres, les notes hors lot, les états spéciaux et les paramètres natifs.
+
+Après rechargement de Cardinal, l’essai Chrome réel a confirmé la création de deux travaux 31/32 distincts, puis le changement du maximum du seul groupe 31. La navigation du groupe et la lecture native Mozaïk ont fonctionné; deux travaux planifiés absents ont été proposés et un titre similaire est resté à vérifier. L’aperçu Formative vers un travail existant a proposé 26 notes sur 100 et conservé cinq résultats incomplets. Les deux aperçus ont été annulés, sans publication de notes. Trois régressions supplémentaires protègent les libellés du bouton global, les destinations historiques partagées et le compteur de modifications; la liste des questions défile dans une zone limitée.
 
 La navigation a également été contrôlée dans Chrome avec des données synthétiques et un transport réseau neutralisé. Après application du schéma réel, un essai transactionnel de création 31/32, modification/suppression indépendante et séparation a réussi puis a été intégralement annulé. Aucun travail d’essai ni résultat réel n’a été conservé par cet essai.
 

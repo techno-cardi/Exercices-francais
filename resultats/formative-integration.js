@@ -236,7 +236,7 @@
     excludedEmails.clear();
     frozenGroup = String(state.dashboardGroup || state.detailGroup || snapshot.groupCode || '');
     lockedDestinationId = destinationId || '';
-    const linked = (state.teacherAssignments || []).filter(a => a.formativeId === snapshot.formativeId && (a.groups || []).map(String).includes(frozenGroup));
+    const linked = (state.teacherAssignments || []).filter(a => a.formativeId === snapshot.formativeId && a.groups?.length === 1 && a.groups.map(String).includes(frozenGroup));
     const suggestedDestinationId = linked.length === 1 ? String(linked[0].id) : '';
     const initialDestinationId = destinationId || suggestedDestinationId;
     const dialog = document.getElementById('formativeImportDialog');
@@ -264,7 +264,7 @@
 
     const available = (state.teacherAssignments || []).filter(a => (a.groups || []).map(String).includes(frozenGroup));
     const dest = document.getElementById('formativeDestination');
-    dest.innerHTML = `<option value="">Créer un nouveau travail</option>` + available.map(a => `<option value="${escF(a.id)}">${escF(a.title)} · Étape ${escF(a.term || 1)} · ${escF(a.activityDate || "Date à compléter")} · ${escF(maxLabel(a.maxScore))}</option>`).join('');
+    dest.innerHTML = `<option value="">Créer un nouveau travail</option>` + available.map(a => `<option value="${escF(a.id)}"${a.groups.length > 1 ? ' disabled' : ''}>${escF(a.title)}${a.groups.length > 1 ? ' · Séparer les groupes avant d’importer' : ''} · Étape ${escF(a.term || 1)} · ${escF(a.activityDate || "Date à compléter")} · ${escF(maxLabel(a.maxScore))}</option>`).join('');
     if (destinationId) {
       if (![...dest.options].some(o => o.value === destinationId)) {
         const a = assignmentForDestination(destinationId) || state.currentAssignment;
@@ -328,6 +328,7 @@
   function renderPreview(preview) {
     const labels = {add:'Ajoutées',replace:'Remplacées',rescale:'Remises à l’échelle',unchanged:'Identiques',blocked:'Conservées / bloquées'};
     const counts = preview.counts || {};
+    counts.modified = ['add','replace','rescale'].reduce((sum,key) => sum + Number(counts[key] || 0), 0);
     const sourceEmails = new Set((currentImport?.students || []).map(s => String(s.email || '').trim().toLowerCase()).filter(Boolean));
     const rows = [...(preview.rows || [])].sort((a,b) => {
       const surname = row => String(row.lastName || row.name || row.email || '').trim().split(/\s+/).slice(-1)[0];

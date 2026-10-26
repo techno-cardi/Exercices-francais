@@ -104,7 +104,7 @@
 
     const confirm = document.getElementById('confirmFormativeImport');
     const dest = document.getElementById('formativeDestination');
-    if (confirm && !dest?.value) confirm.textContent = 'Importer le résultat global';
+    if (confirm && !dest?.value && dialog.dataset.cardinalNativeDestinationV2 !== '1') confirm.textContent = 'Importer le résultat global';
   }
 
   const observer = new MutationObserver(() => requestAnimationFrame(applyGlobalDefaults));

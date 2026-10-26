@@ -103,3 +103,27 @@ test('a single known Formative link proposes its current-group destination witho
 test('preview warnings expose changed links as escaped text before confirmation',async()=>{
  const h=harness();h.context.response.preview.warnings=['Le lien sera remplacé <script>'];h.ui.showImportModal(h.snapshot,'a1');await h.ui.confirmImport();assert.match(h.element('formativePreview').innerHTML,/Le lien sera remplacé &lt;script&gt;/);assert.doesNotMatch(h.element('formativePreview').innerHTML,/<script>/);
 });
+
+test('shared historical works cannot be selected or suggested as import destinations',()=>{
+ const h=harness();h.context.state.teacherAssignments[0].groups=['101','102'];h.context.state.teacherAssignments[0].formativeId='f1';h.ui.showImportModal(h.snapshot);
+ assert.equal(h.element('formativeDestination').value,'');
+ assert.match(h.element('formativeDestination').innerHTML,/<option value="a1" disabled>.*Séparer les groupes/);
+});
+
+test('preview derives the modification count from add, replace and rescale totals',async()=>{
+ const h=harness();delete h.context.response.preview.counts.modified;h.context.response.preview.counts.add=26;h.context.response.preview.counts.replace=0;
+ h.ui.showImportModal(h.snapshot);await h.ui.confirmImport();
+ assert.match(h.element('formativePreview').innerHTML,/Toutes · 26 modifications/);
+});
+
+test('global import helper preserves native preview and confirmation labels',()=>{
+ const h=harness();h.ui.showImportModal(h.snapshot);let apply;
+ h.context.MutationObserver=class {constructor(fn){apply=fn;}observe(){}};
+ h.context.requestAnimationFrame=fn=>fn();h.context.sessionStorage.getItem=()=>JSON.stringify({formativeId:'f1'});
+ h.context.document.querySelectorAll=()=>[];
+ h.context.document.querySelector=()=>({});
+ h.element('formativeSummary').appendChild=()=>{};
+ h.context.document.createElement=()=>({dataset:{}});
+ vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../../resultats/formative-global-v01.js'),'utf8'),h.context);
+ apply();assert.equal(h.element('confirmFormativeImport').textContent,'Prévisualiser les notes');
+});

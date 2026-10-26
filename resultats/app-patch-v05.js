@@ -15,14 +15,14 @@
     if (!document.querySelector('link[data-cardinal-formative]')) {
       const link = document.createElement('link');
       link.rel = 'stylesheet';
-      link.href = 'formative.css?v=1324';
+      link.href = 'formative.css?v=1324b';
       link.dataset.cardinalFormative = '1';
       document.head.appendChild(link);
     }
     if (!document.getElementById('cardinal-formative-integration')) {
       const script = document.createElement('script');
       script.id = 'cardinal-formative-integration';
-      script.src = 'formative-integration.js?v=1324';
+      script.src = 'formative-integration.js?v=1324b';
       script.async = false;
       (document.body || document.documentElement).appendChild(script);
     }
@@ -39,7 +39,7 @@
     if (document.getElementById('cardinal-app-patch-v08') || window.__cardinalV08Installed) return;
     const script = document.createElement('script');
     script.id = 'cardinal-app-patch-v08';
-    script.src = 'app-patch-v08.js?v=1324';
+    script.src = 'app-patch-v08.js?v=1324b';
     script.async = false;
     (document.body || document.documentElement).appendChild(script);
   }
