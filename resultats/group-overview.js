@@ -50,10 +50,24 @@
   if(!data||!el('overviewRiskContent'))return;
   const threshold=Number(el('overviewRiskThreshold').value);
   const report=core.followUp(data,{term:el('overviewTerm').value,threshold:Number.isFinite(threshold)?threshold:70,passing:state.passingThreshold??60});
-  const concerns=report.filter(r=>r.level==='failure'||r.level==='watch'),incomplete=report.filter(r=>r.level==='insufficient'||r.level==='incomplete');
-  el('overviewRiskSummary').textContent=`${new Set(concerns.map(r=>r.email)).size} élèves à surveiller · ${new Set(incomplete.map(r=>r.email)).size} avec des données à compléter`;
-  const table=(rows,empty)=>rows.length?`<div class="overview-risk-scroll"><table class="overview-risk-table"><thead><tr><th>Élève</th><th>Compétence</th><th>Étape</th><th>Résultat</th><th>Repères</th></tr></thead><tbody>${rows.map(r=>`<tr><th scope="row">${escape(r.name)}</th><td>${escape(r.label)}</td><td>${r.term}</td><td class="${r.level==='failure'?'overview-failure':''}">${r.average===null?'—':escape(formatGradePercent(r.average,100,state.passingThreshold??60))}<small>${r.average===null?'Données insuffisantes':r.method==='weighted'?'Moyenne pondérée':'Moyenne indicative non pondérée'}</small></td><td>${r.graded} note${r.graded===1?'':'s'}${r.provisional?' · repère provisoire':''}${r.failures?' · '+r.failures+' échec'+(r.failures>1?'s':''):''}${r.missing?' · '+r.missing+' non noté'+(r.missing>1?'s':''):''}</td></tr>`).join('')}</tbody></table></div>`:`<p class="hint">${escape(empty)}</p>`;
-  el('overviewRiskContent').innerHTML='<h3>Résultats à surveiller</h3>'+table(concerns,'Aucun élève signalé avec les critères choisis.')+'<h3>Données à compléter</h3>'+table(incomplete,'Aucune donnée manquante parmi les travaux pris en compte.');
+  const concerns=report.filter(r=>r.level==='failure'||r.level==='watch');
+  const concernedCount=new Set(concerns.map(r=>r.email)).size;
+  el('overviewRiskSummary').textContent=`${concernedCount} élève${concernedCount===1?'':'s'} à surveiller`;
+  const table=(rows,empty)=>rows.length?`<div class="overview-risk-scroll"><table class="overview-risk-table"><thead><tr><th>Élève</th><th>Compétence</th><th>Étape</th><th>Résultat</th><th>Repères</th></tr></thead><tbody>${rows.map(r=>`<tr><th scope="row">${escape(r.name)}</th><td>${escape(r.label)}</td><td>${r.term}</td><td class="${r.level==='failure'?'overview-failure':''}">${r.average===null?'—':escape(formatGradePercent(r.average,100,state.passingThreshold??60))}<small>${r.average===null?'Données insuffisantes':r.method==='weighted'?'Moyenne pondérée':'Moyenne indicative non pondérée'}</small></td><td>${r.graded} note${r.graded===1?'':'s'}${r.provisional?' · repère provisoire':''}${r.failures?' · '+r.failures+' échec'+(r.failures>1?'s':''):''}</td></tr>`).join('')}</tbody></table></div>`:`<p class="hint">${escape(empty)}</p>`;
+  el('overviewRiskContent').innerHTML=table(concerns,'Aucun élève signalé avec les critères choisis.');
+  if(el('overviewMissingContent')){
+   const missing=[],term=el('overviewTerm').value;
+   for(const student of data.students||[])for(const work of data.assignments||[]){
+    if(term!=='all'&&Number(work.term||1)!==Number(term))continue;
+    const result=student.results?.[work.id];
+    if(result&&(result.grade===null||result.grade===undefined||result.grade===''))missing.push({student,work});
+   }
+   missing.sort((a,b)=>String(a.student.lastName||a.student.name||a.student.email).localeCompare(String(b.student.lastName||b.student.name||b.student.email),'fr',{sensitivity:'base'})||String(a.student.firstName||'').localeCompare(String(b.student.firstName||''),'fr',{sensitivity:'base'}));
+   const missingStudents=new Set(missing.map(r=>r.student.email)).size;
+   el('overviewMissingSummary').textContent=`${missing.length} note${missing.length===1?'':'s'} · ${missingStudents} élève${missingStudents===1?'':'s'}`;
+   el('overviewMissingContent').innerHTML=missing.length?`<div class="overview-risk-scroll"><table class="overview-risk-table"><thead><tr><th>Élève</th><th>Travail</th><th>Compétence</th><th>Étape</th></tr></thead><tbody>${missing.map(({student:s,work:w})=>`<tr><th scope="row">${escape([s.lastName,s.firstName].filter(Boolean).join(', ')||s.name||s.email)}</th><td><button type="button" class="overview-work-link" data-missing-assignment="${escape(w.id)}">${escape(w.title)}</button></td><td>${escape(core.label(core.competency(w)))}</td><td>${Number(w.term||1)}</td></tr>`).join('')}</tbody></table></div>`:'<p class="hint">Toutes les notes sont saisies pour cette sélection.</p>';
+   for(const button of el('overviewMissingContent').querySelectorAll('[data-missing-assignment]'))button.onclick=()=>openAssignment(button.dataset.missingAssignment);
+  }
  }
  function refreshSummaries(){
   if(!data)return;const result=tableMarkup(data,options());
@@ -84,6 +98,7 @@
   data=null;editing=false;editor.clear();
   if(el('overviewEdit')){el('overviewEdit').disabled=true;el('overviewEdit').textContent='Modifier les notes';el('overviewEdit').setAttribute('aria-pressed','false');}
   if(el('overviewRiskContent'))el('overviewRiskContent').innerHTML='';if(el('overviewRiskSummary'))el('overviewRiskSummary').textContent='';
+  if(el('overviewMissingContent'))el('overviewMissingContent').innerHTML='';if(el('overviewMissingSummary'))el('overviewMissingSummary').textContent='';
   const groups=dashboardGroups();el('overviewGroup').innerHTML=groups.map(g=>`<option value="${escape(g)}">Groupe ${escape(g)}</option>`).join('');el('overviewGroup').value=group||'';
   el('overviewThreshold').value=String(state.passingThreshold??60);el('overviewTitle').textContent=`Résultats du groupe ${group||'—'} · ${year?`${year}–${Number(year)+1}`:''}`;
   if(!group||!year){data=null;el('overviewContent').innerHTML='<p class="group-empty">Choisis une année et un groupe.</p>';return;}
