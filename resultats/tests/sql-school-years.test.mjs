@@ -18,6 +18,7 @@ await db.query("insert into fr_dictee_feedback(assignment_id,student_email,copy_
 const before=(await db.query('select to_jsonb(r) v from school_results r where assignment_id=$1',[aid])).rows[0].v;
 const dictationBefore=(await db.query('select to_jsonb(r) v from fr_dictee_feedback r where assignment_id=$1',[aid])).rows[0].v;
 await migration('20261026211837_school_years_and_archives.sql');
+await migration('20261026230000_overview_competency_metadata.sql');
 const call=async(name,args=[])=>(await db.query(`select ${name}(${args.map((_,i)=>'$'+(i+1)).join(',')}) v`,args)).rows[0].v;
 const preview=(kind,request)=>call('cardinal_preview_school_year',['teacher@test',kind,request]);const confirm=id=>call('cardinal_confirm_school_year',['teacher@test',id]);
 assert.equal((await call('cardinal_year_catalog')).activeYear,2026);
@@ -76,6 +77,8 @@ await assert.rejects(db.query("insert into school_mozaik_groups values('31','s',
 await db.query('update school_assignments set published=true where id=$1',[newWork]);
 await db.query("insert into school_results(assignment_id,student_email,grade)values($1,'new@educ.cscapitale.qc.ca',0)",[newWork]);
 const oldOverview=await call('cardinal_group_year_overview',[2026,'31']);
+assert.ok(Array.isArray(oldOverview.assignments.find(a=>a.id===aid).competencies),'overview needs canonical competency metadata');
+assert.ok(Object.hasOwn(oldOverview.assignments.find(a=>a.id===aid),'weight'),'overview needs explicit weights, including missing ones');
 assert.equal(oldOverview.students.some(s=>s.email==='new@educ.cscapitale.qc.ca'),false);
 assert.equal(oldOverview.students.find(s=>s.email==='alpha@educ.cscapitale.qc.ca').results[aid].grade,12.34567);
 const newOverview=await call('cardinal_group_year_overview',[2027,'31']);

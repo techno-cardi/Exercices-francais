@@ -2,11 +2,11 @@ const test=require('node:test'),assert=require('node:assert/strict'),fs=require(
 function harness(){
  const root=path.join(__dirname,'..'),app=fs.readFileSync(path.join(root,'app.js'),'utf8');
  const elements={};const listeners={};const pending=[];
- const get=id=>elements[id]||= {value:'all',innerHTML:'',textContent:'',querySelectorAll:()=>[]};
+ const get=id=>elements[id]||= {value:'all',innerHTML:'',textContent:'',querySelectorAll:()=>[],setAttribute(){}};
  const state={schoolYear:2026,dashboardGroup:'31',teacherToken:'token',teacherSection:'overview',passingThreshold:60};
  const c=vm.createContext({window:{addEventListener:(type,fn)=>listeners[type]=fn},document:{getElementById:get},state,TEACHER_ENDPOINT:"synthetic",localStorage:{setItem(){}},dashboardGroups:()=>['31','32'],selectDashboardGroup(){},openAssignment(){},api:()=>new Promise(resolve=>pending.push(resolve))});
  vm.runInContext(app.slice(app.indexOf('function formatNumber('),app.indexOf('function competenceLabel('))+app.slice(app.indexOf('function gradePercentage('),app.indexOf('function passingThreshold(')),c);
- vm.runInContext(fs.readFileSync(path.join(root,'group-overview.js'),'utf8'),c);
+ for(const file of ['overview-core.js','overview-editor.js','group-overview.js'])vm.runInContext(fs.readFileSync(path.join(root,file),'utf8'),c);
  return{view:c.window.CardinalGroupOverview,state,elements,get,pending,listeners};
 }
 const input={assignments:[{id:'a',title:'Lecture <test>',maxScore:20,term:1},{id:'b',title:'Écriture',maxScore:10,term:2}],students:[{email:'b',name:'Éva Zèbre',lastName:'Zèbre',firstName:'Éva',results:{a:{grade:12},b:{grade:null}}},{email:'a',name:'Alice Alpha',lastName:'Alpha',firstName:'Alice',results:{a:{grade:0},b:{grade:5.9999}}},{email:'c',name:'Sans résultat',results:{}}]};
@@ -23,6 +23,11 @@ test('all steps by default; points, term, search and custom threshold remain ind
  assert.match(view.tableMarkup(input,{scale:'points'}).html,/0 \/ 20/);
  assert.equal(view.tableMarkup(input,{threshold:0}).failures,0);
 });
+test('grouped table renders competency spans and editing only for assigned valid-scale cells',()=>{
+ const {view}=harness(),out=view.tableMarkup(input,{grouped:true,editable:true});
+ assert.match(out.html,/scope="colgroup"/);assert.match(out.html,/class="overview-note"/);assert.equal((out.html.match(/class="overview-note"/g)||[]).length,4);
+ assert.doesNotMatch(view.tableMarkup(input,{editable:false}).html,/class="overview-note"/);
+});
 test('old year response cannot overwrite the current overview',async()=>{
  const h=harness();const request=h.view.show();h.state.schoolYear=2027;h.listeners['cardinal-year-changed']();h.pending[0](input);await request;
  assert.doesNotMatch(h.get('overviewContent').innerHTML,/overview-table/);
@@ -31,5 +36,11 @@ test('old group response cannot overwrite a newly selected group',async()=>{
  const h=harness();const first=h.view.show();h.state.dashboardGroup='32';const second=h.view.show();
  h.pending[1]({...input,assignments:[{id:'new',title:'Groupe 32',maxScore:10}],students:[]});await second;
  h.pending[0](input);await first;assert.match(h.get('overviewContent').innerHTML,/Groupe 32/);assert.doesNotMatch(h.get('overviewContent').innerHTML,/Lecture/);
+});
+test('loading a new group invalidates old matrix even if filters or grouping change',async()=>{
+ const h=harness();const initial=h.view.show();h.pending[0]({...input,schoolYear:2026,groupCode:'31'});await initial;
+ h.state.dashboardGroup='32';const next=h.view.show();h.view.render();await h.get('overviewGroupCompetency').onclick();h.view.render();
+ assert.doesNotMatch(h.get('overviewContent').innerHTML,/overview-table/);assert.equal(h.get('overviewEdit').disabled,true);
+ h.pending[1]({...input,schoolYear:2026,groupCode:'32'});await next;
 });
 

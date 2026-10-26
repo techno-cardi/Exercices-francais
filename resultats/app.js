@@ -265,6 +265,7 @@ emailInput.addEventListener("input", () => {
 });
 
 logoutBtn.addEventListener("click", async () => {
+  if(state.teacherToken&&!await prepareAssignmentNavigation())return;
   const old = state.teacherToken;
   localStorage.removeItem("results_teacher_token");
   sessionStorage.removeItem("results_student_token");
@@ -358,6 +359,7 @@ function activateAssignmentGroup(group, resetFilters = false) {
 
 async function prepareAssignmentNavigation() {
   if (window.cardinalActiveSync) { notify('Termine ou annule l’envoi Mozaïk avant de changer de travail.', 'error'); return false; }
+  if(state.teacherSection==='overview'&&window.CardinalGroupOverview)return window.CardinalGroupOverview.prepareNavigation();
   if (state.teacherSection !== "detail" || !state.currentAssignment) return true;
   try {
     const active = document.activeElement;

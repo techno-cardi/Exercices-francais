@@ -114,6 +114,11 @@ export function createImportApi(deps:any) {
     const grade=body.grade===null||body.grade===''||body.grade===undefined?null:Number(body.grade);
     if(grade!==null&&(!Number.isFinite(grade)||grade<0||grade>a.max_score))fail('La note est hors du barème du travail.');
     const existing=before.results.find((r:any)=>r.student_email===email);
+    if(body.expectedResult){
+      const expected=body.expectedResult;
+      const sameGrade=(expected.grade===null&&(existing?.grade===null||existing?.grade===undefined))||(expected.grade!==null&&Number(expected.grade)===Number(existing?.grade)&&existing?.grade!==null&&existing?.grade!==undefined);
+      if(!sameGrade||Number(expected.maxScore)!==Number(a.max_score))fail('La note ou le maximum a changé depuis l’affichage. Relis les résultats avant de modifier cette case.',409);
+    }
     const rawGrade=body.rawGrade===undefined?grade:Number(body.rawGrade);
     if(body.rawGrade!==undefined&&rawGrade!==null&&(!Number.isFinite(rawGrade)||rawGrade<0||rawGrade>a.max_score||Math.abs(Math.round((rawGrade+Number.EPSILON)*10)/10-grade)>1e-9))fail('La note saisie ne correspond pas à la note arrondie.');
     const sameGrade=existing&&existing.grade===grade&&(body.rawGrade===undefined||rawGrade===grade);

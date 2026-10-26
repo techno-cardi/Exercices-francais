@@ -30,6 +30,15 @@ function harness(){
   return{context,db,calls,operations,assignment,results,tables,catalog};
 }
 const snapshot={formativeId:'F',assignmentId:'FA',sectionId:'S31',title:'Formative',groupCode:'31',questions:[{id:'q',possiblePoints:10}],students:[{id:'student-a',email:'a@test.invalid',answers:[{questionId:'q',answerId:'answer-a',points:5,possiblePoints:10,gradedAt:null}]}]};
+test('overview rejects a changed score or maximum before creating any write plan',async()=>{
+ for(const expected of [{grade:5,maxScore:20},{grade:10,maxScore:30}]){
+  const h=harness();await assert.rejects(h.context.saveResult(h.db,'token',{assignmentId:'A',email:'a@test.invalid',grade:12,expectedResult:expected}),/changé/);assert.equal(h.operations.length,0);
+ }
+});
+test('overview grade-only edit preserves stored feedback, response and visibility',async()=>{
+ const h=harness();await h.context.saveResult(h.db,'token',{assignmentId:'A',email:'a@test.invalid',grade:12,expectedResult:{grade:10,maxScore:20}});
+ const write=h.operations[0].plan.writes[0];assert.equal(write.feedback,'Conserver');assert.equal(write.response,'Texte');assert.equal(write.visible,false);
+});
 test('Formative preview compares stored notes, preserves settings, and writes only a preview',async()=>{
   const h=harness();assert.equal(typeof h.context.formativePreview,'function','The API needs an authenticated preview before grade writes');
   const result=await h.context.formativePreview(h.db,'token',{formative:snapshot,selectedQuestionIds:['q'],destinationAssignmentId:'A',scaleMode:'hundred',settings:{title:'Overwrite',weight:99}});
