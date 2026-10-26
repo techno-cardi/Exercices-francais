@@ -5,4 +5,5 @@ config.local.js
 # Fichiers de travail
 .codex-tmp/
 node_modules/
+supabase/.temp/
 *.log

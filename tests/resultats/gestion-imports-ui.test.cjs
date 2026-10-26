@@ -15,6 +15,26 @@ function harness(){
 }
 function deliver(h,result){h.listeners.message({source:h.window,origin:'https://local',data:{source:'cardinal-mozaik-extension',type:'MOZAIK_EXTENSION_PLANNED_ACTIVITIES_RESULT',requestId:h.window.sent.requestId,result}});}
 function snapshot(){return{ok:true,scope:{groupCode:'101',schoolYear:'2026',schoolId:'s',subjectId:'f',mozaikGroupId:'g'},activities:[],complete:true};}
+test('compact Mozaik list sorts missing first and bulk action selects only confirmed missing works',async()=>{
+ const h=harness();h.context.response={preview:{rows:[
+  {activityId:'linked',title:'Existing linked',status:'linked',selectable:false},
+  {activityId:'similar',title:'Similar title',status:'already_exists',selectable:true,candidates:[{id:'a',title:'A'}]},
+  {activityId:'missing',title:'Missing work',status:'missing',selectable:true}
+ ]}};
+ const work=h.window.CardinalGestionImports.openMozaik();deliver(h,snapshot());await work;
+ const html=h.el('gestionImportsContent').innerHTML;
+ assert.match(html,/✅ Déjà importé/);assert.match(html,/gestion-metadata-list/);
+ assert.ok(html.indexOf('Missing work')<html.indexOf('Existing linked'));
+ assert.match(html,/Importer tous les manquants/);
+ h.ui.change({target:{dataset:{activity:'similar'},value:'associate:a'}});
+ h.ui.change({target:{dataset:{activity:'missing'},value:''}});
+ h.context.response={previewId:'bulk',preview:{}};
+ await h.el('gestionImportsAllMissing').onclick();
+ const selections=h.calls.at(-1).selections;
+ assert.deepEqual(JSON.parse(JSON.stringify(selections)),[{activityId:'missing',mode:'create'}]);
+ assert.equal(h.calls.at(-1).action,'mozaikPreview');
+ assert.equal(h.el('gestionImportsSubmit').textContent,'Confirmer l’import des travaux');
+});
 test('metadata import lists first, previews selected metadata, then confirms',async()=>{
  const h=harness();h.context.response={preview:{rows:[{activityId:'m',title:'<Titre>',status:'missing',selectable:true,metadata:{maxScore:null}}]}};
  const work=h.window.CardinalGestionImports.openMozaik();deliver(h,snapshot());await work;

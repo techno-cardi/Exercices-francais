@@ -1,4 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.116.0';
+import { resolveDictationWorks } from './split-work.ts';
 
 // Fonction préparée, non déployée. verify_jwt = false uniquement parce que
 // la fonction vérifie elle-même la clé publiable ET le jeton serveur de session.
@@ -31,7 +32,7 @@ async function getStudent(db:any,token:string) {
   return student;
 }
 async function getAssignedWork(db:any,student:any,workSlug:string) {
-  const {data:assignment}=await db.from('school_assignments').select('id,title,max_score,group_codes').eq('slug',workSlug).maybeSingle();
+  const [assignment]=await resolveDictationWorks(db,workSlug,student.group_code);
   if(!assignment||(assignment.group_codes||[]).indexOf(student.group_code)<0) fail('Travail indisponible.',404);
   const {data:feedback,error}=await db.from('fr_dictee_feedback').select('*').eq('assignment_id',assignment.id).eq('student_email',student.email).maybeSingle();
   if(error||!feedback) fail('Copie individuelle non disponible.',404);
@@ -57,7 +58,7 @@ async function teacherCatalog(db:any,body:any) {
   await teacherAllowed(db,String(body.token||''));
   const {data,error}=await db.from('school_assignments')
     .select('slug,title,group_codes,max_score,activity_date,activity_type')
-    .not('slug','is',null).order('activity_date',{ascending:false});
+    .not('slug','is',null).eq('split_archived',false).order('activity_date',{ascending:false});
   if(error)fail('Impossible de charger les travaux.',500);
   const dictations=(data||[]).filter((item:any)=>String(item.slug||'').startsWith('dictee-'));
   return {works:dictations.map((w:any)=>({slug:w.slug,title:w.title,groups:w.group_codes||[],maxScore:w.max_score,date:w.activity_date||null}))};
@@ -69,19 +70,22 @@ function choicePosition(email:string,key:string) {
 }
 async function teacherStatus(db:any, body:any) {
   await teacherAllowed(db,String(body.token||''));
-  const {data:assignment}=await db.from('school_assignments').select('id,title,max_score,group_codes').eq('slug',slugFrom(body)).maybeSingle();
-  if(!assignment) fail('Travail indisponible.',404);
   const selected=String(body.group||'all');
-  if(selected!=='all'&&!(assignment.group_codes||[]).includes(selected)) fail('Groupe inconnu.');
-  let q=db.from('school_students').select('email,name,group_code').eq('active',true).in('group_code',selected==='all'?assignment.group_codes:[selected]);
+  const assignments=await resolveDictationWorks(db,slugFrom(body),selected==='all'?null:selected);
+  if(!assignments.length) fail('Travail indisponible.',404);
+  const assignment=assignments[0], ids=assignments.map((a:any)=>a.id);
+  const groups=selected==='all'?[...new Set(assignments.flatMap((a:any)=>a.group_codes||[]))]:[selected];
+  let q=db.from('school_students').select('email,name,group_code').eq('active',true).in('group_code',groups);
   const {data:students,error:e1}=await q;
-  const {data:details,error:e2}=await db.from('fr_dictee_feedback').select('student_email,errors,errors_verified,released,started_at,copy_opened_at,bilan_seen_at,understood_keys,completed_at,attempt_number,attempt_history').eq('assignment_id',assignment.id);
-  const {data:results,error:e3}=await db.from('school_results').select('student_email,grade').eq('assignment_id',assignment.id);
+  const {data:details,error:e2}=await db.from('fr_dictee_feedback').select('assignment_id,student_email,errors,errors_verified,released,started_at,copy_opened_at,bilan_seen_at,understood_keys,completed_at,attempt_number,attempt_history').in('assignment_id',ids);
+  const {data:results,error:e3}=await db.from('school_results').select('assignment_id,student_email,grade').in('assignment_id',ids);
   if(e1||e2||e3) fail('Impossible de charger le suivi.',500);
-  const dmap=new Map((details||[]).map((x:any)=>[x.student_email,x]));
-  const rmap=new Map((results||[]).map((x:any)=>[x.student_email,x]));
+  const dmap=new Map((details||[]).map((x:any)=>[x.assignment_id+'|'+x.student_email,x]));
+  const rmap=new Map((results||[]).map((x:any)=>[x.assignment_id+'|'+x.student_email,x]));
   const rows=(students||[]).map((s:any)=>{
-    const d=dmap.get(s.email);const r=rmap.get(s.email);
+    const work=assignments.find((a:any)=>a.group_codes?.includes(s.group_code));
+    const key=work?.id+'|'+s.email;
+    const d=dmap.get(key);const r=rmap.get(key);
     const total=d?.errors_verified&&Array.isArray(d.errors)?d.errors.length:null;
     const count=total===null?null:(d.understood_keys||[]).filter((key:string)=>d.errors.some((e:any)=>e.key===key)).length;
     return {name:s.name,group:s.group_code,email:s.email,grade:r?.grade??null,ready:!!d?.errors_verified,released:!!d?.released,startedAt:d?.started_at||null,copyOpenedAt:d?.copy_opened_at||null,bilanSeenAt:d?.bilan_seen_at||null,understoodCount:count,totalErrors:total,completedAt:d?.completed_at||null,attemptNumber:d?.attempt_number||1,attemptCount:d?.started_at?d.attempt_number:0,attemptHistory:d?.attempt_history||[]};

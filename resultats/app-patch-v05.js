@@ -15,7 +15,7 @@
     if (!document.querySelector('link[data-cardinal-formative]')) {
       const link = document.createElement('link');
       link.rel = 'stylesheet';
-      link.href = 'formative.css?v=1324b';
+      link.href = 'formative.css?v=1324d';
       link.dataset.cardinalFormative = '1';
       document.head.appendChild(link);
     }
