@@ -1,0 +1,24 @@
+.dashboard-actions{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.dashboard-actions>label{display:grid;gap:4px;color:var(--muted);font-size:.8rem;font-weight:700}
+#assignmentsView .toolbar{grid-template-columns:minmax(180px,1fr) 115px minmax(160px,220px) 130px}
+.grade-card-head{align-items:flex-start;gap:18px}
+.grade-tools{display:flex;justify-content:flex-end;align-items:flex-end;flex-wrap:wrap;gap:10px;max-width:680px}
+.grade-filter-label{display:grid;gap:4px;font-size:.76rem;color:var(--muted);font-weight:750}
+.grade-filter-label .select{min-width:175px}
+.grade-threshold-label{display:grid;grid-template-columns:74px 16px;gap:4px;font-size:.76rem;color:var(--muted);font-weight:750}
+.grade-threshold-label input{grid-row:2;min-width:0;padding:11px 8px}
+.grade-threshold-label span{grid-row:2;align-self:center}
+.grade-threshold-label{white-space:nowrap}
+.grade-summary{margin:0;padding:0 20px 14px;color:var(--muted);font-size:.82rem}
+.grade-status{display:inline-block;margin-left:8px;padding:2px 7px;border-radius:6px;background:#fee2e2;color:#9f1c29;font-size:.71rem;font-weight:800;vertical-align:middle}
+.grade-status[hidden]{display:none}
+.grade-table tr.grade-failing td{background:#fff1f2;color:#982232}
+.grade-table tr.grade-failing:hover td{background:#ffe4e8}
+.grade-table tr.grade-failing td:first-child{box-shadow:inset 3px 0 #ce4657}
+.grade-table tr.grade-failing .grade-input{border-color:#e7a6b0;color:#982232;background:#fff}
+.grade-table tr.grade-failing .grade-input:focus{border-color:var(--blue);box-shadow:0 0 0 3px #dceaff}
+.grade-table .grade-empty{text-align:center;padding:28px;color:var(--muted)}
+.grade-table tr[hidden]{display:none}
+.group-empty{padding:28px;color:var(--muted)}
+@media(max-width:1000px){#assignmentsView .toolbar{grid-template-columns:1fr 1fr}.grade-card-head{flex-direction:column}.grade-tools{justify-content:flex-start;max-width:100%}}
+@media(max-width:620px){.grade-tools{width:100%}.grade-tools .search-small{width:100%}.grade-filter-label{flex:1}.grade-threshold-label{width:115px}.dashboard-actions{width:100%}.grade-summary{padding:0 12px 12px}#assignmentsView .toolbar{grid-template-columns:1fr 1fr}#assignmentSearch{grid-column:1/-1}.grade-status{display:block;width:max-content;margin:4px 0 0}}

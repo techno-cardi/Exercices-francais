@@ -9,6 +9,7 @@
   <link rel="icon" type="image/svg+xml" href="assets/cardinal-extension-icon-v1004.svg?v=1004">
   <link rel="shortcut icon" href="assets/cardinal-extension-icon-v1004.svg?v=1004">
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="grade-view.css?v=1324f">
 </head>
 <body>
 <div class="app-shell">
@@ -73,7 +74,7 @@
         <section id="teacherDashboard">
           <div class="page-head">
             <div><div class="eyebrow">Gestion des notes</div><h1>Tableau de bord</h1><p class="muted">Choisis un groupe pour voir ses travaux et ses pondérations.</p></div>
-            <button id="newAssignmentBtn" class="btn btn-primary" type="button">+ Nouveau travail</button>
+            <div class="dashboard-actions"><label>Étape<select id="dashboardTermSelect" class="select" aria-label="Étape du tableau de bord"><option value="1">Étape 1</option><option value="2">Étape 2</option><option value="3">Étape 3</option></select></label><button id="newAssignmentBtn" class="btn btn-primary" type="button">+ Nouveau travail</button></div>
           </div>
           <div id="groupStats" class="stats-grid"></div>
           <div id="weightOverview" class="weight-overview"></div>
@@ -93,6 +94,7 @@
             <input id="assignmentSearch" class="input" type="search" placeholder="Rechercher un travail">
             <select id="assignmentGroupFilter" class="select" aria-label="Changer de groupe"><option value="31">31</option><option value="32">32</option><option value="51">51</option></select>
             <select id="assignmentCompetenceFilter" class="select"><option value="">Toutes les compétences</option><option value="lecture">Lire</option><option value="ecriture">Écrire</option><option value="oral">Communiquer oralement</option></select>
+            <select id="assignmentTermFilter" class="select" aria-label="Étape des travaux"><option value="1">Étape 1</option><option value="2">Étape 2</option><option value="3">Étape 3</option></select>
           </div>
           <div id="assignmentList" class="assignment-list"></div>
         </section>
@@ -158,8 +160,9 @@
           <div class="card grade-card">
             <div class="grade-card-head">
               <div><h2>Notes</h2><p id="gradeHelp" class="muted">Entre une note, puis fais Entrée ou Tab pour passer à l’élève suivant.</p></div>
-              <div class="grade-tools"><input id="studentSearch" class="input search-small" type="search" placeholder="Rechercher un élève"><span id="gradeSaveState" class="save-state"></span></div>
+              <div class="grade-tools"><input id="studentSearch" class="input search-small" type="search" aria-label="Rechercher un élève" placeholder="Rechercher un élève"><label class="grade-filter-label">Afficher<select id="gradeFilter" class="select"><option value="all">Tous les élèves</option><option value="failures">Échecs seulement</option></select></label><label class="grade-threshold-label">Seuil de réussite<input id="failureThreshold" class="input" type="number" min="0" max="100" step="1" value="60" aria-label="Seuil de réussite en pourcentage"><span>%</span></label><span id="gradeSaveState" class="save-state" role="status" aria-live="polite"></span></div>
             </div>
+            <p id="gradeSummary" class="grade-summary" role="status" aria-live="polite"></p>
             <div class="grade-table-wrap">
               <table class="grade-table">
                 <thead><tr><th class="col-last">Nom</th><th class="col-first">Prénom</th><th class="col-grade">Note</th><th class="col-percent">%</th><th class="col-detail"></th></tr></thead>
@@ -181,10 +184,10 @@
   <div class="dialog-actions"><button id="saveFeedbackBtn" class="btn btn-primary" type="button">Enregistrer</button></div>
 </dialog>
 <script src="assignment-actions.js?v=1324"></script>
-<script src="app.js?v=1324c"></script>
+<script src="app.js?v=1324f"></script>
 <script src="gestion-imports.js?v=1324e"></script>
 <script id="cardinal-app-patch-v04" src="app-patch-v04.js?v=1324"></script>
-<script id="cardinal-app-patch-v05" src="app-patch-v05.js?v=1324d"></script>
-<script id="cardinal-app-patch-v06" src="app-patch-v06.js?v=4"></script>
+<script id="cardinal-app-patch-v05" src="app-patch-v05.js?v=1324f"></script>
+<script id="cardinal-app-patch-v06" src="app-patch-v06.js?v=1324f"></script>
 </body>
 </html>

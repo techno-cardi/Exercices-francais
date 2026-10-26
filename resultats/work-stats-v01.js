@@ -48,7 +48,7 @@
   }
 
   function metricMarkup(label, value, maxScore) {
-    if (value === null || value === undefined || !Number.isFinite(Number(value))) {
+    if (value === null || value === undefined || value === '' || !Number.isFinite(Number(value)) || !Number.isFinite(Number(maxScore)) || Number(maxScore) <= 0) {
       return `<div class="work-stat"><div class="work-stat-label">${label}</div><div class="work-stat-main work-stat-empty">-</div></div>`;
     }
 
@@ -56,16 +56,9 @@
     const raw = Number(value);
     const rawLine = `${formatStatNumber(raw)} / ${formatStatNumber(max)}`;
 
-    if (max === 100) {
-      return `<div class="work-stat"><div class="work-stat-label">${label}</div><div class="work-stat-main">${rawLine}</div></div>`;
-    }
-
-    const on100 = max > 0 ? (raw / max) * 100 : null;
-    const secondary = on100 === null
-      ? ''
-      : `<div class="work-stat-secondary">${formatStatNumber(on100, 1)} / 100</div>`;
-
-    return `<div class="work-stat"><div class="work-stat-label">${label}</div><div class="work-stat-main">${rawLine}</div>${secondary}</div>`;
+    const on100 = raw / max * 100;
+    if (!Number.isFinite(on100)) return `<div class="work-stat"><div class="work-stat-label">${label}</div><div class="work-stat-main work-stat-empty">—</div></div>`;
+    return `<div class="work-stat"><div class="work-stat-label">${label}</div><div class="work-stat-main">${formatStatNumber(on100, 2)} %</div><div class="work-stat-secondary">${rawLine}</div></div>`;
   }
 
   function renderWorkStats() {

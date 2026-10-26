@@ -30,8 +30,8 @@
   function renderAllGroupChoices() {
     const choices = document.getElementById('groupChoices');
     if (!choices || typeof state === 'undefined') return;
-    const groups = knownGroups();
-    if (!groups.length) return;
+    const active = typeof activeAssignmentGroups === 'function' ? activeAssignmentGroups() : knownGroups();
+    const groups = state.currentAssignment?.id ? [...new Set([...active,...(state.currentAssignment.groups || [])])] : active;
     const selected = new Set((state.currentAssignment?.groups || []).map(String));
     choices.innerHTML = groups.map(g =>
       `<label class="check-chip"><input type="checkbox" value="${escAttr(g)}" ${selected.has(g) ? 'checked' : ''} ${state.currentAssignment?.id ? 'disabled' : ''}> ${escAttr(g)}</label>`

@@ -97,6 +97,7 @@
 
   function knownGroups() {
     if (typeof state === 'undefined') return [];
+    if (typeof dashboardGroups === 'function') return dashboardGroups();
     const set = new Set();
     Object.keys(state.groupStats || {}).forEach(g => g && set.add(String(g)));
     (state.teacherAssignments || []).forEach(a => (a.groups || []).forEach(g => g && set.add(String(g))));
@@ -104,6 +105,8 @@
   }
 
   function installDynamicDashboard() {
+    // Core owns the dashboard and its term filters. Do not replace it with the old view.
+    if (typeof dashboardGroups === 'function') return;
     try {
       if (
         typeof state === 'undefined' ||
@@ -165,14 +168,14 @@
     try {
       if (typeof state === 'undefined') return;
       const groups = knownGroups();
-      if (!groups.length) return;
-      const fingerprint = groups.join('|');
+      const activeGroups = typeof activeAssignmentGroups === 'function' ? activeAssignmentGroups() : groups;
+      const fingerprint = groups.join('|') + ':' + activeGroups.join('|') + ':' + (state.currentAssignment?.id || 'new');
       if (fingerprint === groupUiFingerprint) return;
       groupUiFingerprint = fingerprint;
 
       if (!groups.includes(String(state.dashboardGroup || ''))) {
-        state.dashboardGroup = groups[0];
-        localStorage.setItem('results_dashboard_group', groups[0]);
+        state.dashboardGroup = activeGroups[0] || groups[0] || '';
+        localStorage.setItem('results_dashboard_group', state.dashboardGroup);
       }
 
       const sidebar = document.querySelector('.sidebar');
@@ -200,16 +203,18 @@
       const filter = document.getElementById('assignmentGroupFilter');
       if (filter) {
         filter.innerHTML = groups.map(g => `<option value="${String(g).replace(/"/g,'&quot;')}">${g}</option>`).join('');
-        filter.value = groups.includes(String(state.dashboardGroup)) ? state.dashboardGroup : groups[0];
+        filter.value = groups.includes(String(state.dashboardGroup)) ? state.dashboardGroup : groups[0] || '';
+        filter.disabled = !groups.length;
       }
 
       const choices = document.getElementById('groupChoices');
       if (choices) {
         const checked = new Set([...choices.querySelectorAll('input:checked')].map(i => i.value));
         const assignmentGroups = new Set(state.currentAssignment?.groups || []);
-        choices.innerHTML = groups.map(g => {
+        const creationGroups = state.currentAssignment?.id ? [...new Set([...activeGroups, ...assignmentGroups])] : activeGroups;
+        choices.innerHTML = creationGroups.map(g => {
           const on = checked.has(g) || assignmentGroups.has(g);
-          return `<label class="check-chip"><input type="checkbox" value="${String(g).replace(/"/g,'&quot;')}" ${on ? 'checked' : ''}> ${g}</label>`;
+          return `<label class="check-chip"><input type="checkbox" value="${String(g).replace(/"/g,'&quot;')}" ${on ? 'checked' : ''} ${state.currentAssignment?.id ? 'disabled' : ''}> ${g}</label>`;
         }).join('');
       }
 
@@ -299,5 +304,5 @@
   installDynamicDashboard();
   installSyncDiscovery();
   rebuildGroupUi();
-  setInterval(rebuildGroupUi, 800);
+  window.CardinalGroupUI = {refresh: rebuildGroupUi};
 })();

@@ -6,14 +6,14 @@ const source=fs.readFileSync(new URL('../app.js',import.meta.url),'utf8');
 function fn(name){const candidates=['function '+name+'(','async function '+name+'('].map(x=>source.indexOf(x)).filter(x=>x>=0);const start=Math.min(...candidates);return source.slice(start,source.indexOf('\n}',start)+2);}
 function harness(){
  const calls=[],nodes=new Map(),get=id=>{if(!nodes.has(id))nodes.set(id,{value:'',textContent:'',disabled:false,checked:false});return nodes.get(id)};
- const state={dashboardGroup:'32',teacherToken:'test',currentAssignment:{id:null},currentStudents:[],navigationRevision:0};
+ const state={dashboardGroup:'32',groupStats:{31:29,32:31},teacherToken:'test',currentAssignment:{id:null},currentStudents:[],navigationRevision:0};
  let preview=false;
  const win={};const ctx=vm.createContext({state,window:win,crypto:globalThis.crypto,assignmentSavePromise:null,assignmentSaveError:null,$:get,
   collectAssignment:()=>({id:state.currentAssignment.id,title:'Examen',groups:['31','32'],maxScore:30}),
   TEACHER_ENDPOINT:'teacher',api:async(_,body)=>{calls.push(body);if(body.action==='saveAssignment')return preview?{id:'A32',previewRequired:true,previewId:'P'}:{id:'A31',assignments:[{id:'A31',groupCode:'31'},{id:'A32',groupCode:'32'}]};return{assignment:{id:body.assignmentId,groups:['32'],title:'Examen'},students:[]}},
   refreshTeacherData:async()=>{},fillWorkPage(){},renderGradeRows(){},refreshSyncState:async()=>{},notify(){},prepareAssignmentNavigation:async()=>true,setTeacherSection(){},today:()=> '2026-10-26'});
  win.CardinalAssignmentActions={reviewPreview:async()=>({assignmentId:'A32'})};
- vm.runInContext(fn('saveAssignmentSettings'),ctx);
+ vm.runInContext(fn('activeAssignmentGroups')+fn('saveAssignmentSettings'),ctx);
  return{ctx,state,calls,get,preview:()=>{preview=true}};
 }
 test('one creation confirmation receives an idempotency key and opens the active group copy',async()=>{

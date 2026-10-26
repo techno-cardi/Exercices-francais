@@ -21,7 +21,9 @@ const state = {
   extensionReady: false,
   extensionVersion: "",
   syncLinks: [],
-  dashboardGroup: localStorage.getItem("results_dashboard_group") || "51",
+  dashboardGroup: localStorage.getItem("results_dashboard_group") || "",
+  passingThreshold: 60,
+  dashboardTerm: ['1','2','3'].includes(localStorage.getItem('results_dashboard_term')) ? localStorage.getItem('results_dashboard_term') : '1',
 };
 
 const pendingExtension = new Map();
@@ -409,10 +411,24 @@ function acceptAssignmentOpen(data, revision, requestedGroup = "") {
   return true;
 }
 
+function dashboardGroups() {
+  const groups = new Set(activeAssignmentGroups());
+  for (const a of state.teacherAssignments || []) for (const g of a.groups || []) if (g) groups.add(String(g));
+  return [...groups].sort((a,b) => a.localeCompare(b, 'fr', {numeric:true, sensitivity:'base'}));
+}
+function activeAssignmentGroups() {
+  return Object.keys(state.groupStats || {}).filter(g => g && Number(state.groupStats[g]) > 0).sort((a,b) => a.localeCompare(b, 'fr', {numeric:true, sensitivity:'base'}));
+}
+
 async function refreshTeacherData() {
   const d = await api(TEACHER_ENDPOINT, { action: "teacherDashboard", token: state.teacherToken });
   state.teacherAssignments = d.assignments || [];
   state.groupStats = d.groups || {};
+  state.teacherEmail = d.user?.email || '';
+  const saved = localStorage.getItem('results_passing_threshold:' + state.teacherEmail);
+  const threshold = saved === null || saved === '' ? 60 : Number(saved);
+  state.passingThreshold = Number.isFinite(threshold) && threshold >= 0 && threshold <= 100 ? threshold : 60;
+  window.CardinalGroupUI?.refresh();
 }
 
 async function loadTeacherDashboard() {
@@ -429,17 +445,23 @@ async function loadTeacherDashboard() {
 }
 
 function renderDashboard() {
-  const selected = state.dashboardGroup || "51";
+  const groups = dashboardGroups();
+  if (!groups.includes(state.dashboardGroup)) {
+    state.dashboardGroup = activeAssignmentGroups()[0] || groups[0] || '';
+    localStorage.setItem('results_dashboard_group', state.dashboardGroup);
+  }
+  const selected = state.dashboardGroup;
   document.querySelectorAll(".group-nav").forEach(b => b.classList.toggle("active", b.dataset.group === selected));
-  $("groupStats").innerHTML = ["31", "32", "51"].map(g => `
+  $("groupStats").innerHTML = groups.map(g => `
     <button class="card stat-card stat-button ${g === selected ? "selected" : ""}" data-dashboard-group="${g}" type="button">
       <div class="eyebrow">Groupe ${g}</div>
       <div class="big">${state.groupStats[g] || 0}</div>
       <div class="muted">élèves</div>
-    </button>`).join("");
+    </button>`).join("") || '<div class="card group-empty">Aucun groupe disponible. Les groupes apparaîtront avec les listes d’élèves.</div>';
   document.querySelectorAll("[data-dashboard-group]").forEach(b => b.onclick = () => selectDashboardGroup(b.dataset.dashboardGroup, false));
 
-  const term = 1;
+  const term = Number(state.dashboardTerm || 1);
+  $('dashboardTermSelect').value = String(term);
   const kinds = ["lecture", "ecriture", "oral"];
   $("weightOverview").innerHTML = kinds.map(k => {
     const total = state.teacherAssignments
@@ -449,7 +471,7 @@ function renderDashboard() {
     return `<div class="card weight-card"><div class="eyebrow">Étape ${term}</div><h3>${competenceLabel(k)}</h3><div class="progress"><span style="width:${pct}%"></span></div><div class="weight-line"><strong>${formatNumber(total)} / 100 %</strong><span class="muted">${total > 100 ? `+${formatNumber(total - 100)} %` : `${formatNumber(Math.max(0, 100 - total))} % restant`}</span></div></div>`;
   }).join("");
 
-  const list = state.teacherAssignments.filter(a => a.groups.includes(selected)).slice(0, 8);
+  const list = state.teacherAssignments.filter(a => a.groups.includes(selected) && Number(a.term || 1) === term).slice(0, 8);
   $("recentTitle").textContent = `Travaux du groupe ${selected}`;
   $("recentAssignments").innerHTML = assignmentCards(list);
   wireAssignmentCards($("recentAssignments"));
@@ -469,7 +491,7 @@ function assignmentCards(list) {
       </div>
       <div class="assignment-side">
         <div class="metric"><strong>${a.gradedCount}/${a.studentCount}</strong><span class="muted">notes</span></div>
-        <div class="metric"><strong>${a.average === null ? "-" : formatNumber(a.average)}</strong><span class="muted">moyenne</span></div>
+        <div class="metric"><strong>${formatGradePercent(a.average, a.maxScore)}</strong><span class="muted">moyenne</span></div>
       </div>
     </article>`).join("");
 }
@@ -481,11 +503,13 @@ function wireAssignmentCards(root) {
 function renderAssignmentList() {
   const q = $("assignmentSearch")?.value.trim().toLowerCase() || "";
   const g = state.dashboardGroup || "";
+  const term = Number(state.dashboardTerm || 1);
+  $('assignmentTermFilter').value = String(term);
   $("assignmentGroupFilter").value = g;
   const heading = document.querySelector("#assignmentsView h1");
   if (heading) heading.textContent = `Travaux du groupe ${g}`;
   const k = $("assignmentCompetenceFilter")?.value || "";
-  const list = state.teacherAssignments.filter(a => (!q || a.title.toLowerCase().includes(q)) && (!g || a.groups.includes(g)) && (!k || a.competenceKind === k));
+  const list = state.teacherAssignments.filter(a => (!q || a.title.toLowerCase().includes(q)) && (!g || a.groups.includes(g)) && (!k || a.competenceKind === k) && Number(a.term || 1) === term);
   $("assignmentList").innerHTML = assignmentCards(list);
   wireAssignmentCards($("assignmentList"));
 }
@@ -493,9 +517,23 @@ function renderAssignmentList() {
 ["assignmentSearch", "assignmentCompetenceFilter"].forEach(id => $(id)?.addEventListener("input", renderAssignmentList));
 $("assignmentGroupFilter")?.addEventListener("input", () => selectDashboardGroup($("assignmentGroupFilter").value, true));
 $("showAllAssignments").onclick = () => selectDashboardGroup(state.dashboardGroup, true);
+async function selectDashboardTerm(value) {
+  if (!['1','2','3'].includes(String(value))) return;
+  if (await prepareAssignmentNavigation()) {
+    state.dashboardTerm = String(value);
+    localStorage.setItem('results_dashboard_term', state.dashboardTerm);
+    renderDashboard(); renderAssignmentList();
+  } else {
+    $('dashboardTermSelect').value = $('assignmentTermFilter').value = state.dashboardTerm || '1';
+  }
+}
+$('dashboardTermSelect').addEventListener('change', () => selectDashboardTerm($('dashboardTermSelect').value));
+$('assignmentTermFilter').addEventListener('change', () => selectDashboardTerm($('assignmentTermFilter').value));
 
 async function newAssignment() {
   if (!await prepareAssignmentNavigation()) return false;
+  const activeGroups = activeAssignmentGroups();
+  if (!activeGroups.length) { notify('Aucun groupe actif. Charge une liste d’élèves avant de créer un travail.', 'error'); return false; }
   state.navigationRevision = (state.navigationRevision || 0) + 1;
   state.creationOperationId = crypto.randomUUID();
   state.currentAssignment = {
@@ -505,10 +543,10 @@ async function newAssignment() {
     competenceKind: "lecture",
     weight: null,
     maxScore: 10,
-    groups: [state.dashboardGroup || "51"],
+    groups: [activeGroups.includes(state.dashboardGroup) ? state.dashboardGroup : activeGroups[0]],
     published: false,
     instructions: "",
-    term: 1,
+    term: Number(state.dashboardTerm || 1),
     activityDate: today(),
     activityType: "Évaluation",
     reportCardEnabled: false,
@@ -568,6 +606,13 @@ function updateVisibilityLabels() {
 function fillWorkPage() {
   const a = state.currentAssignment;
   if (!a) return;
+  window.CardinalGroupUI?.refresh();
+  if (state.gradeViewAssignmentId !== a.id) {
+    state.gradeViewAssignmentId = a.id;
+    $("gradeFilter").value = 'all';
+    $("studentSearch").value = '';
+  }
+  $("failureThreshold").value = String(state.passingThreshold ?? 60);
   $("workTitle").textContent = a.title;
   $("workMeta").innerHTML = `<span class="pill">${competenceLabel(a.competenceKind)}</span><span class="pill gray">Étape ${a.term || 1}</span>${a.weight !== null ? `<span class="pill gray">${formatNumber(a.weight)} %</span>` : ""}<span class="pill gray">${a.maxScore > 0 ? `Note sur ${formatNumber(a.maxScore)}` : 'Maximum à compléter'}</span>`;
   $("splitAssignmentBtn")?.classList.toggle('hidden', !a.id || a.groups.length < 2);
@@ -688,7 +733,77 @@ $("detailGroupSelect").onchange = async () => {
   renderGradeRows();
   await refreshSyncState();
 };
-$("studentSearch").addEventListener("input", renderGradeRows);
+let gradeViewRevision = 0;
+async function changeGradeView() {
+  const revision = ++gradeViewRevision;
+  const assignmentId = state.currentAssignment?.id, navigation = state.navigationRevision;
+  if (!await prepareAssignmentNavigation() || revision !== gradeViewRevision || assignmentId !== state.currentAssignment?.id || navigation !== state.navigationRevision) return;
+  renderGradeRows();
+}
+$("studentSearch").addEventListener("input", changeGradeView);
+$("gradeFilter").addEventListener("change", changeGradeView);
+$("failureThreshold").addEventListener("change", async () => {
+  const value = Number($("failureThreshold").value);
+  if ($("failureThreshold").value === '' || !Number.isFinite(value) || value < 0 || value > 100) {
+    $("failureThreshold").value = String(state.passingThreshold ?? 60);
+    notify('Le seuil doit être entre 0 et 100 %.', 'error'); return;
+  }
+  state.passingThreshold = value;
+  localStorage.setItem('results_passing_threshold:' + (state.teacherEmail || ''), String(value));
+  await changeGradeView();
+});
+
+function gradePercentage(grade, max) {
+  if (grade === null || grade === undefined || grade === '' || max === null || max === undefined || max === '') return null;
+  const n = Number(grade), denominator = Number(max);
+  return Number.isFinite(n) && n >= 0 && Number.isFinite(denominator) && denominator > 0 && Number.isFinite(n / denominator * 100) ? n / denominator * 100 : null;
+}
+function formatGradePercent(grade, max, threshold) {
+  const value = gradePercentage(grade, max);
+  if (value === null) return '—';
+  // A failing boundary value must not be rounded up to a displayed passing score.
+  const display = threshold !== undefined && value < threshold && Math.round(value * 10) / 10 >= threshold ? Math.floor(value * 100) / 100 : value;
+  return `${formatNumber(display, 2)} %`;
+}
+function isFailingGrade(grade, max, threshold = 60) {
+  const percentage = gradePercentage(grade, max);
+  return percentage !== null && percentage < threshold;
+}
+function passingThreshold() {
+  const raw = $("failureThreshold")?.value;
+  const n = raw === '' || raw == null ? Number(state.passingThreshold ?? 60) : Number(raw);
+  return Number.isFinite(n) && n >= 0 && n <= 100 ? n : 60;
+}
+function updateGradeSummary() {
+  const group = state.currentStudents.filter(s => !state.detailGroup || s.group === state.detailGroup);
+  const threshold = passingThreshold(), max = state.currentAssignment?.maxScore;
+  const failures = group.filter(s => isFailingGrade(s.grade, max, threshold)).length;
+  const ungraded = group.filter(s => s.grade === null || s.grade === undefined || s.grade === '').length;
+  const rendered = [...$('studentRows').querySelectorAll('tr[data-email]')];
+  const count = rendered.length ? rendered.filter(row => !row.hidden).length : visibleStudents().length;
+  if ($('gradeSummary')) $('gradeSummary').textContent = `${count} / ${group.length} élèves affichés · ${failures} échec${failures > 1 ? 's' : ''} · ${ungraded} non noté${ungraded > 1 ? 's' : ''}`;
+}
+function updateGradeRowState(input, grade) {
+  const row = input.closest('tr');
+  const failing = isFailingGrade(grade, state.currentAssignment?.maxScore, passingThreshold());
+  row?.classList.toggle('grade-failing', failing);
+  const badge = row?.querySelector('.grade-status');
+  if (badge) { badge.textContent = failing ? 'Échec' : ''; badge.hidden = !failing; }
+}
+function syncGradeFilterRows() {
+  const onlyFailures = $('gradeFilter')?.value === 'failures';
+  for (const row of $('studentRows').querySelectorAll('tr[data-email]')) {
+    const s = state.currentStudents.find(s => s.email === row.dataset.email);
+    const input = row.querySelector('.grade-input');
+    if (!s || !input) continue;
+    updateGradeRowState(input, s.grade);
+    // Keep the focused editor in place until the teacher leaves it.
+    row.hidden = onlyFailures && !isFailingGrade(s.grade, state.currentAssignment.maxScore, passingThreshold()) && !row.contains(document.activeElement) && !input.classList.contains('error') && !input.classList.contains('saving');
+  }
+  const empty = $('gradeFilterEmpty');
+  if (empty) empty.hidden = [...$('studentRows').querySelectorAll('tr[data-email]')].some(row => !row.hidden);
+  updateGradeSummary();
+}
 
 function gradeValue(raw, max) {
   let s = String(raw ?? "").trim();
@@ -702,27 +817,29 @@ function gradeValue(raw, max) {
 }
 function updatePercent(input, grade) {
   const td = input.closest("tr")?.querySelector(".percent-value");
-  if (td) td.textContent = grade === null ? "-" : `${formatNumber((grade / Number(state.currentAssignment.maxScore)) * 100, 1)} %`;
+  if (td) td.textContent = formatGradePercent(grade, state.currentAssignment.maxScore, passingThreshold());
+  updateGradeRowState(input, grade);
 }
 function visibleStudents() {
   const q = $("studentSearch").value.trim().toLowerCase();
   const g = state.detailGroup;
   return state.currentStudents
-    .filter(s => (!g || s.group === g) && (!q || s.name.toLowerCase().includes(q) || s.email.toLowerCase().includes(q)))
-    .sort((a, b) => a.lastName.localeCompare(b.lastName, "fr", { sensitivity: "base" }) || a.firstName.localeCompare(b.firstName, "fr", { sensitivity: "base" }));
+    .filter(s => (!g || s.group === g) && (!q || String(s.name || '').toLowerCase().includes(q) || String(s.email || '').toLowerCase().includes(q)) && ($('gradeFilter')?.value !== 'failures' || isFailingGrade(s.grade, state.currentAssignment.maxScore, passingThreshold())))
+    .sort((a, b) => String(a.lastName || a.name || '').localeCompare(String(b.lastName || b.name || ''), "fr", { sensitivity: "base" }) || String(a.firstName || '').localeCompare(String(b.firstName || ''), "fr", { sensitivity: "base" }));
 }
 function renderGradeRows() {
   if (!state.currentAssignment) return;
   const list = visibleStudents();
   const max = state.currentAssignment.maxScore;
   $("studentRows").innerHTML = list.length ? list.map(s => `
-    <tr data-email="${esc(s.email)}">
+    <tr data-email="${esc(s.email)}" class="${isFailingGrade(s.grade, max, passingThreshold()) ? 'grade-failing' : ''}">
       <td class="student-last">${esc(s.lastName || s.name)}</td>
       <td>${esc(s.firstName || "")}</td>
-      <td><div class="grade-input-wrap"><input class="grade-input" type="text" inputmode="decimal" autocomplete="off" ${max > 0 ? '' : 'disabled aria-label="Complète le maximum du travail"'} data-email="${esc(s.email)}" value="${s.grade === null ? "" : formatNumber(s.grade, 3)}"><span class="max-score">/ ${max > 0 ? formatNumber(max) : 'À compléter'}</span></div></td>
-      <td><span class="percent-value">${s.grade === null ? "-" : `${formatNumber((Number(s.grade) / Number(max)) * 100, 1)} %`}</span></td>
+      <td><div class="grade-input-wrap"><input class="grade-input" type="text" inputmode="decimal" autocomplete="off" ${max > 0 ? '' : 'disabled aria-label="Complète le maximum du travail"'} data-email="${esc(s.email)}" data-original-value="${esc(s.grade == null ? '' : formatNumber(s.grade, 3))}" value="${s.grade == null ? "" : formatNumber(s.grade, 3)}"><span class="max-score">/ ${max > 0 ? formatNumber(max) : 'À compléter'}</span></div></td>
+      <td><span class="percent-value">${formatGradePercent(s.grade, max, passingThreshold())}</span><span class="grade-status"${isFailingGrade(s.grade, max, passingThreshold()) ? '' : ' hidden'}>${isFailingGrade(s.grade, max, passingThreshold()) ? 'Échec' : ''}</span></td>
       <td><button class="detail-btn" tabindex="-1" data-email="${esc(s.email)}" type="button">•••</button></td>
-    </tr>`).join("") : `<tr><td colspan="5" style="padding:28px;text-align:center;color:#67758a">Aucun élève.</td></tr>`;
+    </tr>`).join("") + '<tr id="gradeFilterEmpty" hidden><td colspan="5" class="grade-empty">Aucun échec pour cette sélection.</td></tr>' : `<tr><td colspan="5" class="grade-empty">${$('gradeFilter')?.value === 'failures' ? 'Aucun échec pour cette sélection.' : 'Aucun élève pour cette sélection.'}</td></tr>`;
+  updateGradeSummary();
   wireGradeInputs();
 }
 function wireGradeInputs() {
@@ -741,14 +858,16 @@ function wireGradeInputs() {
         updatePercent(input, null);
       }
     });
-    input.addEventListener("blur", () => commitGrade(input));
+    input.addEventListener("blur", async () => { await commitGrade(input); syncGradeFilterRows(); });
     input.addEventListener("keydown", e => {
       if (e.key !== "Enter" && e.key !== "Tab") return;
       e.preventDefault();
       commitGrade(input);
       const dir = e.shiftKey ? -1 : 1;
-      const next = inputs[index + dir];
-      if (next) {
+      let nextIndex = index + dir;
+      while (inputs[nextIndex]?.closest('tr')?.hidden) nextIndex += dir;
+      const next = inputs[nextIndex];
+    if (next) {
         next.focus();
         next.select();
       }
@@ -757,9 +876,29 @@ function wireGradeInputs() {
   document.querySelectorAll(".detail-btn").forEach(b => b.onclick = () => openStudentDialog(b.dataset.email));
 }
 async function commitGrade(input) {
+  if (input.cardinalSavePending) {
+    const desired = input.value;
+    const assignmentId = state.currentAssignment?.id, token = state.teacherToken;
+    await input.cardinalSavePending;
+    if (assignmentId !== state.currentAssignment?.id || token !== state.teacherToken) return;
+    input.value = desired;
+    return commitGrade(input);
+  }
+  const task = performGradeCommit(input);
+  input.cardinalSavePending = task;
+  try { await task; }
+  finally { if (input.cardinalSavePending === task) delete input.cardinalSavePending; }
+}
+async function performGradeCommit(input) {
+  const assignmentId = state.currentAssignment?.id, token = state.teacherToken;
   const email = input.dataset.email;
   const s = state.currentStudents.find(x => x.email === email);
   if (!s) return;
+  // Preserve full stored precision when the rendered field was never changed.
+  if (input.dataset.originalValue !== undefined && input.value.trim() === input.dataset.originalValue.trim()) {
+    input.classList.remove('error');
+    updatePercent(input, s.grade); syncGradeFilterRows(); return;
+  }
   let parsed;
   try {
     parsed = gradeValue(input.value, state.currentAssignment.maxScore);
@@ -774,12 +913,16 @@ async function commitGrade(input) {
     return;
   }
   const old = s.grade;
-  if ((old === null && parsed.grade === null) || (old !== null && parsed.grade !== null && Number(old) === Number(parsed.grade) && (parsed.rawGrade === undefined || Number(old) === parsed.rawGrade))) {
-    input.value = parsed.text;
+  if ((old === null && parsed.grade === null) || (old !== null && parsed.grade !== null && Number(old) === Number(parsed.rawGrade ?? parsed.grade))) {
+    input.value = old === null ? '' : formatNumber(old, 3);
+    input.dataset.originalValue = input.value;
+    updatePercent(input, old);
+    syncGradeFilterRows();
     return;
   }
   s.grade = parsed.grade;
   input.value = parsed.text;
+  input.dataset.originalValue = parsed.text;
   input.classList.remove("error", "saved");
   input.classList.add("saving");
   updatePercent(input, parsed.grade);
@@ -787,8 +930,8 @@ async function commitGrade(input) {
   try {
     await api(TEACHER_ENDPOINT, {
       action: "saveResult",
-      token: state.teacherToken,
-      assignmentId: state.currentAssignment.id,
+      token,
+      assignmentId,
       email: s.email,
       response: s.response,
       grade: parsed.grade,
@@ -796,18 +939,24 @@ async function commitGrade(input) {
       feedback: s.feedback,
       visible: s.visible !== false,
     });
-    input.classList.remove("saving");
+    if (assignmentId !== state.currentAssignment?.id || token !== state.teacherToken) { input.classList.remove('saving'); return; }
     input.classList.add("saved");
+    input.dataset.originalValue = parsed.text;
     $("gradeSaveState").textContent = "Enregistré";
     state.currentAssignment.mozaikSyncStatus = "dirty";
-    await refreshSyncState();
+    // A status read failure must not undo a grade already acknowledged by the server.
+    try { await refreshSyncState(); } catch {}
+    input.classList.remove('saving');
+    syncGradeFilterRows();
     setTimeout(() => input.classList.remove("saved"), 700);
   } catch (e) {
     s.grade = old;
     input.value = old === null ? "" : formatNumber(old, 3);
+    input.dataset.originalValue = input.value;
     input.classList.remove("saving");
     input.classList.add("error");
     updatePercent(input, old);
+    syncGradeFilterRows();
     $("gradeSaveState").textContent = e.message;
   }
 }

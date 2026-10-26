@@ -8,7 +8,7 @@
     if (document.getElementById('cardinal-work-stats-v01')) return;
     const script = document.createElement('script');
     script.id = 'cardinal-work-stats-v01';
-    script.src = 'work-stats-v01.js?v=1';
+    script.src = 'work-stats-v01.js?v=1324f';
     script.async = false;
     (document.body || document.documentElement).appendChild(script);
   }
