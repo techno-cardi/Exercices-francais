@@ -87,15 +87,16 @@
   });
   window.addEventListener('cardinal-group-changed', close);
   function metadataRows(s) {
-    const labels = {linked:'✅ Déjà importé', already_exists:'Déjà présent · association à vérifier', missing:'À importer', ambiguous:'Correspondance à vérifier'};
+    const labels = {linked:'✅ Déjà importé', already_exists:'✅ Déjà présent · association à vérifier', missing:'À importer', ambiguous:'Correspondance à vérifier'};
     const missing = s.rows.filter(row => row.status === 'missing' && row.selectable);
     const rank = row => row.status === 'missing' ? 0 : row.status === 'linked' ? 2 : 1;
     const rows = [...s.rows].sort((a,b) => rank(a)-rank(b));
-    el('gestionImportsContent').innerHTML = `<p>${missing.length} travail${missing.length > 1 ? 's' : ''} manquant${missing.length > 1 ? 's' : ''}. Import des paramètres uniquement, sans notes.</p><button type="button" class="btn btn-ghost" id="gestionImportsAllMissing"${!s.complete || !missing.length ? ' disabled' : ''}>Importer tous les manquants (${missing.length})</button>` +
+    el('gestionImportsContent').innerHTML = `<p>${missing.length} ${missing.length === 1 ? 'travail manquant' : 'travaux manquants'}. Import des paramètres uniquement, sans notes.</p><button type="button" class="btn btn-ghost" id="gestionImportsAllMissing"${!s.complete || !missing.length ? ' disabled' : ''}>Importer tous les manquants (${missing.length})</button>` +
       (s.complete ? '' : '<p class="alert">Liste Mozaïk incomplète : import bloqué. Ferme puis recharge la liste.</p>') +
       '<div class="gestion-metadata-list">' + (rows.length ? rows.map(row => {
         const m = row.metadata || {}, selected = s.choices.get(row.activityId);
-        return `<section class="formative-section"><h3>${esc(row.title || 'Sans titre')}</h3><p>${esc(labels[row.status] || row.status)} · ${m.maxScore == null || Number(m.maxScore) <= 0 ? 'À compléter' : esc(m.maxScore) + ' points'} · ${esc(m.activityDate || 'Date absente')}</p>` +
+        const label = row.status === 'ambiguous' && row.candidates?.length === 1 ? '✅ Déjà présent · association à vérifier' : labels[row.status] || row.status;
+        return `<section class="formative-section"><h3>${esc(row.title || 'Sans titre')}</h3><p>${esc(label)} · ${m.maxScore == null || Number(m.maxScore) <= 0 ? 'À compléter' : esc(m.maxScore) + ' points'} · ${esc(m.activityDate || 'Date absente')}</p>` +
           (row.selectable ? `<label>Action <select class="select" data-activity="${esc(row.activityId)}"><option value="">Ne pas importer</option><option value="create"${selected?.mode === 'create' ? ' selected' : ''}>Créer un nouveau travail</option>${(row.candidates || []).map(c => `<option value="associate:${esc(c.id)}"${selected?.assignmentId === c.id ? ' selected' : ''}>Associer : ${esc(c.title)} · ${esc(c.activityDate || 'sans date')} · étape ${esc(c.term ?? '—')} · ${esc(c.maxScore ?? '—')} points</option>`).join('')}</select></label>` : '<p>Association existante à conserver ou à vérifier dans le travail.</p>') + '</section>';
       }).join('') : '<p>Aucun travail Mozaïk dans cette portée.</p>') + '</div>';
     el('gestionImportsAllMissing').onclick = async () => {

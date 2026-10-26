@@ -23,7 +23,8 @@ test('compact Mozaik list sorts missing first and bulk action selects only confi
  ]}};
  const work=h.window.CardinalGestionImports.openMozaik();deliver(h,snapshot());await work;
  const html=h.el('gestionImportsContent').innerHTML;
- assert.match(html,/✅ Déjà importé/);assert.match(html,/gestion-metadata-list/);
+ assert.match(html,/✅ Déjà importé/);assert.match(html,/✅ Déjà présent/);assert.match(html,/gestion-metadata-list/);
+ assert.match(html,/1 travail manquant/);assert.doesNotMatch(html,/travails/);
  assert.ok(html.indexOf('Missing work')<html.indexOf('Existing linked'));
  assert.match(html,/Importer tous les manquants/);
  h.ui.change({target:{dataset:{activity:'similar'},value:'associate:a'}});
