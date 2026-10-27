@@ -29,9 +29,7 @@ public final class MainActivity extends Activity {
   private static void pending(Context c,boolean value){pref(c).edit().putBoolean("pending",value).apply();}
   private static String time(int v){return String.format(Locale.CANADA_FRENCH,"%02d:%02d",v/60,v%60);}
   private static boolean workTime(Context c){
-    ZonedDateTime n=ZonedDateTime.now();
-    int minute=n.getHour()*60+n.getMinute(), bit=1<<n.getDayOfWeek().getValue();
-    return enabled(c) && (days(c)&bit)!=0 && minute>=from(c) && minute<to(c);
+    return ScheduleLogic.isWorkTime(days(c),from(c),to(c),ZonedDateTime.now());
   }
   private int dp(int n){return (int)(n*getResources().getDisplayMetrics().density+.5f);}
   private void message(String s){Toast.makeText(this,s,Toast.LENGTH_LONG).show();}
@@ -195,15 +193,7 @@ public final class MainActivity extends Activity {
     AlarmManager a=c.getSystemService(AlarmManager.class);
     a.cancel(pendingIntent(c,ALARM,101));
     if(!enabled(c)||days(c)==0)return;
-    ZonedDateTime now=ZonedDateTime.now();Instant next=null;
-    for(int offset=0;offset<=8;offset++){
-      LocalDate d=now.toLocalDate().plusDays(offset);
-      if((days(c)&(1<<d.getDayOfWeek().getValue()))==0)continue;
-      for(int minute:new int[]{from(c),to(c)}){
-        Instant when=d.atTime(minute/60,minute%60).atZone(ZoneId.systemDefault()).toInstant();
-        if(when.isAfter(now.toInstant())&&(next==null||when.isBefore(next)))next=when;
-      }
-    }
+    Instant next=ScheduleLogic.nextTransition(days(c),from(c),to(c),ZonedDateTime.now());
     if(next!=null)alarm(c,next.toEpochMilli(),ALARM,101,true);
   }
   private static Result reconcile(Context c){
