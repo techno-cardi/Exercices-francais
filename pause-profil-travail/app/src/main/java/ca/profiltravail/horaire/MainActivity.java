@@ -135,7 +135,7 @@ public final class MainActivity extends Activity {
     if(um==null)return null;
     UserHandle result=null;
     for(UserHandle u:um.getUserProfiles()){
-      if(u.equals(Process.myUserHandle()))continue;
+      if(u.equals(android.os.Process.myUserHandle()))continue;
       if(result!=null)return null;
       result=u;
     }
