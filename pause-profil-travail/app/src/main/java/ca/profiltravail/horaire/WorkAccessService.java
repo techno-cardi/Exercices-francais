@@ -183,7 +183,7 @@ public final class WorkAccessService extends AccessibilityService {
     String t=Normalizer.normalize(value.toString().toLowerCase(Locale.ROOT),Normalizer.Form.NFD)
       .replaceAll("\\p{InCombiningDiacriticalMarks}+","");
     // Test negative first because "desactive" contains "active".
-    if(t.matches(".*\\b(desactive|desactivees?|inactive|off|turned off|eteint|suspendu|pause|arret|disabled)\\b.*"))return false;
+    if(t.matches(".*\\b(desactive|desactivees?|inactive|off|turned off|eteint|suspendu|paused|arret|disabled)\\b.*"))return false;
     if(t.matches(".*\\b(active|activees?|on|turned on|allume|en marche|enabled)\\b.*"))return true;
     return null;
   }
