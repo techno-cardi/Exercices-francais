@@ -439,6 +439,36 @@ function activeAssignmentGroups() {
   return Object.keys(state.groupStats || {}).filter(g => g && Number(state.groupStats[g]) > 0).sort((a,b) => a.localeCompare(b, 'fr', {numeric:true, sensitivity:'base'}));
 }
 
+let studentTargetRevision = 0;
+async function openAssignmentStudent(assignmentId, email) {
+  const targetRevision = ++studentTargetRevision, token = state.teacherToken;
+  try {
+    const opened = await openAssignment(assignmentId);
+    if (opened === false || targetRevision !== studentTargetRevision || token !== state.teacherToken || state.currentAssignment?.id !== assignmentId || state.teacherSection !== 'detail') return false;
+    const student = state.currentStudents.find(s => s.email === email);
+    if (!student || !state.currentAssignment.groups.includes(student.group)) {
+      notify('Cet élève ne figure pas dans la liste de ce travail.', 'error'); return false;
+    }
+    state.detailGroup = student.group;
+    activateAssignmentGroup(student.group);
+    $('detailGroupSelect').value = student.group;
+    $('studentSearch').value = '';
+    $('gradeFilter').value = 'all';
+    renderGradeRows();
+    const row = [...$('studentRows').querySelectorAll('tr[data-email]')].find(r => r.dataset.email === email);
+    if (!row) return false;
+    row.classList.add('grade-row-target');
+    row.scrollIntoView({ block: 'center', behavior: 'auto' });
+    const input = row.querySelector('.grade-input');
+    if (input && !input.disabled) {
+      input.setAttribute('aria-label', `Note de ${student.name}`);
+      input.focus({ preventScroll: true }); input.select();
+    }
+    setGroupRoute(assignmentId, student.group, 'replace', 'detail');
+    return true;
+  } catch (error) { notify(error.message, 'error'); return false; }
+}
+
 async function refreshTeacherData() {
   const year = state.schoolYear, revision = state.schoolYearRevision, token = state.teacherToken;
   const d = await api(TEACHER_ENDPOINT, { action: "teacherDashboard", token, schoolYear: year });

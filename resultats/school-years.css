@@ -31,3 +31,4 @@
 .overview-table.grouped .overview-competency-row th{box-sizing:border-box;line-height:20px;white-space:nowrap}
 .overview-table.grouped .overview-competency-row th[data-competency]{min-width:190px;font-size:.9rem;border-bottom:2px solid var(--competency-line)}
 .overview-table.grouped tfoot td[data-competency]{background:var(--competency-tint);font-weight:750;border-top:2px solid var(--competency-line)}
+.grade-table tr.grade-row-target:focus-within{outline:2px solid #4e7fb9;outline-offset:-2px}.grade-table tr.grade-row-target:not(.grade-failing):focus-within>td{background:#edf5ff}
