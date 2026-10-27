@@ -132,10 +132,10 @@ public final class MainActivity extends Activity {
     String label=state<0?"non initialisé":state==1?"actif":"suspendu";
     String verify=pref(this).getBoolean("work_state_verified",false)?" (état lu sur la tuile)":" (non vérifié)";
     status.setText("Dernier état vérifié : "+label+(state<0?"":verify)+
-      (pending(this)?"\\nAction reportée au déverrouillage":"")+"\\n"+
+      (pending(this)?"\nAction reportée au déverrouillage":"")+"\n"+
       pref(this).getString("work_message",""));
     permissionStatus.setText("Accessibilité : "+(WorkAccessService.isEnabled(this)?"OK":"à activer")
-      +"\\nAlarmes exactes : "+(canExact(this)?"OK":"à autoriser"));
+      +"\nAlarmes exactes : "+(canExact(this)?"OK":"à autoriser"));
   }
   enum Result{OK,QUEUED,NO_SERVICE,UNKNOWN_STATE,NOT_FOUND,LOCKED,DENIED}
   private static Result setPaused(Context c,boolean pause){
