@@ -53,10 +53,12 @@ public final class MainActivity extends Activity {
     text("Pause profil travail",25);
     text("Suspend automatiquement le profil professionnel. Les applications personnelles restent actives.",15);
     status=text("",18);permissionStatus=text("",14);
-    text("État initial du profil professionnel",20);
-    text("Indique son état actuel pour initialiser la synchronisation. Si tu changes ensuite le profil à la main, confirme de nouveau son état ici. L'application tente aussi de lire l'état directement sur la tuile Samsung.",14);
-    button("Mon profil est actuellement ACTIF",()->calibrate(true));
-    button("Mon profil est actuellement SUSPENDU",()->calibrate(false));
+    text("Vérification du profil professionnel",20);
+    text("L'état affiché provient de la dernière lecture du bouton Samsung. Aucun basculement n'est effectué si l'état de la tuile est ambigu.",14);
+    button("Tester la tuile sans rien changer",()->{
+      Result r=WorkAccessService.request(this,null,false);
+      message(r==Result.QUEUED?"Inspection lancée, actualise ensuite le diagnostic.":explain(r));
+    });
     button("Actualiser",this::refresh);
     text("Programmation",20);
     enabled=new CheckBox(this);enabled.setText("Activer la programmation");
@@ -74,8 +76,14 @@ public final class MainActivity extends Activity {
     text("Commande manuelle",20);
     button("Suspendre maintenant",()->manual(true));
     button("Réactiver maintenant",()->manual(false));
+    button("Autoriser les notifications d’échec (facultatif)",()->{
+      if(Build.VERSION.SDK_INT>=33 &&
+          checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)!=android.content.pm.PackageManager.PERMISSION_GRANTED)
+        requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS},7);
+      else message("Notifications déjà autorisées, si Android ne les bloque pas.");
+    });
     text("Configuration",20);
-    text("1. Place la tuile « Applications professionnelles » sur la première page des réglages rapides Samsung.\\n2. Active le service d'accessibilité « Pause profil travail ».\\n3. Autorise les alarmes exactes.",14);
+    text("1. Place la tuile « Applications professionnelles » dans les réglages rapides Samsung.\n2. Active le service d'accessibilité « Pause profil travail ».\n3. Autorise les alarmes exactes.",14);
     button("Activer l'accessibilité",()->startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)));
     text("Le service peut lire et manipuler l'interface. Il est limité aux événements de l'interface système et ne sauvegarde aucun contenu affiché.",14);
     button("Autoriser les alarmes exactes",()->{
@@ -83,7 +91,8 @@ public final class MainActivity extends Activity {
         startActivity(new Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,Uri.parse("package:"+getPackageName())));
       }catch(Exception e){message("Accès aux alarmes indisponible");}
     });
-    text("Aucun accès Internet, localisation, publicité ni collecte de données.",14);
+    text("Android 13+ : si l'accessibilité est grisée, ouvre Paramètres > Applications > Pause profil travail > menu ⋮ > Autoriser les paramètres restreints (seulement si tu fais confiance à ce code).",13);
+    text("Aucun accès Internet ni collecte de données. L'automatisation peut ouvrir brièvement les réglages rapides.",13);
     refresh();
   }
   @Override protected void onResume(){super.onResume();if(status!=null)refresh();}
@@ -107,7 +116,7 @@ public final class MainActivity extends Activity {
   private static String explain(Result r){
     switch(r){
       case NO_SERVICE:return "Active le service d'accessibilité dans les paramètres.";
-      case UNKNOWN_STATE:return "État inconnu. Confirme l’état actuel dans l’application.";
+      case UNKNOWN_STATE:return "État du bouton impossible à lire. Aucun clic effectué.";
       case NOT_FOUND:return "Tuile du profil professionnel introuvable dans les réglages rapides.";
       case LOCKED:return "Téléphone verrouillé : action reportée au déverrouillage.";
       case QUEUED:return "Action en cours. Vérifie l\'état du profil.";
@@ -119,19 +128,12 @@ public final class MainActivity extends Activity {
     Result r=setPaused(this,pause);refresh();
     message(r==Result.QUEUED?"Recherche du bouton Samsung en cours. Consulte le statut après l’opération.":explain(r));
   }
-  private void calibrate(boolean active){
-    pref(this).edit().putInt("work_state",active?1:0)
-      .putBoolean("work_state_verified",false)
-      .putString("work_message","État initial confirmé manuellement.").apply();
-    refresh();
-    message("État enregistré.");
-  }
   private void refresh(){
     if(status==null)return;
     int state=pref(this).getInt("work_state",-1);
     String label=state<0?"non initialisé":state==1?"actif":"suspendu";
-    String verify=pref(this).getBoolean("work_state_verified",false)?" (état lu sur la tuile)":" (état déclaré ou estimé)";
-    status.setText("Profil : "+label+(state<0?"":verify)+
+    String verify=pref(this).getBoolean("work_state_verified",false)?" (état lu sur la tuile)":" (non vérifié)";
+    status.setText("Dernier état vérifié : "+label+(state<0?"":verify)+
       (pending(this)?"\\nAction reportée au déverrouillage":"")+"\\n"+
       pref(this).getString("work_message",""));
     permissionStatus.setText("Accessibilité : "+(WorkAccessService.isEnabled(this)?"OK":"à activer")
@@ -139,14 +141,38 @@ public final class MainActivity extends Activity {
   }
   enum Result{OK,QUEUED,NO_SERVICE,UNKNOWN_STATE,NOT_FOUND,LOCKED,DENIED}
   private static Result setPaused(Context c,boolean pause){
-    return WorkAccessService.request(c,pause);
+    return WorkAccessService.request(c,pause,false);
   }
   static boolean isPending(Context c){return pending(c);}
   static void tryPending(Context c){
     if(pending(c)&&enabled(c))reconcile(c);
   }
-  static void actionComplete(Context c,boolean success){
-    if(success)pending(c,false);
+  static void actionComplete(Context c,Boolean target,boolean automatic,boolean success,String detail){
+    pref(c).edit().putString("work_message",detail).putLong("last_checked",System.currentTimeMillis()).apply();
+    if(automatic){
+      pending(c,false);
+      if(!success)notifyFailure(c,detail);
+    }
+  }
+  static void verified(Context c,boolean active){
+    pref(c).edit().putInt("work_state",active?1:0).putBoolean("work_state_verified",true)
+      .putLong("last_verified",System.currentTimeMillis()).apply();
+  }
+  private static void notifyFailure(Context c,String detail){
+    NotificationManager nm=c.getSystemService(NotificationManager.class);
+    if(nm==null)return;
+    String channel="work_failure";
+    nm.createNotificationChannel(new NotificationChannel(channel,"Alertes profil travail",NotificationManager.IMPORTANCE_DEFAULT));
+    if(Build.VERSION.SDK_INT>=33 &&
+       c.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)!=android.content.pm.PackageManager.PERMISSION_GRANTED)return;
+    PendingIntent open=PendingIntent.getActivity(c,99,new Intent(c,MainActivity.class),
+      PendingIntent.FLAG_IMMUTABLE|PendingIntent.FLAG_UPDATE_CURRENT);
+    Notification notification=new Notification.Builder(c,channel)
+      .setSmallIcon(android.R.drawable.stat_notify_error)
+      .setContentTitle("Profil travail : action non confirmée")
+      .setContentText(detail).setStyle(new Notification.BigTextStyle().bigText(detail))
+      .setAutoCancel(true).setContentIntent(open).build();
+    nm.notify(34,notification);
   }
   private static PendingIntent pendingIntent(Context c,String action,int code){
     Intent i=new Intent(c,Events.class).setAction(action);
@@ -186,11 +212,11 @@ public final class MainActivity extends Activity {
       pending(c,false);am.cancel(pendingIntent(c,RETRY,102));return Result.OK;
     }
     boolean pause=!workTime(c);
-    Result result=setPaused(c,pause);
-    boolean retry=result==Result.LOCKED;
+    Result result=WorkAccessService.request(c,pause,true);
+    boolean retry=result==Result.LOCKED||result==Result.NO_SERVICE;
     pending(c,retry);
     am.cancel(pendingIntent(c,RETRY,102));
-    if(retry)alarm(c,System.currentTimeMillis()+5*60_000L,RETRY,102,false);
+    if(retry)alarm(c,System.currentTimeMillis()+15*60_000L,RETRY,102,false);
     return result;
   }
   public static final class Events extends BroadcastReceiver {
