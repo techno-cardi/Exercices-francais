@@ -2,7 +2,6 @@ package ca.profiltravail.horaire;
 
 import android.app.*;
 import android.content.*;
-import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.*;
@@ -13,7 +12,6 @@ import java.util.*;
 
 public final class MainActivity extends Activity {
   private static final String PKG = "ca.profiltravail.horaire";
-  private static final String GRANT = "adb shell pm grant "+PKG+" android.permission.MODIFY_QUIET_MODE";
   private static final String ALARM = PKG+".ALARM", RETRY=PKG+".RETRY";
   private static final int WORKDAYS=62;
   private LinearLayout root;
@@ -72,19 +70,16 @@ public final class MainActivity extends Activity {
     text("Commande manuelle",20);
     button("Suspendre maintenant",()->manual(true));
     button("Réactiver maintenant",()->manual(false));
-    text("Autorisation initiale",20);
-    text("Après l'installation, donne une seule fois cette autorisation depuis ton ordinateur avec ADB. Sans elle, l'application ne peut pas contrôler le profil.",14);
-    text(GRANT,14);
-    button("Copier la commande ADB",()->{
-      ClipboardManager cm=getSystemService(ClipboardManager.class);
-      cm.setPrimaryClip(ClipData.newPlainText("Commande ADB",GRANT));message("Commande copiée");
-    });
+    text("Configuration sans ADB",20);
+    text("1. Place la tuile « Applications professionnelles » sur la première page des réglages rapides Samsung.\\n2. Active le service d'accessibilité « Pause profil travail ».\\n3. Autorise les alarmes exactes. Aucun ordinateur ni commande ADB.",14);
+    button("Activer l'accessibilité",()->startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)));
+    text("Le service peut lire et manipuler l'interface. Il est limité aux événements de l'interface système et ne sauvegarde aucun contenu affiché.",14);
     button("Autoriser les alarmes exactes",()->{
       if(Build.VERSION.SDK_INT>=31)try{
         startActivity(new Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,Uri.parse("package:"+getPackageName())));
       }catch(Exception e){message("Accès aux alarmes indisponible");}
     });
-    text("Aucun accès Internet, localisation, publicité ni service d'accessibilité.",14);
+    text("Aucun accès Internet, localisation, publicité ni collecte de données.",14);
     refresh();
   }
   @Override protected void onResume(){super.onResume();if(status!=null)refresh();}
@@ -103,33 +98,31 @@ public final class MainActivity extends Activity {
     pref(this).edit().putBoolean("enabled",enabled.isChecked()).putInt("days",bits)
       .putInt("from",from).putInt("to",to).putBoolean("pending",false).apply();
     arm(this);Result r=reconcile(this);refresh();
-    message(r==Result.OK?"Horaire enregistré":"Horaire enregistré. "+explain(r));
+    message(r==Result.OK?"Horaire enregistré":r==Result.QUEUED?"Horaire enregistré. Action envoyée.":"Horaire enregistré. "+explain(r));
   }
   private static String explain(Result r){
     switch(r){
-      case NO_PERMISSION:return "Autorisation ADB manquante.";
+      case NO_SERVICE:return "Active le service d'accessibilité dans les paramètres.";
       case NO_PROFILE:return "Profil professionnel non trouvé.";
-      case LOCKED:return "Déverrouillage du profil professionnel nécessaire.";
+      case LOCKED:return "Téléphone verrouillé : action reportée au déverrouillage.";
+      case QUEUED:return "Action en cours. Vérifie l\'état du profil.";
       case DENIED:return "Action bloquée par Android ou l'organisation.";
       default:return "OK";
     }
   }
   private void manual(boolean pause){
     Result r=setPaused(this,pause);refresh();
-    message(r==Result.OK?(pause?"Profil suspendu":"Profil réactivé"):explain(r));
+    message(r==Result.OK?(pause?"Profil déjà suspendu":"Profil déjà actif"):explain(r));
   }
   private void refresh(){
     if(status==null)return;
     Boolean paused=isPaused(this);
     status.setText("Profil : "+(paused==null?"introuvable":paused?"suspendu":"actif")
-      +(pending(this)?" (réactivation en attente)":""));
-    permissionStatus.setText("Autorisation ADB : "+(hasPermission(this)?"OK":"à accorder")
+      +(pending(this)?" (action en attente du déverrouillage)":""));
+    permissionStatus.setText("Accessibilité : "+(WorkAccessService.isEnabled(this)?"OK":"à activer")
       +"\nAlarmes exactes : "+(canExact(this)?"OK":"à autoriser"));
   }
-  enum Result{OK,NO_PERMISSION,NO_PROFILE,LOCKED,DENIED}
-  private static boolean hasPermission(Context c){
-    return c.checkSelfPermission("android.permission.MODIFY_QUIET_MODE")==PackageManager.PERMISSION_GRANTED;
-  }
+  enum Result{OK,QUEUED,NO_SERVICE,NO_PROFILE,LOCKED,DENIED}
   private static UserHandle profile(Context c){
     UserManager um=c.getSystemService(UserManager.class);
     if(um==null)return null;
@@ -141,26 +134,24 @@ public final class MainActivity extends Activity {
     }
     return result;
   }
-  private static Boolean isPaused(Context c){
+  static Boolean isPaused(Context c){
     UserHandle p=profile(c);
     if(p==null)return null;
     try{return c.getSystemService(UserManager.class).isQuietModeEnabled(p);}
     catch(RuntimeException e){return null;}
   }
   private static Result setPaused(Context c,boolean pause){
-    if(!hasPermission(c))return Result.NO_PERMISSION;
-    UserHandle p=profile(c);if(p==null)return Result.NO_PROFILE;
-    try{
-      UserManager um=c.getSystemService(UserManager.class);
-      if(um.isQuietModeEnabled(p)==pause)return Result.OK;
-      if(!pause){
-        KeyguardManager key=c.getSystemService(KeyguardManager.class);
-        if(key!=null&&key.isDeviceLocked())return Result.LOCKED;
-        return um.requestQuietModeEnabled(false,p,UserManager.QUIET_MODE_DISABLE_ONLY_IF_CREDENTIAL_NOT_REQUIRED)
-          ?Result.OK:Result.LOCKED;
-      }
-      return um.requestQuietModeEnabled(true,p)?Result.OK:Result.DENIED;
-    }catch(RuntimeException e){return Result.DENIED;}
+    Boolean current=isPaused(c);
+    if(current==null)return Result.NO_PROFILE;
+    if(current==pause)return Result.OK;
+    return WorkAccessService.request(c,pause);
+  }
+  static boolean isPending(Context c){return pending(c);}
+  static void tryPending(Context c){
+    if(pending(c)&&enabled(c))reconcile(c);
+  }
+  static void actionComplete(Context c,boolean success){
+    if(success)pending(c,false);
   }
   private static PendingIntent pendingIntent(Context c,String action,int code){
     Intent i=new Intent(c,Events.class).setAction(action);
@@ -201,7 +192,7 @@ public final class MainActivity extends Activity {
     }
     boolean pause=!workTime(c);
     Result result=setPaused(c,pause);
-    boolean retry=!pause&&result==Result.LOCKED;
+    boolean retry=result==Result.LOCKED;
     pending(c,retry);
     am.cancel(pendingIntent(c,RETRY,102));
     if(retry)alarm(c,System.currentTimeMillis()+5*60_000L,RETRY,102,false);
@@ -212,7 +203,7 @@ public final class MainActivity extends Activity {
       if(i==null)return;
       String a=i.getAction();if(a==null)return;
       if(RETRY.equals(a)||Intent.ACTION_USER_PRESENT.equals(a)){
-        if(pending(c)&&workTime(c))reconcile(c);else{
+        if(pending(c)&&enabled(c))reconcile(c);else{
           pending(c,false);c.getSystemService(AlarmManager.class).cancel(pendingIntent(c,RETRY,102));
         }
         return;
