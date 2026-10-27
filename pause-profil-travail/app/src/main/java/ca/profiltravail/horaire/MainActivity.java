@@ -53,6 +53,10 @@ public final class MainActivity extends Activity {
     text("Pause profil travail",25);
     text("Suspend automatiquement le profil professionnel. Les applications personnelles restent actives.",15);
     status=text("",18);permissionStatus=text("",14);
+    text("État initial du profil professionnel",20);
+    text("Indique son état actuel pour initialiser la synchronisation. Si tu changes ensuite le profil à la main, confirme de nouveau son état ici. L'application tente aussi de lire l'état directement sur la tuile Samsung.",14);
+    button("Mon profil est actuellement ACTIF",()->calibrate(true));
+    button("Mon profil est actuellement SUSPENDU",()->calibrate(false));
     button("Actualiser",this::refresh);
     text("Programmation",20);
     enabled=new CheckBox(this);enabled.setText("Activer la programmation");
@@ -70,8 +74,8 @@ public final class MainActivity extends Activity {
     text("Commande manuelle",20);
     button("Suspendre maintenant",()->manual(true));
     button("Réactiver maintenant",()->manual(false));
-    text("Configuration sans ADB",20);
-    text("1. Place la tuile « Applications professionnelles » sur la première page des réglages rapides Samsung.\\n2. Active le service d'accessibilité « Pause profil travail ».\\n3. Autorise les alarmes exactes. Aucun ordinateur ni commande ADB.",14);
+    text("Configuration",20);
+    text("1. Place la tuile « Applications professionnelles » sur la première page des réglages rapides Samsung.\\n2. Active le service d'accessibilité « Pause profil travail ».\\n3. Autorise les alarmes exactes.",14);
     button("Activer l'accessibilité",()->startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)));
     text("Le service peut lire et manipuler l'interface. Il est limité aux événements de l'interface système et ne sauvegarde aucun contenu affiché.",14);
     button("Autoriser les alarmes exactes",()->{
@@ -98,12 +102,13 @@ public final class MainActivity extends Activity {
     pref(this).edit().putBoolean("enabled",enabled.isChecked()).putInt("days",bits)
       .putInt("from",from).putInt("to",to).putBoolean("pending",false).apply();
     arm(this);Result r=reconcile(this);refresh();
-    message(r==Result.OK?"Horaire enregistré":r==Result.QUEUED?"Horaire enregistré. Action envoyée.":"Horaire enregistré. "+explain(r));
+    message(r==Result.OK?"Horaire enregistré":r==Result.QUEUED?"Horaire enregistré. Vérification de la tuile en cours.":"Horaire enregistré. "+explain(r));
   }
   private static String explain(Result r){
     switch(r){
       case NO_SERVICE:return "Active le service d'accessibilité dans les paramètres.";
-      case NO_PROFILE:return "Profil professionnel non trouvé.";
+      case UNKNOWN_STATE:return "État inconnu. Confirme l’état actuel dans l’application.";
+      case NOT_FOUND:return "Tuile du profil professionnel introuvable dans les réglages rapides.";
       case LOCKED:return "Téléphone verrouillé : action reportée au déverrouillage.";
       case QUEUED:return "Action en cours. Vérifie l\'état du profil.";
       case DENIED:return "Action bloquée par Android ou l'organisation.";
@@ -112,38 +117,28 @@ public final class MainActivity extends Activity {
   }
   private void manual(boolean pause){
     Result r=setPaused(this,pause);refresh();
-    message(r==Result.OK?(pause?"Profil déjà suspendu":"Profil déjà actif"):explain(r));
+    message(r==Result.QUEUED?"Recherche du bouton Samsung en cours. Consulte le statut après l’opération.":explain(r));
+  }
+  private void calibrate(boolean active){
+    pref(this).edit().putInt("work_state",active?1:0)
+      .putBoolean("work_state_verified",false)
+      .putString("work_message","État initial confirmé manuellement.").apply();
+    refresh();
+    message("État enregistré.");
   }
   private void refresh(){
     if(status==null)return;
-    Boolean paused=isPaused(this);
-    status.setText("Profil : "+(paused==null?"introuvable":paused?"suspendu":"actif")
-      +(pending(this)?" (action en attente du déverrouillage)":""));
+    int state=pref(this).getInt("work_state",-1);
+    String label=state<0?"non initialisé":state==1?"actif":"suspendu";
+    String verify=pref(this).getBoolean("work_state_verified",false)?" (état lu sur la tuile)":" (état déclaré ou estimé)";
+    status.setText("Profil : "+label+(state<0?"":verify)+
+      (pending(this)?"\\nAction reportée au déverrouillage":"")+"\\n"+
+      pref(this).getString("work_message",""));
     permissionStatus.setText("Accessibilité : "+(WorkAccessService.isEnabled(this)?"OK":"à activer")
-      +"\nAlarmes exactes : "+(canExact(this)?"OK":"à autoriser"));
+      +"\\nAlarmes exactes : "+(canExact(this)?"OK":"à autoriser"));
   }
-  enum Result{OK,QUEUED,NO_SERVICE,NO_PROFILE,LOCKED,DENIED}
-  private static UserHandle profile(Context c){
-    UserManager um=c.getSystemService(UserManager.class);
-    if(um==null)return null;
-    UserHandle result=null;
-    for(UserHandle u:um.getUserProfiles()){
-      if(u.equals(android.os.Process.myUserHandle()))continue;
-      if(result!=null)return null;
-      result=u;
-    }
-    return result;
-  }
-  static Boolean isPaused(Context c){
-    UserHandle p=profile(c);
-    if(p==null)return null;
-    try{return c.getSystemService(UserManager.class).isQuietModeEnabled(p);}
-    catch(RuntimeException e){return null;}
-  }
+  enum Result{OK,QUEUED,NO_SERVICE,UNKNOWN_STATE,NOT_FOUND,LOCKED,DENIED}
   private static Result setPaused(Context c,boolean pause){
-    Boolean current=isPaused(c);
-    if(current==null)return Result.NO_PROFILE;
-    if(current==pause)return Result.OK;
     return WorkAccessService.request(c,pause);
   }
   static boolean isPending(Context c){return pending(c);}
