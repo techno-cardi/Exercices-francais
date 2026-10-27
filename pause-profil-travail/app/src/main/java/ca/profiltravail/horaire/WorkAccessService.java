@@ -33,6 +33,7 @@ public final class WorkAccessService extends AccessibilityService {
   private Boolean desiredPaused;
   private int scanCount;
   private boolean clicked;
+  private boolean confirmedAfterClick;
   private long lastPendingRetry;
   private final Runnable scanTask=this::scan;
 
@@ -50,17 +51,19 @@ public final class WorkAccessService extends AccessibilityService {
   }
 
   static MainActivity.Result request(Context c,boolean pause){
-    Boolean current=MainActivity.isPaused(c);
-    if(current==null)return MainActivity.Result.NO_PROFILE;
-    if(current==pause)return MainActivity.Result.OK;
-    WorkAccessService s=active;
-    if(s==null)return MainActivity.Result.NO_SERVICE;
+    WorkAccessService service=active;
+    if(service==null)return MainActivity.Result.NO_SERVICE;
     KeyguardManager key=c.getSystemService(KeyguardManager.class);
     if(key!=null&&key.isDeviceLocked())return MainActivity.Result.LOCKED;
-    s.handler.post(()->s.begin(pause));
+    service.handler.post(()->service.begin(pause));
     return MainActivity.Result.QUEUED;
   }
-
+  private static android.content.SharedPreferences p(Context c){
+    return c.getSharedPreferences("schedule",Context.MODE_PRIVATE);
+  }
+  private void note(String message){
+    p(this).edit().putString("work_message",message).apply();
+  }
   @Override protected void onServiceConnected(){
     super.onServiceConnected();
     active=this;
@@ -90,14 +93,17 @@ public final class WorkAccessService extends AccessibilityService {
   }
 
   private void begin(boolean pause){
-    Boolean current=MainActivity.isPaused(this);
-    if(current==null){MainActivity.actionComplete(this,false);return;}
-    if(current==pause){MainActivity.actionComplete(this,true);return;}
+    if(desiredPaused!=null){
+      handler.removeCallbacks(scanTask);
+      desiredPaused=null;
+    }
     desiredPaused=pause;
     clicked=false;
+    confirmedAfterClick=false;
     scanCount=0;
+    note("Ouverture des réglages rapides pour vérification...");
     if(!performGlobalAction(GLOBAL_ACTION_QUICK_SETTINGS)){
-      finish(false);return;
+      finish(false,false,"Impossible d'ouvrir les réglages rapides.");return;
     }
     handler.removeCallbacks(scanTask);
     handler.postDelayed(scanTask,SCAN_DELAY_MS);
@@ -105,22 +111,81 @@ public final class WorkAccessService extends AccessibilityService {
 
   private void scan(){
     if(desiredPaused==null)return;
-    Boolean current=MainActivity.isPaused(this);
-    if(current!=null&&current.equals(desiredPaused)){finish(true);return;}
-    if(clicked){
-      if(++scanCount>=9){finish(false);return;}
-      handler.postDelayed(scanTask,550);return;
-    }
-    if(++scanCount>9){finish(false);return;}
+    scanCount++;
     AccessibilityNodeInfo tile=findWorkTile();
     if(tile!=null){
+      Boolean activeState=tileState(tile);
+      // Checked = profile active; desiredPaused is the inverse.
+      if(activeState!=null){
+        p(this).edit().putInt("work_state",activeState?1:0)
+          .putBoolean("work_state_verified",true).apply();
+        if(activeState==!desiredPaused){
+          finish(true,true,clicked?"Profil confirmé dans l'état demandé.":"Profil déjà dans l'état demandé.");
+          return;
+        }
+        if(clicked){
+          if(scanCount>=12){
+            finish(false,true,"L'état du profil n'a pas changé malgré le clic.");
+          }else handler.postDelayed(scanTask,600);
+          return;
+        }
+      }else{
+        int last=p(this).getInt("work_state",-1);
+        if(!clicked && last<0){
+          finish(false,false,"État non lisible. Confirme d'abord l'état actuel dans l'application.");
+          return;
+        }
+        if(!clicked && (last==0)==desiredPaused){
+          finish(true,false,"État déjà conforme selon la dernière synchronisation (non confirmé).");
+          return;
+        }
+        if(clicked){
+          if(scanCount>=4)finish(true,false,"Bascule envoyée. Résultat non vérifiable : contrôle le profil.");
+          else handler.postDelayed(scanTask,600);
+          return;
+        }
+      }
       if(clickTile(tile)){
         clicked=true;
-        handler.postDelayed(scanTask,900);
+        scanCount=0;
+        handler.postDelayed(scanTask,800);
         return;
       }
+      finish(false,false,"Tuile trouvée, mais Android a refusé le clic.");
+      return;
+    }
+    if(scanCount>=11){
+      finish(false,false,"Bouton Applications professionnelles introuvable. Mets-le sur la première page des réglages rapides.");
+      return;
     }
     handler.postDelayed(scanTask,SCAN_DELAY_MS);
+  }
+
+  private static Boolean tileState(AccessibilityNodeInfo label){
+    AccessibilityNodeInfo n=label;
+    for(int depth=0;n!=null && depth<5;depth++,n=n.getParent()){
+      if(n.isCheckable())return n.isChecked();
+      Boolean state=readState(n.getStateDescription());
+      if(state!=null)return state;
+      // Some Samsung QS tiles expose "Work apps, On" rather than a state description.
+      CharSequence desc=n.getContentDescription();
+      if(desc!=null && (isWorkLabel(desc)||n==label)){
+        state=readState(desc);
+        if(state!=null)return state;
+      }
+      if(n.isClickable())break;
+    }
+    return null;
+  }
+
+  private static Boolean readState(CharSequence value){
+    if(value==null)return null;
+    String t=Normalizer.normalize(value.toString().toLowerCase(Locale.ROOT),Normalizer.Form.NFD)
+      .replaceAll("\\p{InCombiningDiacriticalMarks}+","");
+    // Test negative first because "desactive" contains "active".
+    if(t.matches(".*\\b(desactive|desactivees?|inactive|off|turned off|eteint|suspendu|pause|arret|disabled)\\b.*"))return false;
+    if(t.matches(".*\\b(active|activees?|on|turned on|allume|en marche|enabled)\\b.*"))return true;
+    return null;
   }
 
   private AccessibilityNodeInfo findWorkTile(){
@@ -188,10 +253,16 @@ public final class WorkAccessService extends AccessibilityService {
     return dispatchGesture(g,null,null);
   }
 
-  private void finish(boolean ok){
+  private void finish(boolean ok,boolean verified,String message){
+    Boolean target=desiredPaused;
     desiredPaused=null;
     clicked=false;
     handler.removeCallbacks(scanTask);
+    if(ok&&target!=null){
+      p(this).edit().putInt("work_state",target?0:1)
+        .putBoolean("work_state_verified",verified)
+        .putString("work_message",message).apply();
+    }else note(message);
     MainActivity.actionComplete(this,ok);
     AccessibilityNodeInfo root=getRootInActiveWindow();
     if(root!=null&&isSystemUi(root))performGlobalAction(GLOBAL_ACTION_BACK);
