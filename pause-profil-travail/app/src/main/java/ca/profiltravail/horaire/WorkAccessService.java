@@ -45,6 +45,8 @@ public final class WorkAccessService extends AccessibilityService {
     if(s==null)return MainActivity.Result.NO_SERVICE;
     KeyguardManager km=c.getSystemService(KeyguardManager.class);
     if(km!=null&&km.isDeviceLocked())return MainActivity.Result.LOCKED;
+    android.os.PowerManager pm=c.getSystemService(android.os.PowerManager.class);
+    if(pm!=null&&!pm.isInteractive())return MainActivity.Result.LOCKED;
     s.handler.post(()->s.begin(desired,automatic));
     return MainActivity.Result.QUEUED;
   }
@@ -183,9 +185,9 @@ public final class WorkAccessService extends AccessibilityService {
   private static Boolean readState(AccessibilityNodeInfo tile){
     AccessibilityNodeInfo n=tile;
     for(int i=0;i<5&&n!=null;i++,n=n.getParent()){
-      if(n.isCheckable())return n.isChecked();
       Boolean state=parseState(n.getStateDescription());
       if(state!=null)return state;
+      if(n.isCheckable())return n.isChecked();
       if(n==tile){
         state=parseState(stateSuffix(n.getContentDescription()));
         if(state!=null)return state;
