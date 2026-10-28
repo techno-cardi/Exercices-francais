@@ -8,7 +8,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
     defaults:
       run:
         working-directory: pause-profil-travail
@@ -32,6 +32,24 @@ jobs:
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump permissions "$APK"
           if "$ANDROID_HOME/build-tools/35.0.0/aapt" dump permissions "$APK" | grep -q 'android.permission.INTERNET'; then exit 1; fi
           if "$ANDROID_HOME/build-tools/35.0.0/aapt" dump permissions "$APK" | grep -q 'android.permission.MODIFY_QUIET_MODE'; then exit 1; fi
+      - name: Publier une URL HTTPS directe pour l'APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          PACKAGE="$GITHUB_WORKSPACE/pause-profil-travail/app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$PACKAGE"
+          mkdir -p "$RUNNER_TEMP/apk-download"
+          cd "$RUNNER_TEMP/apk-download"
+          git init -b apk-download
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          cp "$PACKAGE" PauseProfilTravail_S24Ultra_v4.apk
+          sha256sum PauseProfilTravail_S24Ultra_v4.apk > SHA256SUMS.txt
+          git add PauseProfilTravail_S24Ultra_v4.apk SHA256SUMS.txt
+          git commit -m "Publier APK v4 compilé et vérifié"
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push --force origin HEAD:refs/heads/apk-download
       - name: Publier APK
         uses: actions/upload-artifact@v4
         with:
