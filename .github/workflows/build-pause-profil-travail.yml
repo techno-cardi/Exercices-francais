@@ -31,7 +31,7 @@ jobs:
           APK=app/build/outputs/apk/debug/app-debug.apk
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump permissions "$APK"
           if "$ANDROID_HOME/build-tools/35.0.0/aapt" dump permissions "$APK" | grep -q 'android.permission.INTERNET'; then exit 1; fi
-          if "$ANDROID_HOME/build-tools/35.0.0/aapt" dump permissions "$APK" | grep -q 'android.permission.MODIFY_QUIET_MODE'; then exit 1; fi
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump permissions "$APK" | grep -q 'android.permission.MODIFY_QUIET_MODE'
       - name: Publier une URL HTTPS directe pour l'APK
         env:
           GH_TOKEN: ${{ github.token }}
@@ -44,15 +44,15 @@ jobs:
           git init -b apk-download
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          cp "$PACKAGE" PauseProfilTravail_S24Ultra_v4.apk
-          sha256sum PauseProfilTravail_S24Ultra_v4.apk > SHA256SUMS.txt
-          git add PauseProfilTravail_S24Ultra_v4.apk SHA256SUMS.txt
-          git commit -m "Publier APK v4 compilé et vérifié"
+          cp "$PACKAGE" PauseProfilTravail_S24Ultra_v5.apk
+          sha256sum PauseProfilTravail_S24Ultra_v5.apk > SHA256SUMS.txt
+          git add PauseProfilTravail_S24Ultra_v5.apk SHA256SUMS.txt
+          git commit -m "Publier APK v5 silencieux vérifié"
           git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git push --force origin HEAD:refs/heads/apk-download
       - name: Publier APK
         uses: actions/upload-artifact@v4
         with:
-          name: PauseProfilTravail-v4-APK
+          name: PauseProfilTravail-v5-APK
           path: pause-profil-travail/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
