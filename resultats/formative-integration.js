@@ -14,6 +14,8 @@
   let frozenGroup = '';
   let frozenYear = null;
   let importBusy = false;
+  let pendingCatalogBusy = false;
+  let pendingCatalogPayload = null;
   const excludedEmails = new Set();
 
   function importableQuestions(snapshot) {
@@ -67,6 +69,7 @@
         document.getElementById('formativeImportDialog').close();
       }
       currentImport = data.payload;
+      pendingCatalogPayload = null;
       sessionStorage.setItem('pending_formative_import', JSON.stringify(data.payload));
       if (key !== lastIncomingKey || !document.getElementById('formativeImportDialog')?.open) {
         lastIncomingKey = key;
@@ -230,22 +233,42 @@
     setDestinationMode(a);
   }
 
+  function destinationScopeError(a, group) {
+    if (!a) return 'Ce travail n’est plus disponible. Rouvre l’import pour actualiser la liste.';
+    if (a.groups?.length !== 1) return 'Ce travail est partagé entre plusieurs groupes. Sépare ses groupes avant d’importer les notes.';
+    if (String(a.groups[0]) !== group) return `Ce travail appartient au groupe ${a.groups[0]}, mais les notes viennent du groupe ${group}. Choisis un travail du groupe ${group}.`;
+    if (a.schoolYear != null && String(a.schoolYear) !== String(state.schoolYear)) return 'Ce travail appartient à une autre année scolaire. Choisis un travail de l’année active.';
+    return '';
+  }
   function showImportModal(snapshot, destinationId = '') {
     if(state.yearContext && (!state.yearContext.isActive||state.yearContext.readOnly)){notify('Choisis l’année active pour importer depuis Formative.','error');return;}
+    const sourceGroup = String(snapshot.groupCode || '').trim();
+    const explicitDestination = destinationId ? assignmentForDestination(destinationId) || (state.currentAssignment?.id === destinationId ? state.currentAssignment : null) : null;
+    const scopeError = !sourceGroup ? 'Le groupe source n’a pas été identifié. Rouvre l’envoi depuis la classe Formative concernée.' : destinationId ? destinationScopeError(explicitDestination, sourceGroup) : '';
+    if (scopeError) {
+      invalidatePreview(); currentImport = null;
+      sessionStorage.removeItem('pending_formative_import');
+      document.getElementById('formativeImportDialog')?.close();
+      notify(scopeError, 'error'); return;
+    }
     ensureUi();
     invalidatePreview();
     currentImport = JSON.parse(JSON.stringify(snapshot));
+    pendingCatalogPayload = currentImport;
     excludedEmails.clear();
-    frozenGroup = String(state.dashboardGroup || state.detailGroup || snapshot.groupCode || '');
+    // The sending Formative class is authoritative; the dashboard may still show another group.
+    frozenGroup = sourceGroup;
     frozenYear = state.schoolYear;
     lockedDestinationId = destinationId || '';
-    const linked = (state.teacherAssignments || []).filter(a => a.formativeId === snapshot.formativeId && a.groups?.length === 1 && a.groups.map(String).includes(frozenGroup));
+    const linked = (state.teacherAssignments || []).filter(a => a.formativeId === snapshot.formativeId && !destinationScopeError(a, frozenGroup)
+      && (!a.formativeSectionId || !snapshot.sectionId || a.formativeSectionId === snapshot.sectionId)
+      && (!a.formativeAssignmentId || !snapshot.assignmentId || a.formativeAssignmentId === snapshot.assignmentId));
     const suggestedDestinationId = linked.length === 1 ? String(linked[0].id) : '';
     const initialDestinationId = destinationId || suggestedDestinationId;
     const dialog = document.getElementById('formativeImportDialog');
     dialog.dataset.cardinalNativeDestinationV2 = '1';
     document.getElementById('formativeDialogTitle').textContent = snapshot.title || 'Importer depuis Formative';
-    document.getElementById('formativeSummary').innerHTML = `<strong>${escF(snapshot.sectionTitle || `Groupe ${snapshot.groupCode || '?'}`)}</strong><span>${snapshot.students?.length || 0} élèves détectés</span>`;
+    document.getElementById('formativeSummary').innerHTML = `<strong>${escF(snapshot.sectionTitle || `Groupe ${sourceGroup}`)}</strong><span>Destination : groupe ${escF(sourceGroup)} · ${snapshot.students?.length || 0} élèves détectés</span>`;
 
     const questions = importableQuestions(snapshot);
     let defaults = questions.filter(q => Number(q.gradedCount || 0) > 0).map(q => String(q.id));
@@ -265,17 +288,17 @@
         <span><strong>${escF(questionLabel(q))}</strong><small>${maxLabel(q.possiblePoints)} pt${Number(q.possiblePoints)===1?'':'s'} · ${Number(q.gradedCount||0)}/${snapshot.students?.length || snapshot.studentCount || 0} notés</small></span>
       </label>`).join('');
 
-    const available = (state.teacherAssignments || []).filter(a => (a.groups || []).map(String).includes(frozenGroup));
+    const available = (state.teacherAssignments || []).filter(a => (a.groups || []).map(String).includes(frozenGroup) && (a.schoolYear == null || String(a.schoolYear) === String(frozenYear)));
     const dest = document.getElementById('formativeDestination');
     dest.innerHTML = `<option value="">Créer un nouveau travail</option>` + available.map(a => `<option value="${escF(a.id)}"${a.groups.length > 1 ? ' disabled' : ''}>${escF(a.title)}${a.groups.length > 1 ? ' · Séparer les groupes avant d’importer' : ''} · Étape ${escF(a.term || 1)} · ${escF(a.activityDate || "Date à compléter")} · ${escF(maxLabel(a.maxScore))}</option>`).join('');
     if (destinationId) {
       if (![...dest.options].some(o => o.value === destinationId)) {
-        const a = assignmentForDestination(destinationId) || state.currentAssignment;
+        const a = explicitDestination;
         if (a?.id) dest.add(new Option(a.title, a.id));
       }
       dest.value = destinationId;
       dest.disabled = true;
-      fillFieldsFromAssignment(assignmentForDestination(destinationId) || state.currentAssignment);
+      fillFieldsFromAssignment(explicitDestination);
     } else {
       dest.disabled = false;
       dest.value = suggestedDestinationId;
@@ -289,16 +312,29 @@
     if (!dialog.open) dialog.showModal();
   }
 
-  function tryShowPendingImport() {
+  async function tryShowPendingImport() {
     if (document.getElementById('formativeImportDialog')?.open) return;
-    if (!state?.teacherToken || !Array.isArray(state.teacherAssignments)) return;
+    // An initial [] is not evidence that the teacher has no existing works.
+    if (!state?.teacherToken || !state.schoolYear || state.teacherDataYear !== state.schoolYear || pendingCatalogBusy) return;
     let payload = currentImport;
     if (!payload) {
       try { payload = JSON.parse(sessionStorage.getItem('pending_formative_import') || 'null'); } catch {}
     }
     if (payload?.formativeId) {
       currentImport = payload;
-      showImportModal(payload, '');
+      if (pendingCatalogPayload === payload) return;
+      pendingCatalogPayload = payload;
+      pendingCatalogBusy = true;
+      const token = state.teacherToken, year = state.schoolYear, yearRevision = state.schoolYearRevision;
+      try {
+        // Refresh once per incoming import, not once per polling tick.
+        const loaded = await refreshTeacherData();
+        if (currentImport !== payload || token !== state.teacherToken || year !== state.schoolYear || yearRevision !== state.schoolYearRevision) return;
+        if (loaded === false) throw new Error('Le chargement des travaux a été interrompu.');
+        showImportModal(payload, '');
+      } catch (error) {
+        if (currentImport === payload && token === state.teacherToken && yearRevision === state.schoolYearRevision) notify(`Impossible de charger les travaux : ${error.message || error}. Réessaie l’envoi depuis Formative.`, 'error');
+      } finally { pendingCatalogBusy = false; }
     }
   }
 
@@ -361,7 +397,7 @@
     const ids = selectedQuestionIds();
     if (!ids.length) { warning.textContent = 'Choisis au moins une question.'; warning.classList.remove('hidden'); return; }
     const dest = document.getElementById('formativeDestination').value || lockedDestinationId || '';
-    const a = assignmentForDestination(dest) || (lockedDestinationId ? state.currentAssignment : null);
+    const a = assignmentForDestination(dest) || (lockedDestinationId && state.currentAssignment?.id === dest ? state.currentAssignment : null);
     const visible = document.getElementById('formativeVisible').checked;
     const kind = document.getElementById('formativeCompetence').value;
     const settings = a ? currentSettings(a) : {
@@ -377,6 +413,11 @@
     const confirming = !!preparedPreview;
     try {
       importBusy = true; btn.disabled = true; warning.classList.add('hidden');
+      if (String(currentImport.groupCode || '').trim() !== frozenGroup) throw new Error('Le groupe source a changé. Rouvre l’import depuis Formative.');
+      if (dest) {
+        const scopeError = destinationScopeError(a, frozenGroup);
+        if (scopeError) throw new Error(scopeError);
+      }
       const version=String(state.extensionVersion || '').split('.').map(Number);
       if ((version[0] || 0)<1 || version[0]===1 && ((version[1] || 0)<3 || version[1]===3 && (version[2] || 0)<24)) throw new Error('Cardinal 1.3.24 est requis pour vérifier les questions et leurs sous-parties. Recharge l’extension mise à jour.');
       if (!Array.isArray(currentImport.hierarchy)) {

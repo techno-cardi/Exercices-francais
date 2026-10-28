@@ -17,7 +17,7 @@ function harness() {
   const document = {getElementById:element,querySelector(){return null;},querySelectorAll(){return selected;},addEventListener(t,f){listeners[t]=f;}};
   const window = {addEventListener(t,f){listeners[t]=f;},postMessage(message){this.lastRequest=message;}};
   const context={window,document,state,console,location:{origin:'http://local'},crypto:require('node:crypto').webcrypto,sessionStorage:{getItem(){return null;},setItem(){},removeItem(){}},setTimeout(){},clearTimeout(){},setInterval(){},today:()=> '2026-10-26',formatNumber:String,competencyArray:()=>[1],TEACHER_ENDPOINT:'teacher',api:async(e,p)=>{calls.push(p);return context.response;},notify:(...a)=>notifications.push(a),openAssignment:async id=>opened.push(id),fillWorkPage(){},Option:function(text,value){this.text=text;this.value=value;}};
-  const source=fs.readFileSync(path.join(__dirname,'../../resultats/formative-integration.js'),'utf8').replace(/\}\)\(\);\s*$/, 'window.testUi = {showImportModal,confirmImport,fillSettingsFromDestination,updateSelectedTotal,pullCurrentAssignment,associateCurrentAssignment};})();');
+  const source=fs.readFileSync(path.join(__dirname,'../../resultats/formative-integration.js'),'utf8').replace(/\}\)\(\);\s*$/, 'window.testUi = {showImportModal,tryShowPendingImport,confirmImport,fillSettingsFromDestination,updateSelectedTotal,pullCurrentAssignment,associateCurrentAssignment};})();');
   vm.runInNewContext(source,context);
   const snapshot={formativeId:'f1',groupCode:'101',title:'Formative source',sectionTitle:'Groupe 101',hierarchy:[{id:'q1',parentId:null,kind:'question'}],questions:[{id:'q1',possiblePoints:30,gradedCount:1,label:'Question'}],students:[]};
   context.response={ok:true,previewId:'p1',expiresAt:'2026-10-27',preview:{rows:[{email:'z@x',name:'Zoé Zola',action:'replace',beforeGrade:20,afterGrade:80,beforeMax:30,targetMaxScore:100},{email:'a@x',name:'Anne Abel',action:'blocked',reason:'Résultat incomplet',beforeGrade:null,afterGrade:null,beforeMax:30,targetMaxScore:100}],counts:{add:0,replace:1,rescale:0,unchanged:0,blocked:1,modified:1},sourceMaxScore:30,targetMaxScore:100,scaleMode:'hundred'}};
@@ -126,4 +126,110 @@ test('global import helper preserves native preview and confirmation labels',()=
  h.context.document.createElement=()=>({dataset:{}});
  vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../../resultats/formative-global-v01.js'),'utf8'),h.context);
  apply();assert.equal(h.element('confirmFormativeImport').textContent,'Prévisualiser les notes');
+});
+
+test('Formative source group wins over a stale dashboard group with the same work title',async()=>{
+ const h=harness();h.snapshot.groupCode='32';h.snapshot.sectionTitle='Groupe 32';
+ h.context.state.dashboardGroup='31';h.context.state.detailGroup='31';
+ h.context.state.teacherAssignments=[
+  {id:'work31',title:'Examen',groups:['31'],formativeId:'f1',maxScore:30},
+  {id:'work32',title:'Examen',groups:['32'],formativeId:'f1',maxScore:30}
+ ];
+ h.ui.showImportModal(h.snapshot);
+ assert.equal(h.element('formativeDestination').value,'work32');
+ assert.doesNotMatch(h.element('formativeDestination').innerHTML,/work31/);
+ await h.ui.confirmImport();
+ assert.equal(h.calls[0].destinationAssignmentId,'work32');
+ assert.equal(h.calls[0].formative.groupCode,'32');
+});
+
+test('an explicitly linked work from another group cannot open or preview',async()=>{
+ const h=harness();h.snapshot.groupCode='32';h.ui.showImportModal(h.snapshot,'a1');
+ assert.equal(h.element('formativeImportDialog').open,false);
+ await h.ui.confirmImport();assert.equal(h.calls.length,0);
+ assert.match(h.notifications.flat().join(' '),/groupe/);
+});
+
+test('missing source group never falls back to the selected dashboard',()=>{
+ const h=harness();delete h.snapshot.groupCode;h.ui.showImportModal(h.snapshot);
+ assert.equal(h.element('formativeImportDialog').open,false);
+ assert.match(h.notifications.flat().join(' '),/groupe/);
+});
+
+test('a destination changed to another group is rejected before any preview request',async()=>{
+ const h=harness();h.ui.showImportModal(h.snapshot,'a1');
+ h.context.state.teacherAssignments[0].groups=['102'];await h.ui.confirmImport();
+ assert.equal(h.calls.length,0);assert.match(h.element('formativeImportWarning').textContent,/groupe/);
+});
+
+function pendingHarness() {
+ const h=harness();Object.assign(h.context.state,{schoolYear:2026,schoolYearRevision:1,teacherDataYear:undefined,teacherAssignments:[]});
+ h.context.sessionStorage.getItem=()=>JSON.stringify(h.snapshot);
+ let finish;let reads=0;
+ h.context.refreshTeacherData=()=>{reads++;return new Promise(resolve=>{finish=()=>{h.context.state.teacherAssignments=[{id:'fresh',title:'Travail chargé',groups:['101'],formativeId:'f1',maxScore:30}];resolve(true);};});};
+ return Object.assign(h,{reads:()=>reads,finish:()=>finish()});
+}
+
+test('pending import waits for initial dashboard then one fresh catalog before opening',async()=>{
+ const h=pendingHarness();await h.ui.tryShowPendingImport();
+ assert.equal(h.element('formativeImportDialog').open,false);assert.equal(h.reads(),0);
+ h.context.state.teacherDataYear=2026;
+ const opening=h.ui.tryShowPendingImport();h.ui.tryShowPendingImport();h.ui.tryShowPendingImport();
+ assert.equal(h.element('formativeImportDialog').open,false);assert.equal(h.reads(),1);
+ h.finish();await opening;
+ assert.equal(h.element('formativeDestination').value,'fresh');assert.equal(h.element('formativeImportDialog').open,true);
+});
+
+test('school year changes discard a late catalog and do not reopen the old import',async()=>{
+ const h=pendingHarness();h.context.state.teacherDataYear=2026;
+ const opening=h.ui.tryShowPendingImport();h.context.state.schoolYearRevision++;h.context.state.schoolYear=2025;
+ h.finish();await opening;assert.equal(h.element('formativeImportDialog').open,false);
+});
+
+test('catalog failure never offers a misleading empty list or retries on every timer tick',async()=>{
+ const h=pendingHarness();h.context.state.teacherDataYear=2026;let reads=0;
+ h.context.refreshTeacherData=async()=>{reads++;throw new Error('Connexion interrompue');};
+ await h.ui.tryShowPendingImport();await h.ui.tryShowPendingImport();await h.ui.tryShowPendingImport();
+ assert.equal(reads,1);assert.equal(h.element('formativeImportDialog').open,false);
+ assert.match(h.notifications.flat().join(' '),/Connexion interrompue/);
+});
+
+test('new work uses source group even when dashboard selection differs',async()=>{
+ const h=harness();h.snapshot.groupCode='32';h.ui.showImportModal(h.snapshot);await h.ui.confirmImport();
+ assert.deepEqual(Array.from(h.calls[0].settings.groups),['32']);
+});
+
+test('ambiguous links and different Formative sections are never suggested automatically',()=>{
+ const h=harness();h.snapshot.sectionId='section32';
+ h.context.state.teacherAssignments=[{id:'a',groups:['101'],formativeId:'f1',formativeSectionId:'other'}, {id:'oldYear',groups:['101'],formativeId:'f1',schoolYear:2025}];
+ h.context.state.schoolYear=2026;h.ui.showImportModal(h.snapshot);
+ assert.equal(h.element('formativeDestination').value,'');assert.doesNotMatch(h.element('formativeDestination').innerHTML,/oldYear/);
+ h.context.state.teacherAssignments=[{id:'a',groups:['101'],formativeId:'f1'}, {id:'b',groups:['101'],formativeId:'f1'}];h.ui.showImportModal(h.snapshot);
+ assert.equal(h.element('formativeDestination').value,'');
+});
+
+test('logout during catalog refresh discards the pending dialog',async()=>{
+ const h=pendingHarness();h.context.state.teacherDataYear=2026;const opening=h.ui.tryShowPendingImport();
+ h.context.state.teacherToken='';h.finish();await opening;assert.equal(h.element('formativeImportDialog').open,false);
+});
+
+test('closing a prepared import does not reopen it on the polling timer',async()=>{
+ const h=pendingHarness();h.context.state.teacherDataYear=2026;const opening=h.ui.tryShowPendingImport();h.finish();await opening;
+ h.element('formativeImportDialog').close();await h.ui.tryShowPendingImport();
+ assert.equal(h.element('formativeImportDialog').open,false);assert.equal(h.reads(),1);
+});
+
+test('an actually empty loaded catalog offers new work after the refresh completes',async()=>{
+ const h=pendingHarness();h.context.state.teacherDataYear=2026;
+ h.context.refreshTeacherData=async()=>true;await h.ui.tryShowPendingImport();
+ assert.equal(h.element('formativeImportDialog').open,true);assert.equal(h.element('formativeDestination').value,'');
+ assert.match(h.element('formativeDestination').innerHTML,/Créer un nouveau travail/);
+});
+
+test('a newer import arriving during catalog refresh replaces the old request',async()=>{
+ const h=pendingHarness();h.context.state.teacherDataYear=2026;const opening=h.ui.tryShowPendingImport();
+ h.listeners.message({source:h.window,origin:'http://local',data:{source:'cardinal-formative-extension',type:'FORMATIVE_IMPORT_AVAILABLE',payload:{...h.snapshot,groupCode:'32'}}});
+ h.finish();await opening;assert.equal(h.element('formativeImportDialog').open,false);
+ const next=h.ui.tryShowPendingImport();h.finish();await next;
+ assert.match(h.element('formativeSummary').innerHTML,/Destination : groupe 32/);assert.equal(h.reads(),2);
 });

@@ -22,7 +22,7 @@
     if (!document.getElementById('cardinal-formative-integration')) {
       const script = document.createElement('script');
       script.id = 'cardinal-formative-integration';
-      script.src = 'formative-integration.js?v=1325';
+      script.src = 'formative-integration.js?v=1333';
       script.async = false;
       (document.body || document.documentElement).appendChild(script);
     }
