@@ -12,7 +12,7 @@ import java.util.*;
 
 public final class MainActivity extends Activity {
   private static final String PKG = "ca.profiltravail.horaire";
-  private static final String ALARM = PKG+".ALARM", RETRY=PKG+".RETRY";
+  private static final String ALARM = PKG+".ALARM", RETRY=PKG+".RETRY", VERIFY=PKG+".VERIFY";
   private static final int WORKDAYS=62;
   private LinearLayout root;
   private final CheckBox[] days=new CheckBox[7];
@@ -20,7 +20,7 @@ public final class MainActivity extends Activity {
   private Button fromButton,toButton;
   private TextView status,permissionStatus;
   private int from,to;
-  private static android.content.SharedPreferences pref(Context c) { return c.getSharedPreferences("schedule",MODE_PRIVATE); }
+  private static android.content.SharedPreferences pref(Context c) { return c.getSharedPreferences("quiet_schedule_v5",MODE_PRIVATE); }
   private static boolean enabled(Context c){return pref(c).getBoolean("enabled",false);}
   private static int days(Context c){return pref(c).getInt("days",WORKDAYS);}
   private static int from(Context c){return pref(c).getInt("from",8*60);}
@@ -51,12 +51,16 @@ public final class MainActivity extends Activity {
     text("Pause profil travail",25);
     text("Suspend automatiquement le profil professionnel. Les applications personnelles restent actives.",15);
     status=text("",18);permissionStatus=text("",14);
-    text("Vérification du profil professionnel",20);
-    text("L'état affiché provient de la dernière lecture du bouton Samsung. Aucun basculement n'est effectué si l'état de la tuile est ambigu.",14);
-    button("Tester la tuile sans rien changer",()->{
-      Result r=WorkAccessService.request(this,null,false);
-      message(r==Result.QUEUED?"Inspection lancée, actualise ensuite le diagnostic.":explain(r));
+    text("Mode silencieux via Android. Aucun panneau de réglages rapides ni service d'accessibilité.",14);
+    text("Autorisation ADB à accorder UNE FOIS après installation :",14);
+    String command="adb shell pm grant ca.profiltravail.horaire android.permission.MODIFY_QUIET_MODE";
+    text(command,14);
+    button("Copier la commande ADB",()->{
+      ((android.content.ClipboardManager)getSystemService(CLIPBOARD_SERVICE))
+        .setPrimaryClip(ClipData.newPlainText("Commande ADB",command));
+      message("Commande copiée.");
     });
+    text("Vérification : réussis une suspension ET une réactivation avec les boutons manuels avant d'activer l'horaire.",14);
     button("Actualiser",this::refresh);
     text("Programmation",20);
     enabled=new CheckBox(this);enabled.setText("Activer la programmation");
@@ -80,17 +84,16 @@ public final class MainActivity extends Activity {
         requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS},7);
       else message("Notifications déjà autorisées, si Android ne les bloque pas.");
     });
-    text("Configuration",20);
-    text("1. Place la tuile « Applications professionnelles » dans les réglages rapides Samsung.\n2. Active le service d'accessibilité « Pause profil travail ».\n3. Autorise les alarmes exactes.",14);
-    button("Activer l'accessibilité",()->startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)));
-    text("Le service peut lire et manipuler l'interface. Il est limité aux événements de l'interface système et ne sauvegarde aucun contenu affiché.",14);
+    text("Configuration et fiabilité",20);
+    text("Installe l'application dans ton profil PERSONNEL. Accorde la permission ADB après installation.",14);
     button("Autoriser les alarmes exactes",()->{
       if(Build.VERSION.SDK_INT>=31)try{
         startActivity(new Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,Uri.parse("package:"+getPackageName())));
       }catch(Exception e){message("Accès aux alarmes indisponible");}
     });
-    text("Android 13+ : si l'accessibilité est grisée, ouvre Paramètres > Applications > Pause profil travail > menu ⋮ > Autoriser les paramètres restreints (seulement si tu fais confiance à ce code).",13);
-    text("Aucun accès Internet ni collecte de données. L'automatisation peut ouvrir brièvement les réglages rapides.",13);
+    button("Réglages de batterie",()->startActivity(new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)));
+    text("Si le téléphone est verrouillé lors de la reprise, elle sera retentée après le déverrouillage. Une politique de NIP professionnel distinct peut bloquer la reprise silencieuse.",13);
+    text("Sans Internet, sans accessibilité, sans lecture des données du travail.",13);
     refresh();
   }
   @Override protected void onResume(){super.onResume();if(status!=null)refresh();}
@@ -102,59 +105,63 @@ public final class MainActivity extends Activity {
     },min/60,min%60,true).show();
   }
   private void save(){
-    if(from>=to){message("L'heure de reprise doit précéder l'heure de suspension.");return;}
+    if(from>=to){message("La reprise doit précéder l'heure de suspension.");return;}
     int bits=0;
     for(int i=0;i<7;i++)if(days[i].isChecked())bits|=1<<(i+1);
-    if(enabled.isChecked()&&bits==0){message("Sélectionne au moins un jour.");return;}
+    if(enabled.isChecked()&&bits==0){message("Choisis au moins un jour.");return;}
+    if(enabled.isChecked()&&!ProfileBackend.authorized(this)){message("Accorde d'abord la permission ADB.");return;}
+    if(enabled.isChecked()&&!tested(this)){message("Réussis les deux tests manuels avant d'activer l'horaire.");return;}
+    if(enabled.isChecked()&&!canExact(this)){message("Autorise les alarmes exactes d'abord.");return;}
     pref(this).edit().putBoolean("enabled",enabled.isChecked()).putInt("days",bits)
       .putInt("from",from).putInt("to",to).putBoolean("pending",false).apply();
-    arm(this);Result r=reconcile(this);refresh();
-    message(r==Result.OK?"Horaire enregistré":r==Result.QUEUED?"Horaire enregistré. Vérification de la tuile en cours.":"Horaire enregistré. "+explain(r));
-  }
-  private static String explain(Result r){
-    switch(r){
-      case NO_SERVICE:return "Active le service d'accessibilité dans les paramètres.";
-      case UNKNOWN_STATE:return "État du bouton impossible à lire. Aucun clic effectué.";
-      case NOT_FOUND:return "Tuile du profil professionnel introuvable dans les réglages rapides.";
-      case LOCKED:return "Téléphone verrouillé : action reportée au déverrouillage.";
-      case QUEUED:return "Action en cours. Vérifie l\'état du profil.";
-      case DENIED:return "Action bloquée par Android ou l'organisation.";
-      default:return "OK";
+    arm(this);
+    if(enabled.isChecked())reconcile(this);
+    else{
+      getSystemService(AlarmManager.class).cancel(pendingIntent(this,RETRY,102));
+      getSystemService(AlarmManager.class).cancel(pendingIntent(this,VERIFY,103));
+      record(this,"Horaire désactivé, profil inchangé.");
     }
+    refresh();message("Horaire enregistré.");
+  }
+  private static boolean tested(Context c){
+    return pref(c).getBoolean("test_pause",false)&&pref(c).getBoolean("test_resume",false);
+  }
+  private static void record(Context c,String message){
+    pref(c).edit().putString("work_message",message).putLong("last_checked",System.currentTimeMillis()).apply();
   }
   private void manual(boolean pause){
-    Result r=setPaused(this,pause);refresh();
-    message(r==Result.QUEUED?"Recherche du bouton Samsung en cours. Consulte le statut après l’opération.":explain(r));
+    ProfileBackend.Result result=ProfileBackend.change(this,pause);
+    record(this,result.info);
+    if(!result.accepted){message(result.info);refresh();return;}
+    if(!result.changed){
+      message("Déjà dans cet état. Teste une vraie transition pour valider.");refresh();return;
+    }
+    message(result.info+" Vérification en cours.");
+    new Handler(Looper.getMainLooper()).postDelayed(()->{
+      ProfileBackend.State state=ProfileBackend.inspect(this);
+      if(state.paused!=null&&state.paused==pause){
+        pref(this).edit().putBoolean(pause?"test_pause":"test_resume",true).apply();
+        record(this,(pause?"Suspension":"Réactivation")+" confirmée par Android.");
+        message("Test réussi.");
+      }else{
+        record(this,"Transition non confirmée. "+state.info);
+        message("Test non confirmé : vois le diagnostic.");
+      }
+      refresh();
+    },1600);
   }
   private void refresh(){
     if(status==null)return;
-    int state=pref(this).getInt("work_state",-1);
-    String label=state<0?"non initialisé":state==1?"actif":"suspendu";
-    String verify=pref(this).getBoolean("work_state_verified",false)?" (état lu sur la tuile)":" (non vérifié)";
-    status.setText("Dernier état vérifié : "+label+(state<0?"":verify)+
-      (pending(this)?"\nAction reportée au déverrouillage":"")+"\n"+
-      pref(this).getString("work_message",""));
-    permissionStatus.setText("Accessibilité : "+(WorkAccessService.isEnabled(this)?"OK":"à activer")
-      +"\nAlarmes exactes : "+(canExact(this)?"OK":"à autoriser"));
-  }
-  enum Result{OK,QUEUED,NO_SERVICE,UNKNOWN_STATE,NOT_FOUND,LOCKED,DENIED}
-  private static Result setPaused(Context c,boolean pause){
-    return WorkAccessService.request(c,pause,false);
-  }
-  static boolean isPending(Context c){return pending(c);}
-  static void tryPending(Context c){
-    if(pending(c)&&enabled(c))reconcile(c);
-  }
-  static void actionComplete(Context c,Boolean target,boolean automatic,boolean success,String detail){
-    pref(c).edit().putString("work_message",detail).putLong("last_checked",System.currentTimeMillis()).apply();
-    if(automatic){
-      pending(c,false);
-      if(!success)notifyFailure(c,detail);
-    }
-  }
-  static void verified(Context c,boolean active){
-    pref(c).edit().putInt("work_state",active?1:0).putBoolean("work_state_verified",true)
-      .putLong("last_verified",System.currentTimeMillis()).apply();
+    ProfileBackend.State state=ProfileBackend.inspect(this);
+    status.setText("Profil : "+(state.paused==null?"non détecté":state.paused?"SUSPENDU":"ACTIF")
+      +"\n"+state.info);
+    permissionStatus.setText("Autorisation ADB : "+(ProfileBackend.authorized(this)?"OK":"à accorder")
+      +"\nAlarmes exactes : "+(canExact(this)?"OK":"à autoriser")
+      +"\nTest suspension : "+(pref(this).getBoolean("test_pause",false)?"réussi":"non validé")
+      +"\nTest réactivation : "+(pref(this).getBoolean("test_resume",false)?"réussi":"non validé")
+      +"\nHoraire : "+(enabled(this)?"ACTIF":"désactivé")
+      +"\nDernier événement : "+pref(this).getString("work_message","Aucun")
+      +(pending(this)?"\nReprise en attente du déverrouillage.":""));
   }
   private static void notifyFailure(Context c,String detail){
     NotificationManager nm=c.getSystemService(NotificationManager.class);
@@ -196,27 +203,52 @@ public final class MainActivity extends Activity {
     Instant next=ScheduleLogic.nextTransition(days(c),from(c),to(c),ZonedDateTime.now());
     if(next!=null)alarm(c,next.toEpochMilli(),ALARM,101,true);
   }
-  private static Result reconcile(Context c){
+  private static void reconcile(Context c){
     AlarmManager am=c.getSystemService(AlarmManager.class);
-    if(!enabled(c)||days(c)==0){
-      pending(c,false);am.cancel(pendingIntent(c,RETRY,102));return Result.OK;
+    if(!enabled(c)){
+      pending(c,false);
+      am.cancel(pendingIntent(c,RETRY,102));
+      return;
+    }
+    if(!ProfileBackend.authorized(c)||!tested(c)){
+      record(c,"Permission ADB ou tests manquants. Programmation non exécutée.");
+      notifyFailure(c,"Contrôle la permission et les tests de l'application.");
+      return;
     }
     boolean pause=!workTime(c);
-    Result result=WorkAccessService.request(c,pause,true);
-    boolean retry=result==Result.LOCKED||result==Result.NO_SERVICE;
-    pending(c,retry);
+    ProfileBackend.Result result=ProfileBackend.change(c,pause);
+    record(c,result.info);
     am.cancel(pendingIntent(c,RETRY,102));
-    if(retry)alarm(c,System.currentTimeMillis()+15*60_000L,RETRY,102,false);
-    return result;
+    pending(c,result.deferred);
+    if(result.deferred){
+      alarm(c,System.currentTimeMillis()+10*60_000L,RETRY,102,false);
+      return;
+    }
+    if(!result.accepted){
+      notifyFailure(c,result.info);
+      return;
+    }
+    if(result.changed){
+      pref(c).edit().putBoolean("verify_target",pause).apply();
+      alarm(c,System.currentTimeMillis()+7000L,VERIFY,103,false);
+    }
+  }
+  private static void verify(Context c){
+    if(!enabled(c))return;
+    Boolean state=ProfileBackend.inspect(c).paused;
+    boolean desired=pref(c).getBoolean("verify_target",false);
+    if(state==null||state!=desired){
+      record(c,"Changement non confirmé par Android.");
+      notifyFailure(c,"Changement du profil non confirmé.");
+    }else record(c,desired?"Suspension confirmée.":"Réactivation confirmée.");
   }
   public static final class Events extends BroadcastReceiver {
     @Override public void onReceive(Context c,Intent i){
       if(i==null)return;
       String a=i.getAction();if(a==null)return;
+      if(VERIFY.equals(a)){verify(c);return;}
       if(RETRY.equals(a)||Intent.ACTION_USER_PRESENT.equals(a)){
-        if(pending(c)&&enabled(c))reconcile(c);else{
-          pending(c,false);c.getSystemService(AlarmManager.class).cancel(pendingIntent(c,RETRY,102));
-        }
+        if(pending(c)&&enabled(c))reconcile(c);
         return;
       }
       if(ALARM.equals(a)||Intent.ACTION_BOOT_COMPLETED.equals(a)||
