@@ -171,7 +171,11 @@
       await flushPendingGradeSaves();
       if (!resumeJobId && !recoveryJob) {
         const status = await api(SYNC_ENDPOINT,{action:'status',teacherToken:state.teacherToken,assignmentId:state.currentAssignment.id});
-        if ((status.pendingJobs || []).some(job => job.groupCode === String(state.detailGroup))) throw new Error('Un envoi attend sa reprise. Utilise « Reprendre l’envoi interrompu ».');
+        const pending=(status.pendingJobs || []).filter(job => String(job.groupCode) === String(state.detailGroup));
+        if(pending.length>1) throw new Error('Plusieurs envois interrompus existent pour ce groupe. Aucun nouvel envoi n’a été lancé.');
+        if(pending.length===1) resumeJobId=pending[0].jobId;
+      }
+      if (!resumeJobId && !recoveryJob) {
         await saveAssignmentSettings({quiet:true});
         if (!window.CardinalGestionImports?.chooseMozaikDestination) throw new Error('Actualise Gestion des notes pour choisir le travail Mozaïk avant l’envoi.');
         syncState('Choisis le travail de destination dans Mozaïk.');

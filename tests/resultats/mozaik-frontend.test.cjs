@@ -10,8 +10,17 @@ function harness(){
  const source=fs.readFileSync('resultats/app-patch-v14.js','utf8').replace(/\}\)\(\);\s*$/,'window.testSync={runSync};})();');vm.runInNewContext(source,ctx);
  return{ctx,state,window,calls,sent,messages,el,job,saves:()=>saves};
 }
-test('ordinary retry detects an interrupted journal before saving or sending',async()=>{
- const h=harness();h.ctx.pendingJobs=[{jobId:'old',groupCode:'31'}];await h.window.testSync.runSync(h.el('syncMozaikBtn'));assert.equal(h.saves(),0);assert.equal(h.sent.length,0);assert.match(h.messages[0],/Reprendre/);assert.equal(h.window.cardinalActiveSync,false);
+test('ordinary retry resumes the existing journal and reviews it without creating another job',async()=>{
+ const h=harness();h.ctx.pendingJobs=[{jobId:'old',groupCode:'31'}];let choices=0;
+ h.window.CardinalGestionImports.chooseMozaikDestination=async()=>{choices++;return true;};
+ await h.window.testSync.runSync(h.el('syncMozaikBtn'));assert.equal(h.saves(),0);assert.equal(choices,0);
+ assert.equal(h.calls.find(c=>c.action==='resume')?.jobId,'old');assert.equal(h.calls.some(c=>c.action==='prepare'),false);
+ assert.equal(h.sent.length,2);assert.equal(h.sent[0].reviewOnly,true);assert.equal(h.window.cardinalActiveSync,false);
+});
+
+test('multiple journals never choose an arbitrary destination or write',async()=>{
+ const h=harness();h.ctx.pendingJobs=[{jobId:'a',groupCode:'31'},{jobId:'b',groupCode:'31'}];
+ await h.window.testSync.runSync(h.el('syncMozaikBtn'));assert.equal(h.sent.length,0);assert.equal(h.saves(),0);assert.match(h.messages[0],/Plusieurs/);
 });
 
 test('an older worker cannot receive dry-run payloads it would mistake for writes',async()=>{

@@ -1,7 +1,7 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
-const worker=fs.readFileSync(path.resolve(__dirname,'../../../cardinal-gestion-candidate/legacy-service-worker.js'),'utf8');
+const worker=fs.readFileSync(path.resolve(__dirname,'../../../cardinal-v1332/legacy-service-worker.js'),'utf8');
 const source=worker.slice(worker.indexOf('async function syncInsideMozaik('),worker.indexOf('// ===== background-v081.js'));
 function setup(options={}) {
  const g={code:'101',establishmentId:'school',groupCourseId:'course2026',groupMatterId:'matter2026',subjectCode:'FR'};
@@ -26,6 +26,20 @@ function setup(options={}) {
 }
 test('linked renamed activity preserves all result rows and unknown fields, rescaling outside numeric rows once',async()=>{const s=setup();const out=await s.run();assert.equal(out.success,true,out.message);assert.equal(s.writes[0].eleves.length,3);assert.equal(s.writes[0].customEnvelope,'preserve');assert.equal(s.writes[0].eleves[0].commentaire,'retained');assert.equal(s.writes[0].eleves[1].resultat,'16');assert.equal(s.writes[0].eleves[2].resultat,'ABS');assert.equal(s.activity.custom,'preserve');assert.equal(s.activity.parametresEvaluation.custom,'preserve');assert.equal(s.phases.at(-1).checkpoint.phase,'verified');});
 test('missing linked activity never adopts title or creates replacement',async()=>{const s=setup({missing:true});const out=await s.run();assert.equal(out.success,false);assert.equal(s.writes.length,0);assert.equal(s.updates,0);});
+
+test('a changed activity identifies conflicting fields without exposing their contents',async()=>{
+ const s=setup();s.payload.reviewOnly=true;const preview=await s.run();
+ s.payload.checkpoint=preview.checkpoint;s.payload.reviewOnly=false;s.activity.titre='External edit';
+ const out=await s.run();assert.equal(out.success,false);assert.equal(s.writes.length,0);assert.equal(s.updates,0);
+ assert.deepEqual(Array.from(out.diagnostics.changedActivityFields),['titre']);assert.equal(JSON.stringify(out.diagnostics).includes('External edit'),false);
+});
+
+test('database object key ordering does not change the approved activity',async()=>{
+ const s=setup();s.payload.reviewOnly=true;const preview=await s.run();
+ const reorder=v=>Array.isArray(v)?v.map(reorder):v&&typeof v==='object'?Object.fromEntries(Object.keys(v).reverse().map(k=>[k,reorder(v[k])])):v;
+ s.payload.checkpoint=reorder(preview.checkpoint);s.payload.reviewOnly=false;
+ const out=await s.run();assert.equal(out.success,true,out.message);assert.equal(s.writes.length,1);
+});
 test('weight mismatch blocks result publication',async()=>{const s=setup({wrongWeight:true});const out=await s.run();assert.equal(out.success,false);assert.equal(s.writes.length,0);});
 test('durable initial/target checkpoint happens before first parameter write',async()=>{const s=setup({stopPhase:'planned'});const out=await s.run();assert.equal(out.success,false);assert.equal(s.updates,0);assert.equal(s.writes.length,0);});
 test('missing claimed job cannot publish',async()=>{const s=setup();delete s.payload.syncJob;const out=await s.run();assert.equal(out.success,false);assert.equal(s.updates,0);assert.equal(s.writes.length,0);});
