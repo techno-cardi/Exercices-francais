@@ -15,6 +15,32 @@ function harness(){
 }
 function deliver(h,result){h.listeners.message({source:h.window,origin:'https://local',data:{source:'cardinal-mozaik-extension',type:'MOZAIK_EXTENSION_PLANNED_ACTIVITIES_RESULT',requestId:h.window.sent.requestId,result}});}
 function snapshot(){return{ok:true,scope:{groupCode:'101',schoolYear:'2026',schoolId:'s',subjectId:'f',mozaikGroupId:'g'},activities:[],complete:true};}
+
+test('destination chooser lists all selectable activities even with a different title and associates without grade writes',async()=>{
+ const h=harness();h.state.currentAssignment.groups=['101'];
+ h.context.response={preview:{rows:[{activityId:'existing',title:'Titre différent',selectable:true,metadata:{term:1,maxScore:40}}]}};
+ const choosing=h.window.CardinalGestionImports.chooseMozaikDestination('old');deliver(h,snapshot());await new Promise(setImmediate);
+ assert.match(h.el('gestionImportsContent').innerHTML,/Titre différent/);assert.equal(h.el('gestionImportsSubmit').disabled,true);
+ h.ui.change({target:{dataset:{destination:'1'},value:'existing'}});
+ h.context.api=async(e,p)=>{h.calls.push(p);return p.action==='mozaikPreview'?{previewId:'association',preview:{}}:{assignments:[]};};
+ await h.ui.submit();assert.equal(await choosing,true);
+ assert.deepEqual(h.calls.map(p=>p.action),['mozaikPreview','mozaikPreview','mozaikConfirm']);
+ assert.deepEqual(JSON.parse(JSON.stringify(h.calls[1].selections)),[{activityId:'existing',mode:'associate',assignmentId:'old'}]);
+});
+
+test('explicit create selection does not create a Gestion work or send notes',async()=>{
+ const h=harness();h.state.currentAssignment.groups=['101'];h.context.response={preview:{rows:[]}};
+ const choosing=h.window.CardinalGestionImports.chooseMozaikDestination('old');deliver(h,snapshot());await new Promise(setImmediate);
+ h.ui.change({target:{dataset:{destination:'1'},value:'__create__'}});await h.ui.submit();
+ assert.equal(await choosing,true);assert.deepEqual(h.calls.map(p=>p.action),['mozaikPreview']);
+});
+
+test('destination chooser blocks incomplete catalogs and cancels without creating',async()=>{
+ const h=harness();h.state.currentAssignment.groups=['101'];const choosing=h.window.CardinalGestionImports.chooseMozaikDestination('old');
+ deliver(h,{...snapshot(),complete:false});await new Promise(setImmediate);
+ assert.equal(h.el('gestionImportsSubmit').disabled,true);assert.equal(h.calls.length,0);
+ h.listeners['cardinal-group-changed']();assert.equal(await choosing,false);
+});
 test('compact Mozaik list sorts missing first and bulk action selects only confirmed missing works',async()=>{
  const h=harness();h.context.response={preview:{rows:[
   {activityId:'linked',title:'Existing linked',status:'linked',selectable:false},

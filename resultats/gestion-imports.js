@@ -12,12 +12,13 @@
       clearTimeout(item.timer); pending.delete(id); item.resolve(null);
     }
     old?.resolveCopy?.(null);
+    old?.resolveDestination?.(false);
   }
   function close() { cleanup(); el('gestionImportsDialog')?.close(); }
   function valid(s) {
     return session === s && el('gestionImportsDialog')?.open && s.token === state.teacherToken &&
       s.group === String(state.dashboardGroup || '') && s.schoolYear === state.schoolYear && s.navigation === state.navigationRevision &&
-      (s.kind !== 'split' || s.assignmentId === state.currentAssignment?.id);
+      (!['split','destination'].includes(s.kind) || s.assignmentId === state.currentAssignment?.id);
   }
   function create(kind, title) {
     close();
@@ -49,6 +50,15 @@
   function change(event) {
     const s = session, node = event.target;
     if (!s || !valid(s) || s.busy) return;
+    if (s.kind === 'destination') {
+      if (node.dataset.destination !== undefined) {
+        s.destination = s.destinationOptions?.includes(node.value) ? node.value : '';
+        s.previewId = null;
+        el('gestionImportsSubmit').textContent = 'Continuer vers l’aperçu';
+        updateButton(s);
+      }
+      return;
+    }
     invalidate(s);
     if (node.dataset.activity !== undefined) {
       const id = node.dataset.activity, row = s.rows?.find(r => r.activityId === id);
@@ -68,6 +78,7 @@
     if (s.kind === 'mozaik') ready = s.complete === true && s.choices.size > 0;
     if (s.kind === 'split') ready = !s.unresolved.some(email => !s.resultGroups[email]) && (!s.formativeRequired || !!s.formativeGroupCode) && !s.hardBlocked;
     if (s.kind === 'copies') ready = !!s.selectedCopy;
+    if (s.kind === 'destination') ready = s.complete === true && !!s.destination;
     el('gestionImportsSubmit').disabled = s.busy || !ready;
   }
   function bridge(s) {
@@ -162,6 +173,21 @@
     if (s.kind === 'copies') {const resolve = s.resolveCopy; s.resolveCopy = null; const id = s.selectedCopy; close(); resolve?.(id); return;}
     s.busy = true; updateButton(s); el('gestionImportsError').textContent = '';
     try {
+      if (s.kind === 'destination') {
+        if (s.destination !== '__create__' && s.destination !== s.linkedActivity) {
+          if (!s.previewId) {
+            const response = await request(s, 'mozaikPreview', {scope:s.scope,activities:s.activities,complete:s.complete,selections:[{activityId:s.destination,mode:'associate',assignmentId:s.assignmentId}]});
+            if (!valid(s)) return;
+            if (!response.previewId) throw new Error('La destination n’a pas pu être vérifiée. Recharge la liste.');
+            s.previewId = response.previewId;
+          }
+          // Store only the chosen association. The subsequent native preview still precedes all grade writes.
+          await request(s, 'mozaikConfirm', {previewId:s.previewId});
+          if (!valid(s)) return;
+        }
+        const resolve = s.resolveDestination; s.resolveDestination = null;
+        close(); resolve?.(true); return;
+      }
       if (!s.previewId) {
         if (s.kind === 'split') await prepareSplit(s);
         else {
@@ -184,7 +210,39 @@
     } catch (e) {if (valid(s)) {error(s, e);}}
     finally {if (valid(s)) {s.busy = false; updateButton(s);}}
   }
-  window.CardinalGestionImports = {openMozaik, splitCurrent, resolveOldWork};
+  async function loadDestination(s) {
+    s.busy = true;
+    try {
+      const result = await bridge(s); if (!valid(s) || !result) return;
+      if (result.ok !== true || result.complete !== true) throw new Error(result.message || 'Liste Mozaïk incomplète : aucune création ni publication. Réessaie la lecture.');
+      if (String(result.scope?.groupCode || '') !== s.group) throw new Error('La liste Mozaïk appartient à un autre groupe.');
+      s.scope=result.scope; s.activities=result.activities; s.complete=true;
+      const response=await request(s,'mozaikPreview',{scope:s.scope,activities:s.activities,complete:true});
+      if (!valid(s)) return;
+      s.rows=response.preview?.rows || [];
+      const linked=s.rows.filter(row=>row.assignmentId===s.assignmentId);
+      if (linked.length>1) throw new Error('Plusieurs associations Mozaïk existent pour ce travail. Vérifie ses liens avant l’envoi.');
+      s.linkedActivity=linked[0]?.activityId || '';
+      const available=linked.length ? linked : s.rows.filter(row=>row.selectable);
+      s.destinationOptions=available.map(row=>row.activityId);
+      if (!linked.length) s.destinationOptions.push('__create__');
+      s.destination=s.linkedActivity;
+      const ordered=[...available].sort((a,b)=>String(b.metadata?.activityDate||'').localeCompare(String(a.metadata?.activityDate||'')) || String(a.title).localeCompare(String(b.title),'fr',{numeric:true}));
+      el('gestionImportsScope').textContent=`Groupe ${s.group} · ${state.currentAssignment.title} · Année ${s.scope.schoolYear}`;
+      el('gestionImportsContent').innerHTML='<p>Choisis le travail qui recevra les notes. Son titre peut être différent de celui dans Gestion.</p><label class="field-label" for="mozaikDestination">Travail dans Mozaïk</label><select id="mozaikDestination" class="select" data-destination="1">'+
+        (linked.length?'':'<option value="">Choisir un travail…</option>')+ordered.map(row=>`<option value="${esc(row.activityId)}"${row.activityId===s.destination?' selected':''}>${esc(row.title)} · ${esc(row.metadata?.activityDate||'Date à compléter')} · Étape ${esc(row.metadata?.term??'—')} · ${esc(row.metadata?.maxScore??'—')} points</option>`).join('')+
+        (linked.length?'':'<option value="__create__">＋ Créer un nouveau travail dans Mozaïk</option>')+'</select><p class="muted">'+(linked.length?'Association existante retrouvée. ':'')+'L’aperçu suivant montrera les changements de paramètres et de notes avant leur envoi.</p>';
+      el('gestionImportsSubmit').textContent='Continuer vers l’aperçu';
+    } catch(e) {error(s,e);} finally {if(valid(s)){s.busy=false;updateButton(s);}}
+  }
+  function chooseMozaikDestination(assignmentId) {
+    if (state.currentAssignment?.id !== assignmentId || state.currentAssignment.groups?.length !== 1 || String(state.currentAssignment.groups[0]) !== String(state.detailGroup || state.dashboardGroup)) return Promise.reject(new Error('Choisis un travail indépendant du bon groupe.'));
+    const s=create('destination','Destination dans Mozaïk');s.assignmentId=assignmentId;
+    const promise=new Promise(resolve=>{s.resolveDestination=resolve;});
+    loadDestination(s);
+    return promise;
+  }
+  window.CardinalGestionImports = {openMozaik, splitCurrent, resolveOldWork, chooseMozaikDestination};
   if (el('importMozaikWorks')) el('importMozaikWorks').onclick = openMozaik;
   if (el('splitAssignmentBtn')) el('splitAssignmentBtn').onclick = splitCurrent;
 })();

@@ -173,6 +173,13 @@
         const status = await api(SYNC_ENDPOINT,{action:'status',teacherToken:state.teacherToken,assignmentId:state.currentAssignment.id});
         if ((status.pendingJobs || []).some(job => job.groupCode === String(state.detailGroup))) throw new Error('Un envoi attend sa reprise. Utilise « Reprendre l’envoi interrompu ».');
         await saveAssignmentSettings({quiet:true});
+        if (!window.CardinalGestionImports?.chooseMozaikDestination) throw new Error('Actualise Gestion des notes pour choisir le travail Mozaïk avant l’envoi.');
+        syncState('Choisis le travail de destination dans Mozaïk.');
+        if (!await window.CardinalGestionImports.chooseMozaikDestination(state.currentAssignment.id)) {
+          syncState('Envoi annulé. Aucune note envoyée dans Mozaïk.');
+          pushMozaikStage('Envoi annulé. Aucune note envoyée.', 0, 'cancelled');
+          return;
+        }
       }
 
       const group = String(state.detailGroup || state.currentAssignment?.groups?.[0] || '');

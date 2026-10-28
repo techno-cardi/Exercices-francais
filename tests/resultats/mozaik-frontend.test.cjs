@@ -5,7 +5,7 @@ function harness(){
  const payload={group:{code:'31'},assignment:{id:'a',title:'Examen'},results:[{email:'test@invalid',grade:5}]};
  const job={jobId:'job',claimToken:'secret',payload};
  const state={teacherToken:'t',extensionReady:true,extensionVersion:'1.3.24',detailGroup:'31',currentAssignment:{id:'a',groups:['31'],competenceKind:'lecture'},currentStudents:[{group:'31',grade:5}]};
- const window={postMessage(){},CardinalAssignmentActions:{reviewMozaik:async()=>true}};
+ const window={postMessage(){},CardinalAssignmentActions:{reviewMozaik:async()=>true},CardinalGestionImports:{chooseMozaikDestination:async()=>true}};
  const ctx={state,window,HTMLInputElement:class{},document:{getElementById:el,querySelector:()=>null,activeElement:null},location:{origin:'https://local'},console,setTimeout,clearTimeout,setInterval:()=>1,clearInterval(){},SYNC_ENDPOINT:'sync',PUBLIC_KEY:'public',pingExtension(){},validateMozaikGrades(){},commitGrade(){},saveAssignmentSettings:async()=>{saves++},refreshSyncState:async()=>{},collectAssignment:()=>state.currentAssignment,today:()=> '2026-10-26',competenceLabel:()=> 'Lire',notify:m=>messages.push(m),api:async(e,p)=>{calls.push(p);if(p.action==='status')return{pendingJobs:ctx.pendingJobs||[]};if(p.action==='prepare')return{code:'code',resultCount:1};if(['claim','resume'].includes(p.action))return job;return{success:true,staleSource:ctx.staleSource}},sendToExtension:async p=>{sent.push(p);return p.reviewOnly?{success:true,previewRequired:true,preview:{rows:[]},checkpoint:{phase:'planned'}}:{success:true,verified:true,verifiedCount:1,syncedCount:1,activityId:'remote'}}};
  const source=fs.readFileSync('resultats/app-patch-v14.js','utf8').replace(/\}\)\(\);\s*$/,'window.testSync={runSync};})();');vm.runInNewContext(source,ctx);
  return{ctx,state,window,calls,sent,messages,el,job,saves:()=>saves};
@@ -28,4 +28,15 @@ test('journal resume preserves its revision instead of saving settings again',as
 });
 test('reconciling an old source never announces latest grades synchronized',async()=>{
  const h=harness();h.ctx.staleSource=true;await h.window.testSync.runSync(h.el('recoverMozaikBtn'),'',{...h.job,payload:{...h.job.payload,reconcilingStale:true}});assert.equal(h.saves(),0);assert(h.messages.some(m=>/restent à envoyer/.test(m)));assert.equal(h.messages.some(m=>/Synchronisation réussie/.test(m)),false);
+});
+
+test('new sends require an explicit Mozaik destination before preparing any job',async()=>{
+ const h=harness();let chosen=false;
+ h.window.CardinalGestionImports.chooseMozaikDestination=async()=>{assert.equal(h.calls.some(c=>c.action==='prepare'),false);chosen=true;return false;};
+ await h.window.testSync.runSync(h.el('syncMozaikBtn'));assert.equal(chosen,true);assert.equal(h.sent.length,0);assert.equal(h.calls.some(c=>c.action==='prepare'),false);
+});
+
+test('a destination read failure never falls back to creating an activity',async()=>{
+ const h=harness();h.window.CardinalGestionImports.chooseMozaikDestination=async()=>{throw new Error('Liste Mozaïk incomplète');};
+ await h.window.testSync.runSync(h.el('syncMozaikBtn'));assert.equal(h.sent.length,0);assert.match(h.messages.join(' '),/incomplète/);
 });
