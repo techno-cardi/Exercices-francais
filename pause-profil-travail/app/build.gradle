@@ -6,13 +6,12 @@ android {
   applicationId 'ca.profiltravail.horaire'
   minSdk 30
   targetSdk 35
-  versionCode 5
-  versionName '5.0'
+  versionCode 6
+  versionName '6.0'
  }
  compileOptions {
   sourceCompatibility JavaVersion.VERSION_17
   targetCompatibility JavaVersion.VERSION_17
  }
 }
-
 dependencies { testImplementation 'junit:junit:4.13.2' }
