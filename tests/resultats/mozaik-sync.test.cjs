@@ -40,6 +40,24 @@ test('database object key ordering does not change the approved activity',async(
  s.payload.checkpoint=reorder(preview.checkpoint);s.payload.reviewOnly=false;
  const out=await s.run();assert.equal(out.success,true,out.message);assert.equal(s.writes.length,1);
 });
+
+test('empty optional Mozaik metadata can be null, omitted or empty without a false edit conflict',async()=>{
+ for(const empty of [undefined,'']) {
+ const s=setup();s.activity.notePrivee=null;s.activity.notePublique=null;s.activity.parametresEvaluation.idCategoriePonderation=null;
+ s.payload.reviewOnly=true;const preview=await s.run();s.payload.checkpoint=preview.checkpoint;s.payload.reviewOnly=false;
+ s.activity.notePrivee=empty;s.activity.notePublique=empty;s.activity.parametresEvaluation.idCategoriePonderation=empty;
+ const out=await s.run();assert.equal(out.success,true,out.message);assert.equal(s.writes.length,1);
+ }
+});
+
+test('nonempty private notes and category edits remain protected against overwrites',async()=>{
+ for(const field of ['notePrivee','notePublique','idCategoriePonderation']) {
+ const s=setup();s.activity.notePrivee=null;s.activity.notePublique=null;s.activity.parametresEvaluation.idCategoriePonderation=null;
+ s.payload.reviewOnly=true;const preview=await s.run();s.payload.checkpoint=preview.checkpoint;s.payload.reviewOnly=false;
+ if(field==='idCategoriePonderation')s.activity.parametresEvaluation[field]='category-other';else s.activity[field]='Keep this change';
+ const out=await s.run();assert.equal(out.success,false);assert.equal(s.updates,0);assert.equal(s.writes.length,0);
+ }
+});
 test('weight mismatch blocks result publication',async()=>{const s=setup({wrongWeight:true});const out=await s.run();assert.equal(out.success,false);assert.equal(s.writes.length,0);});
 test('durable initial/target checkpoint happens before first parameter write',async()=>{const s=setup({stopPhase:'planned'});const out=await s.run();assert.equal(out.success,false);assert.equal(s.updates,0);assert.equal(s.writes.length,0);});
 test('missing claimed job cannot publish',async()=>{const s=setup();delete s.payload.syncJob;const out=await s.run();assert.equal(out.success,false);assert.equal(s.updates,0);assert.equal(s.writes.length,0);});
