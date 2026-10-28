@@ -14,7 +14,7 @@ function setup(options={}) {
  if(url==='https://backend/checkpoint') {const rank=['creating','created','planned','parameters_verified','results_verified','verified'];if(persistedPhase&&rank.indexOf(body.checkpoint.phase)<rank.indexOf(persistedPhase)) return response({ok:false,message:'invalid_job_phase'},409);phases.push(body);out={ok:true,checkpoint:body.checkpoint};if(options.stopApproval&&body.checkpoint.reviewConfirmed===true)return response({ok:false,message:'approval unavailable'},409);if(options.stopPhase===body.checkpoint.phase) return response({ok:false,message:'interrupted'},409);persistedPhase=body.checkpoint.phase;}
  else if(url.endsWith('/competences')) out=[{code:'1',description:'lecture'}];
  else if(url.includes('/planifications/')) out={activites:[{id:'activity-1'}]};
- else if(url.includes('/resultats/')) {if(init.method==='PUT'){writes.push(body);rows=body;}out=rows;}
+ else if(url.includes('/resultats/')) {if(init.method==='PUT'){writes.push(body);rows=body;}out=options.readRows||rows;}
  else if(init.method==='PUT') {updates++;Object.assign(activity,body);if(options.wrongWeight) activity.parametresEvaluation.ponderation=99;out=activity;}
  else if(init.method==='POST') throw Error('unexpected create');
  else out=options.missing?[]:[activity];
@@ -26,6 +26,8 @@ function setup(options={}) {
 }
 test('linked renamed activity preserves all result rows and unknown fields, rescaling outside numeric rows once',async()=>{const s=setup();const out=await s.run();assert.equal(out.success,true,out.message);assert.equal(s.writes[0].eleves.length,3);assert.equal(s.writes[0].customEnvelope,'preserve');assert.equal(s.writes[0].eleves[0].commentaire,'retained');assert.equal(s.writes[0].eleves[1].resultat,'16');assert.equal(s.writes[0].eleves[2].resultat,'ABS');assert.equal(s.activity.custom,'preserve');assert.equal(s.activity.parametresEvaluation.custom,'preserve');assert.equal(s.phases.at(-1).checkpoint.phase,'verified');});
 test('missing linked activity never adopts title or creates replacement',async()=>{const s=setup({missing:true});const out=await s.run();assert.equal(out.success,false);assert.equal(s.writes.length,0);assert.equal(s.updates,0);});
+test('result conflict reports safe field names and counts without exposing grades',async()=>{const options={};const s=setup(options);s.payload.reviewOnly=true;const preview=await s.run();s.payload.checkpoint=preview.checkpoint;options.readRows={customEnvelope:'preserve',eleves:[],statistiques:{moyenne:99}};const out=await s.run();assert.equal(out.success,false);assert.match(out.message,/eleves/);assert.match(out.message,/statistiques/);assert.equal(out.message.includes('99'),false);assert.equal(s.writes.length,0)});
+test('computed statistics changing between reads does not prevent reviewing unchanged grades',async()=>{const options={nativeRows:[]};const s=setup(options);s.payload.reviewOnly=true;const first=await s.run();s.payload.checkpoint=first.checkpoint;options.readRows={customEnvelope:'preserve',eleves:[],statistiques:{moyenne:null}};const second=await s.run();assert.equal(second.previewRequired,true,second.message);assert.equal(s.writes.length,0);assert.equal(s.updates,0)});
 
 test('a changed activity identifies conflicting fields without exposing their contents',async()=>{
  const s=setup();s.payload.reviewOnly=true;const preview=await s.run();
