@@ -7,7 +7,7 @@ await db.exec(await readFile(new URL('./sql-bootstrap.sql',import.meta.url),'utf
 await db.exec("alter table school_mozaik_links add constraint school_mozaik_links_sync_status_check check(sync_status in ('synced','dirty','error'))");
 await db.exec(`alter table school_students add column name text;create table school_mozaik_groups(group_code text primary key,establishment_id text,group_course_id text,group_matter_id text,subject_code text);
 create table school_mozaik_sync_jobs(id uuid primary key default gen_random_uuid(),code_hash text,assignment_id uuid references school_assignments,group_code text,payload jsonb,status text,expires_at timestamptz,teacher_email text,claim_hash text,claimed_at timestamptz,completed_at timestamptz,created_at timestamptz default now(),result jsonb);`);
-for(const name of ['20261026180000_gestion_imports.sql','20261026200000_mozaik_metadata.sql','20261026210000_mozaik_sync_journal.sql','20261028163912_mozaik_created_link_status.sql'])await db.exec(await readFile(new URL('../../supabase/migrations/'+name,import.meta.url),'utf8'));
+for(const name of ['20261026180000_gestion_imports.sql','20261026200000_mozaik_metadata.sql','20261026210000_mozaik_sync_journal.sql','20261028163912_mozaik_created_link_status.sql','20261028190501_mozaik_snapshot_diagnostic.sql','20261028191147_mozaik_snapshot_presence.sql','20261028191418_mozaik_snapshot_nulls.sql','20261028191532_mozaik_preserve_snapshot_nulls.sql'])await db.exec(await readFile(new URL('../../supabase/migrations/'+name,import.meta.url),'utf8'));
 await db.exec("insert into school_teachers values('t@test',true);insert into school_students values('one@test','101',true);insert into school_mozaik_groups values('101','s','s2026course','s2026matter','FR')");
 const call=async(name,args)=>(await db.query(`select ${name}(${args.map((_,i)=>'$'+(i+1)).join(',')}) as v`,args)).rows[0].v;
 const aid=(await db.query("insert into school_assignments(title,group_codes,max_score)values('Test',array['101'],20)returning id")).rows[0].id;
@@ -15,9 +15,18 @@ await db.query("insert into school_results(assignment_id,student_email,grade)val
 await db.query("insert into school_mozaik_links(assignment_id,group_code,activity_id)values($1,'101','a')",[aid]);
 let number=0;
 async function job(){const revision=(await db.query('select revision from school_assignments where id=$1',[aid])).rows[0].revision;const payload={protocolVersion:2,roster:[{email:'one@test',name:'',groupCode:'101'}],sourceRevision:revision,scope:{groupCode:'101',schoolYear:'2026',schoolId:'s',subjectId:'FR',mozaikGroupId:'s2026matter'},group:{code:'101',establishmentId:'s',groupCourseId:'s2026course',groupMatterId:'s2026matter',subjectCode:'FR'},assignment:{maxScore:20},link:{activityId:'a'},results:[{email:'one@test',grade:12}]};return(await db.query("insert into school_mozaik_sync_jobs(assignment_id,group_code,payload,status,claim_hash,teacher_email)values($1,'101',$2,'claimed','hash','t@test')returning id",[aid,payload])).rows[0].id;}
-let jid=await job();
+let jid;
 const planned={phase:'planned',reviewConfirmed:true,activityId:'a',initial:{activity:{id:'a'},results:{eleves:[{fiche:1,resultat:'6'},{fiche:2,resultat:'ABS',unknown:1}]}},target:{activity:{idGroupe:'s2026matter',parametresEvaluation:{noteMaximale:20}},results:{eleves:[{fiche:1,resultat:'12'},{fiche:2,resultat:'ABS',unknown:1}]}}};
 const checkpoint=(value,id=jid,hash='hash')=>call('cardinal_checkpoint_mozaik_job',[id,hash,value]);
+const nullJob=await job();
+const withNull={...planned,reviewConfirmed:false,initial:{...planned.initial,activity:{id:'a',notePrivee:null}},target:{...planned.target,activity:{...planned.target.activity,notePrivee:null}}};
+await checkpoint(withNull,nullJob);
+const withoutNull=JSON.parse(JSON.stringify(withNull)); delete withoutNull.initial.activity.notePrivee;delete withoutNull.target.activity.notePrivee;withoutNull.reviewConfirmed=true;
+const restored=await checkpoint(withoutNull,nullJob);
+assert.equal(restored.initial.activity.notePrivee,null);assert.equal(restored.target.activity.notePrivee,null);
+await assert.rejects(checkpoint({...withoutNull,target:{...withoutNull.target,results:{eleves:[{fiche:1,resultat:'0'}]}}},nullJob),/immutable_job_snapshot/);
+await db.query("update school_mozaik_sync_jobs set status='expired' where id=$1",[nullJob]);
+jid=await job();
 const result={success:true,activityId:'a',competenceCode:'1',syncedCount:1,verified:true,verifiedCount:1,message:'ok'};
 await assert.rejects(checkpoint(planned,jid,'wrong'),/invalid_claim/);
 await assert.rejects(checkpoint({...planned,activityId:'other'}),/wrong_activity_id/);
