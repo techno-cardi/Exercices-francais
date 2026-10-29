@@ -43,6 +43,10 @@ export function createMozaikImportApi(deps:any){
   try{preview=core.buildMetadataPreview({scope:body.scope,activities:body.activities,complete:body.complete,selections:body.selections,assignments,links,snapshots});}
   catch(error){fail(error instanceof Error?error.message:'Métadonnées Mozaïk invalides.',409);}
   const {plans,...display}=preview;
+  // The catalog may omit a deleted activity or classify a legacy link as
+  // ambiguous. The chooser must still see that a link exists before it can
+  // offer creation; these are metadata only, never student results.
+  display.links=links;
   if(context)for(const plan of plans)if(plan.newAssignment)plan.newAssignment.school_year=context.year;
   if(!plans.length)return{previewId:null,expiresAt:null,preview:display};
   const id=crypto.randomUUID(),expiresAt=new Date(Date.now()+15*60*1000).toISOString();

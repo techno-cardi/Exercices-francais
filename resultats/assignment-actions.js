@@ -53,10 +53,15 @@
       const note=document.createElement('p');note.textContent=`Groupe ${context.groupCode || ''} · ${context.title || ''}`;body.append(note);
       if(context.reconcilingStale){const warning=document.createElement('p');warning.className='alert';warning.textContent='Gestion a changé depuis cet envoi. Cette reprise termine le lot précédent pour rétablir un état cohérent dans Mozaïk. Les changements plus récents resteront à envoyer ensuite.';body.append(warning);}
       const before=preview.activityBefore || {},after=preview.activityAfter || {};
+      const destination=document.createElement('p');
+      destination.textContent=preview.activityBefore
+        ? `Destination Mozaïk : ${before.titre || 'Travail sans titre'} · Période ${before.periode ?? 'à compléter'}`
+        : `Destination Mozaïk : nouveau travail « ${after.titre || context.title || 'sans titre'} »`;
+      body.append(destination);
       const fields=[['Titre',before.titre,after.titre],['Maximum',before.parametresEvaluation?.noteMaximale,after.parametresEvaluation?.noteMaximale],['Pondération',before.parametresEvaluation?.ponderation,after.parametresEvaluation?.ponderation],['Portée au bulletin',before.parametresEvaluation?.porteeAuBulletin,after.parametresEvaluation?.porteeAuBulletin],['Compétence',before.parametresEvaluation?.competence,after.parametresEvaluation?.competence],['Étape',before.codeEtape,after.codeEtape],['Période',before.periode,after.periode],['Devoir',before.faitALaMaison,after.faitALaMaison],['Évaluation notée',before.parametresEvaluation?.evaluee,after.parametresEvaluation?.evaluee],['Résultats visibles dans Mozaïk',before.parametresEvaluation?.resultatsDisponibles,after.parametresEvaluation?.resultatsDisponibles],['Date',before.dateActivite,after.dateActivite],['Présence dans l’horaire',before.afficheeDansHoraire,after.afficheeDansHoraire]];
       const show=value=>value===true?'Oui':value===false?'Non':value??'À compléter';
       for(const [label,oldValue,newValue]of fields){if(oldValue===newValue)continue;const p=document.createElement('p');p.textContent=`${label} : ${show(oldValue)} → ${show(newValue)}`;body.append(p);}
-      const hint=document.createElement('p');hint.textContent='Les lignes conservées hors lot sont incluses ci-dessous. Un changement de maximum conserve leur proportion.';body.append(hint);
+      const hint=document.createElement('p');hint.textContent='Les lignes conservées hors lot sont incluses ci-dessous. Si le maximum change, leurs notes sont recalculées proportionnellement et arrondies au dixième; les valeurs avant et après sont affichées.';body.append(hint);
       const scroll=document.createElement('div');scroll.style.cssText='max-height:42vh;overflow:auto';
       const table=document.createElement('table');table.className='grade-table';
       for(const row of preview.rows||[]){const tr=document.createElement('tr');for(const value of [row.name || `Élève ${row.fiche}`,row.source==='gestion'?'Note de Gestion':'Conservée hors lot',`${show(row.beforeGrade)}/${show(row.beforeMax)} → ${show(row.afterGrade)}/${show(row.afterMax)}`]){const td=document.createElement('td');td.textContent=value;tr.append(td);}table.append(tr);}

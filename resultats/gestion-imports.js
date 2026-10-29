@@ -174,6 +174,10 @@
     s.busy = true; updateButton(s); el('gestionImportsError').textContent = '';
     try {
       if (s.kind === 'destination') {
+        if (s.linkedActivity && s.destination !== s.linkedActivity) {
+          const chosen={previousActivityId:s.linkedActivity,activityId:s.destination==='__create__' ? null : s.destination};
+          const resolve=s.resolveDestination; s.resolveDestination=null; close(); resolve?.(chosen); return;
+        }
         if (s.destination !== '__create__' && s.destination !== s.linkedActivity) {
           if (!s.previewId) {
             const response = await request(s, 'mozaikPreview', {scope:s.scope,activities:s.activities,complete:s.complete,selections:[{activityId:s.destination,mode:'associate',assignmentId:s.assignmentId}]});
@@ -220,18 +224,27 @@
       const response=await request(s,'mozaikPreview',{scope:s.scope,activities:s.activities,complete:true});
       if (!valid(s)) return;
       s.rows=response.preview?.rows || [];
+      if(!Array.isArray(response.preview?.links)) throw new Error('Impossible de vérifier les associations Mozaïk. Actualise Gestion des notes.');
+      const actualLinks=response.preview.links.filter(link=>link.assignmentId===s.assignmentId && String(link.groupCode)===s.group);
+      if(actualLinks.length>1) throw new Error('Plusieurs associations Mozaïk existent pour ce travail. Vérifie ses liens avant l’envoi.');
+      const actual=actualLinks[0];
+      if(actual && ['schoolYear','schoolId','subjectId','mozaikGroupId'].some(key=>!actual[key] || String(actual[key])!==String(s.scope[key])))
+        throw new Error('Le lien Mozaïk existant doit être vérifié pour ce groupe et cette année avant un nouvel envoi.');
       const linked=s.rows.filter(row=>row.assignmentId===s.assignmentId);
       if (linked.length>1) throw new Error('Plusieurs associations Mozaïk existent pour ce travail. Vérifie ses liens avant l’envoi.');
+      if(actual && (linked.length!==1 || String(linked[0].activityId)!==String(actual.activityId)))
+        throw new Error('Le travail Mozaïk lié est introuvable dans la liste de ce groupe. Vérifie cette association avant de continuer.');
+      if(!actual && linked.length) throw new Error('Les associations Mozaïk ont changé. Actualise la liste avant de continuer.');
       s.linkedActivity=linked[0]?.activityId || '';
-      const available=linked.length ? linked : s.rows.filter(row=>row.selectable);
+      const available=s.rows.filter(row=>row.selectable || row.activityId===s.linkedActivity);
       s.destinationOptions=available.map(row=>row.activityId);
-      if (!linked.length) s.destinationOptions.push('__create__');
+      s.destinationOptions.push('__create__');
       s.destination=s.linkedActivity;
       const ordered=[...available].sort((a,b)=>String(b.metadata?.activityDate||'').localeCompare(String(a.metadata?.activityDate||'')) || String(a.title).localeCompare(String(b.title),'fr',{numeric:true}));
       el('gestionImportsScope').textContent=`Groupe ${s.group} · ${state.currentAssignment.title} · Année ${s.scope.schoolYear}`;
       el('gestionImportsContent').innerHTML='<p>Choisis le travail qui recevra les notes. Son titre peut être différent de celui dans Gestion.</p><label class="field-label" for="mozaikDestination">Travail dans Mozaïk</label><select id="mozaikDestination" class="select" data-destination="1">'+
         (linked.length?'':'<option value="">Choisir un travail…</option>')+ordered.map(row=>`<option value="${esc(row.activityId)}"${row.activityId===s.destination?' selected':''}>${esc(row.title)} · ${esc(row.metadata?.activityDate||'Date à compléter')} · Étape ${esc(row.metadata?.term??'—')} · ${esc(row.metadata?.maxScore??'—')} points</option>`).join('')+
-        (linked.length?'':'<option value="__create__">＋ Créer un nouveau travail dans Mozaïk</option>')+'</select><p class="muted">'+(linked.length?'Association existante retrouvée. ':'')+'L’aperçu suivant montrera les changements de paramètres et de notes avant leur envoi.</p>';
+        '<option value="__create__">＋ Créer un nouveau travail dans Mozaïk</option></select><p class="muted">'+(linked.length?'Association existante retrouvée. ':'')+'L’aperçu suivant montrera les changements de paramètres et de notes avant leur envoi.</p>';
       el('gestionImportsSubmit').textContent='Continuer vers l’aperçu';
     } catch(e) {error(s,e);} finally {if(valid(s)){s.busy=false;updateButton(s);}}
   }

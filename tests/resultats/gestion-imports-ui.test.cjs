@@ -8,7 +8,7 @@ function harness(){
  function el(id){if(!nodes.has(id))nodes.set(id,{id,innerHTML:'',textContent:'',disabled:false,open:false,value:'',dataset:{},addEventListener(t,f){this['on'+t]=f;},showModal(){this.open=true;},close(){this.open=false;this.onclose?.();}});return nodes.get(id);}
  const window={addEventListener(t,f){listeners[t]=f;},postMessage(m){this.sent=m;}};
  const state={teacherToken:'t',extensionReady:true,extensionVersion:'1.3.24',dashboardGroup:'101',detailGroup:'101',navigationRevision:1,currentAssignment:{id:'old',groups:['101','102'],title:'Ancien'}};
- const context={window,state,document:{getElementById(id){return id==='gestionImportsDialog' ? nodes.get(id)||null : el(id);},createElement(){return el('gestionImportsDialog');},body:{appendChild(){}}},location:{origin:'https://local'},crypto:require('node:crypto').webcrypto,setTimeout(){return 1;},clearTimeout(){},TEACHER_ENDPOINT:'api',api:async(e,p)=>{calls.push(p);return context.response;},refreshTeacherData:async()=>{},openAssignment:async id=>opened.push(id),notify(){}};
+ const context={window,state,document:{getElementById(id){return id==='gestionImportsDialog' ? nodes.get(id)||null : el(id);},createElement(){return el('gestionImportsDialog');},body:{appendChild(){}}},location:{origin:'https://local'},crypto:require('node:crypto').webcrypto,setTimeout(){return 1;},clearTimeout(){},TEACHER_ENDPOINT:'api',api:async(e,p)=>{calls.push(p);const r=context.response;if(p.action==='mozaikPreview'&&r?.preview&&!('links' in r.preview)){const links=(r.preview.rows||[]).filter(row=>row.assignmentId).map(row=>({assignmentId:row.assignmentId,activityId:row.activityId,groupCode:'101',schoolYear:'2026',schoolId:'s',subjectId:'f',mozaikGroupId:'g'}));return {...r,preview:{...r.preview,links}}}return r;},refreshTeacherData:async()=>{},openAssignment:async id=>opened.push(id),notify(){}};
  const source=fs.readFileSync(path.join(__dirname,'../../resultats/gestion-imports.js'),'utf8').replace(/\}\)\(\);\s*$/,'window.testImports={submit,change};})();');
  vm.runInNewContext(source,context);
  return{context,window,state,el,listeners,calls,opened,ui:window.testImports};
@@ -35,11 +35,52 @@ test('explicit create selection does not create a Gestion work or send notes',as
  assert.equal(await choosing,true);assert.deepEqual(h.calls.map(p=>p.action),['mozaikPreview']);
 });
 
+test('a linked work still offers another unlinked activity and creation while keeping its current destination selected',async()=>{
+ const h=harness();h.state.currentAssignment.groups=['101'];h.context.response={preview:{rows:[
+  {activityId:'linked',title:'Actuellement lié',assignmentId:'old',status:'linked',selectable:false,metadata:{term:1,maxScore:40}},
+  {activityId:'other',title:'Autre travail',status:'missing',selectable:true,metadata:{term:1,maxScore:40}},
+  {activityId:'foreign',title:'Déjà associé ailleurs',assignmentId:'different',status:'linked',selectable:false,metadata:{term:1,maxScore:40}}
+ ]}};
+ const choosing=h.window.CardinalGestionImports.chooseMozaikDestination('old');deliver(h,snapshot());await new Promise(setImmediate);
+ const html=h.el('gestionImportsContent').innerHTML;
+ assert.match(html,/Actuellement lié/);assert.match(html,/Autre travail/);assert.match(html,/Créer un nouveau travail/);assert.doesNotMatch(html,/Déjà associé ailleurs/);
+ h.listeners['cardinal-group-changed']();assert.equal(await choosing,false);
+});
+test('changing the linked destination records only a choice and does not modify the association yet',async()=>{
+ const h=harness();h.state.currentAssignment.groups=['101'];h.context.response={preview:{rows:[
+  {activityId:'linked',title:'Actuellement lié',assignmentId:'old',status:'linked',selectable:false,metadata:{}},
+  {activityId:'other',title:'Autre travail',status:'missing',selectable:true,metadata:{}}
+ ]}};
+ const choosing=h.window.CardinalGestionImports.chooseMozaikDestination('old');deliver(h,snapshot());await new Promise(setImmediate);
+ h.ui.change({target:{dataset:{destination:'1'},value:'other'}});await h.ui.submit();
+ assert.deepEqual(JSON.parse(JSON.stringify(await choosing)),{previousActivityId:'linked',activityId:'other'});
+ assert.deepEqual(h.calls.map(p=>p.action),['mozaikPreview']);
+});
+test('requesting creation for a linked work defers creation and preserves the existing association',async()=>{
+ const h=harness();h.state.currentAssignment.groups=['101'];h.context.response={preview:{rows:[{activityId:'linked',title:'Actuellement lié',assignmentId:'old',status:'linked',selectable:false,metadata:{}}]}};
+ const choosing=h.window.CardinalGestionImports.chooseMozaikDestination('old');deliver(h,snapshot());await new Promise(setImmediate);
+ h.ui.change({target:{dataset:{destination:'1'},value:'__create__'}});await h.ui.submit();
+ assert.deepEqual(JSON.parse(JSON.stringify(await choosing)),{previousActivityId:'linked',activityId:null});
+ assert.deepEqual(h.calls.map(p=>p.action),['mozaikPreview']);
+});
+
+
 test('destination chooser blocks incomplete catalogs and cancels without creating',async()=>{
  const h=harness();h.state.currentAssignment.groups=['101'];const choosing=h.window.CardinalGestionImports.chooseMozaikDestination('old');
  deliver(h,{...snapshot(),complete:false});await new Promise(setImmediate);
  assert.equal(h.el('gestionImportsSubmit').disabled,true);assert.equal(h.calls.length,0);
  h.listeners['cardinal-group-changed']();assert.equal(await choosing,false);
+});
+test('missing or historically ambiguous existing links cannot silently select creation',async()=>{
+ for(const link of [
+  {assignmentId:'old',activityId:'lost',groupCode:'101',schoolYear:'2026',schoolId:'s',subjectId:'f',mozaikGroupId:'g'},
+  {assignmentId:'old',activityId:'old-legacy',groupCode:'101',schoolYear:null,schoolId:null,subjectId:null,mozaikGroupId:null}
+ ]){
+  const h=harness();h.state.currentAssignment.groups=['101'];h.context.response={preview:{rows:[],links:[link]}};
+  const choosing=h.window.CardinalGestionImports.chooseMozaikDestination('old');deliver(h,snapshot());await new Promise(setImmediate);
+  assert.equal(h.el('gestionImportsSubmit').disabled,true);assert.match(h.el('gestionImportsError').textContent,/lien|introuvable/i);
+  h.listeners['cardinal-group-changed']();assert.equal(await choosing,false);
+ }
 });
 test('compact Mozaik list sorts missing first and bulk action selects only confirmed missing works',async()=>{
  const h=harness();h.context.response={preview:{rows:[
