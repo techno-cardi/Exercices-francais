@@ -3,6 +3,7 @@
   if (window.CardinalGestionImports) return;
   let session = null;
   const pending = new Map();
+  let lastDestinationWeightInfo = null; // Only this chooser's current activity, never a reused group preference.
   const el = id => document.getElementById(id);
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
   function cleanup() {
@@ -174,6 +175,18 @@
     s.busy = true; updateButton(s); el('gestionImportsError').textContent = '';
     try {
       if (s.kind === 'destination') {
+        const picked = (s.rows || []).find(row => String(row.activityId) === String(s.destination));
+        const metadata = picked?.metadata || {};
+        lastDestinationWeightInfo = {
+          assignmentId: String(s.assignmentId || ''),
+          groupCode: String(s.group || ''),
+          activityId: s.destination === '__create__' ? null : String(s.destination || ''),
+          isNew: s.destination === '__create__',
+          weight: metadata.weight ?? null,
+          maxScore: metadata.maxScore ?? null,
+          reportCardEnabled: metadata.reportCardEnabled ?? null,
+          capturedAt: Date.now()
+        };
         if (s.linkedActivity && s.destination !== s.linkedActivity) {
           const chosen={previousActivityId:s.linkedActivity,activityId:s.destination==='__create__' ? null : s.destination};
           const resolve=s.resolveDestination; s.resolveDestination=null; close(); resolve?.(chosen); return;
@@ -249,13 +262,14 @@
     } catch(e) {error(s,e);} finally {if(valid(s)){s.busy=false;updateButton(s);}}
   }
   function chooseMozaikDestination(assignmentId) {
+    lastDestinationWeightInfo = null;
     if (state.currentAssignment?.id !== assignmentId || state.currentAssignment.groups?.length !== 1 || String(state.currentAssignment.groups[0]) !== String(state.detailGroup || state.dashboardGroup)) return Promise.reject(new Error('Choisis un travail indépendant du bon groupe.'));
     const s=create('destination','Destination dans Mozaïk');s.assignmentId=assignmentId;
     const promise=new Promise(resolve=>{s.resolveDestination=resolve;});
     loadDestination(s);
     return promise;
   }
-  window.CardinalGestionImports = {openMozaik, splitCurrent, resolveOldWork, chooseMozaikDestination};
+  window.CardinalGestionImports = {openMozaik, splitCurrent, resolveOldWork, chooseMozaikDestination, getLastDestinationWeightInfo: () => lastDestinationWeightInfo};
   if (el('importMozaikWorks')) el('importMozaikWorks').onclick = openMozaik;
   if (el('splitAssignmentBtn')) el('splitAssignmentBtn').onclick = splitCurrent;
 })();
