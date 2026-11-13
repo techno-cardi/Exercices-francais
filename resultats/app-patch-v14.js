@@ -235,8 +235,10 @@
           title: state.currentAssignment?.title || '',
           gestionWeight: current.weight,
           gestionMaxScore: current.maxScore,
+          gestionReportCard: current.reportCardEnabled,
           mozaikWeight: destinationInfo.weight,
           mozaikMaxScore: destinationInfo.maxScore,
+          mozaikReportCard: destinationInfo.reportCardEnabled,
           isNew: destinationInfo.isNew
         });
         if (!weightSource) {
