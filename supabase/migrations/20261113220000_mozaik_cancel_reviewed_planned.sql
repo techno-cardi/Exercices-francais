@@ -27,17 +27,18 @@ BEGIN
   -- protocol the grades PUT cannot begin until parameters_verified is stored.
   -- Permit abandonment ONLY of an existing, exact, linked activity: do not
   -- silently orphan a freshly created activity or a switched destination.
-  reviewed_planned :=
+  reviewed_planned := COALESCE((
     j.payload->>'protocolVersion'='2'
     AND j.checkpoint->>'phase'='planned'
     AND j.checkpoint->>'reviewConfirmed'='true'
     AND COALESCE(j.payload#>>'{link,activityId}','')<>''
     AND j.payload#>>'{link,activityId}'=j.checkpoint->>'activityId'
-    AND NOT (j.payload ? 'previousLink');
+    AND NOT (j.payload ? 'previousLink')
+  ), FALSE);
 
   IF j.checkpoint IS NOT NULL
      AND (j.checkpoint->>'phase' IS DISTINCT FROM 'planned'
-          OR (j.checkpoint->>'reviewConfirmed'='true' AND NOT reviewed_planned))
+          OR (j.checkpoint->>'reviewConfirmed'='true' AND reviewed_planned IS NOT TRUE))
   THEN
     RETURN jsonb_build_object('mode','preserved','jobId',j.id);
   END IF;
