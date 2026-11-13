@@ -1077,6 +1077,15 @@ async function refreshSyncState() {
       resumeButton.classList.toggle('hidden', !state.pendingSyncJobs.length);
       resumeButton.dataset.jobId = state.pendingSyncJobs[0]?.jobId || '';
     }
+    const cancelButton = $("cancelMozaikBtn");
+    if (cancelButton) {
+      // Only one known pending job for this exact assignment and group may be cancelled.
+      // The authenticated backend independently decides whether any grade write is possible.
+      const pending = state.pendingSyncJobs.length === 1 ? state.pendingSyncJobs[0] : null;
+      const permitted = pending && ['claimed', 'planned'].includes(String(pending.phase || ''));
+      cancelButton.classList.toggle('hidden', !permitted);
+      cancelButton.dataset.jobId = permitted ? String(pending.jobId) : '';
+    }
     const link = state.syncLinks.find(x => x.group_code === state.detailGroup);
     const btn = $("syncMozaikBtn");
     if (!link) {
