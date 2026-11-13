@@ -1,0 +1,31 @@
+name: Gestion Mozaik - validation sans écriture
+
+on:
+  pull_request:
+    paths:
+      - 'resultats/**'
+      - 'supabase/functions/mozaik-sync/**'
+      - 'supabase/migrations/**'
+      - '.github/workflows/gestion-mozaik-checks.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  safe-regressions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntaxe des modules Gestion modifiés
+        run: |
+          node --check resultats/app.js
+          node --check resultats/assignment-actions.js
+          node --check resultats/gestion-imports.js
+          node --check resultats/app-patch-v05.js
+          node --check resultats/app-patch-v14.js
+      - name: Tests choix ponderation (aucun accès au réseau ni à la base)
+        run: node --test resultats/tests/mozaik-weight-choice.test.cjs
