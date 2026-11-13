@@ -60,17 +60,23 @@
       note.className = 'muted';
       note.textContent = 'Ce choix ne change pas la pondération de Gestion des notes. La valeur réelle de Mozaïk sera lue dans le bon groupe avant tout envoi. Tu vérifieras les deux valeurs et les notes dans l’aperçu suivant.';
       body.append(note);
+      const settings=document.createElement('p');settings.className='hint';
+      settings.textContent = 'Note maximale : Gestion '+(context.gestionMaxScore ?? '—')
+        + ' points; Mozaïk '+(context.isNew ? 'nouvelle activité' : (context.mozaikMaxScore ?? 'à vérifier'))
+        + '. Le maximum restera celui de Gestion : toute modification et toute remise à l’échelle hors lot seront montrées dans l’aperçu.';
+      body.append(settings);
       const form = document.createElement('div');
       form.style.cssText = 'display:grid;gap:12px;margin:14px 0';
       const choices = [
         ['gestion', `Utiliser Gestion des notes (${context.gestionWeight == null ? 'non définie' : context.gestionWeight + ' %'})`, 'La pondération de Gestion sera appliquée à l’activité Mozaïk.'],
-        ['mozaik', 'Conserver la pondération actuelle dans Mozaïk', 'La pondération sera lue directement sur l’activité Mozaïk sélectionnée, sans la recopier dans Gestion. Si la valeur est illisible ou l’activité absente, l’envoi sera bloqué.']
+        ['mozaik', `Conserver Mozaïk (${context.isNew ? 'aucune activité' : context.mozaikWeight == null ? 'à vérifier' : context.mozaikWeight + ' %'})`, 'La valeur sera relue dans Mozaïk avant tout envoi; elle ne sera jamais recopiée dans Gestion. La portée au bulletin suit aussi la source choisie.']
       ];
       for (const [value, label, help] of choices) {
         const row = document.createElement('label');
         row.style.cssText = 'display:flex;gap:10px;align-items:flex-start;padding:12px;border:1px solid #ccd5e2;border-radius:10px;cursor:pointer';
         const input = document.createElement('input');
         input.type = 'radio'; input.name = 'cardinal-mozaik-weight-source'; input.value = value;
+        if (value === 'mozaik' && context.isNew === true) {input.disabled=true;row.style.opacity='0.55';row.style.cursor='not-allowed';}
         input.style.marginTop='4px';
         const content=document.createElement('span');
         const strong=document.createElement('strong');strong.textContent=label;
