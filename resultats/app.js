@@ -1074,8 +1074,15 @@ async function refreshSyncState() {
     state.pendingSyncJobs = (d.pendingJobs || []).filter(job => job.groupCode === group);
     const resumeButton = $("resumeMozaikBtn");
     if (resumeButton) {
-      resumeButton.classList.toggle('hidden', !state.pendingSyncJobs.length);
-      resumeButton.dataset.jobId = state.pendingSyncJobs[0]?.jobId || '';
+      const onePending = state.pendingSyncJobs.length === 1 ? state.pendingSyncJobs[0] : null;
+      resumeButton.classList.toggle('hidden', !onePending);
+      resumeButton.dataset.jobId = onePending?.jobId || '';
+    }
+    const recoverButton = $("recoverMozaikBtn");
+    if (recoverButton) {
+      const onePending = state.pendingSyncJobs.length === 1 ? state.pendingSyncJobs[0] : null;
+      recoverButton.classList.toggle('hidden', !onePending);
+      recoverButton.dataset.jobId = onePending?.jobId || '';
     }
     const cancelButton = $("cancelMozaikBtn");
     if (cancelButton) {
