@@ -29,10 +29,18 @@ jobs:
           node --check resultats/app-patch-v14.js
       - name: Tests choix ponderation (aucun accès au réseau ni à la base)
         run: node --test resultats/tests/mozaik-weight-choice.test.cjs
+      - name: Installer le moteur PostgreSQL isolé vérifié par empreinte
+        run: node resultats/tests/sql-setup.mjs
+      - name: Régressions SQL hors production
+        run: node --experimental-strip-types --test resultats/tests/sql-*.test.mjs
       - name: Archive des sources exactes testées
+        if: always()
         run: git archive --format=zip --output=gestion-source.zip HEAD
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: gestion-tested-source
-          path: gestion-source.zip
+          path: |
+            gestion-source.zip
+            resultats/tests/sql-runtime/package.tgz
           retention-days: 7
