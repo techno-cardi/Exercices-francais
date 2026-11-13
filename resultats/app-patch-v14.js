@@ -105,7 +105,7 @@
     if(response?.mode!=='cancelled') throw new Error('Ce lot a peut-être commencé à écrire. Utilise « Résoudre l’envoi interrompu » avant un nouvel envoi.');
   }
 
-  async function prepareJob(group, expectedCount, form, destination = null) {
+  async function prepareJob(group, expectedCount, form, destination = null, weightSource = null) {
     const settings = {
       term: Number(form.term || 1),
       activityDate: form.activityDate || (typeof today === 'function' ? today() : new Date().toISOString().slice(0, 10)),
@@ -124,6 +124,7 @@
       assignmentId: state.currentAssignment.id,
       groupCode: group,
       settings,
+      weightSource,
       ...(destination ? {destination} : {})
     }), 10000, 'La préparation du lot Mozaïk');
 
@@ -215,6 +216,26 @@
       const group = String(state.detailGroup || state.currentAssignment?.groups?.[0] || '');
       if (!group) throw new Error('Choisis un groupe.');
 
+      // Le choix n'est proposé que lors d'un NOUVEAU lot, jamais pour un lot
+      // interrompu dont l'identité, les notes et la cible ont déjà été figées.
+      let weightSource = null;
+      if (!resumeJobId && !recoveryJob) {
+        const picker = window.CardinalAssignmentActions?.chooseMozaikWeightSource;
+        if (typeof picker !== 'function') throw new Error('Le choix de pondération est indisponible. Actualise Gestion des notes avant un nouvel envoi.');
+        const current = currentFormSnapshot();
+        weightSource = await picker({
+          groupCode: group,
+          title: state.currentAssignment?.title || '',
+          gestionWeight: current.weight
+        });
+        if (!weightSource) {
+          syncState('Envoi annulé. Aucun nouveau lot Mozaïk préparé.');
+          pushMozaikStage('Envoi annulé avant la préparation.', 0, 'cancelled');
+          return;
+        }
+        if (!['gestion','mozaik'].includes(weightSource)) throw new Error('Choix de pondération invalide.');
+      }
+
       validateMozaikGrades();
       let expectedCount = expectedGradeCount(group);
       if (!expectedCount && !resumeJobId && !recoveryJob) throw new Error(`Aucune note à synchroniser pour le groupe ${group}.`);
@@ -226,7 +247,7 @@
       try {
         job = recoveryJob || (resumeJobId
           ? await withTimeout(api(SYNC_ENDPOINT,{action:'resume',teacherToken:state.teacherToken,jobId:resumeJobId}),10000,'La reprise du lot Mozaïk')
-          : await prepareJob(group, expectedCount, form, destination));
+          : await prepareJob(group, expectedCount, form, destination, weightSource));
         if (resumeJobId || recoveryJob) expectedCount = job.payload.results.length;
       } catch (error) {
         if (isMissingMapping(error)) {
@@ -244,7 +265,7 @@
       const inspected = await withTimeout(sendToExtension({...job.payload,syncJob,reviewOnly:true}),35000,'La lecture de Mozaïk');
       if (inspected?.checkpoint) prewriteCheckpoint = prewriteCheckpoint && isUnwritten(inspected.checkpoint);
       if (!inspected?.success || !inspected.previewRequired || !inspected.preview) throw new Error(inspected?.message || 'L’aperçu Mozaïk n’a pas pu être préparé.');
-      const approved=await window.CardinalAssignmentActions.reviewMozaik(inspected.preview,{groupCode:job.payload.group.code,title:job.payload.assignment.title,reconcilingStale:job.payload.reconcilingStale===true});
+      const approved=await window.CardinalAssignmentActions.reviewMozaik(inspected.preview,{groupCode:job.payload.group.code,title:job.payload.assignment.title,reconcilingStale:job.payload.reconcilingStale===true,weightSource:job.payload.assignment?.weightSource||weightSource});
       if (!approved) {
         if (prewriteCheckpoint && !recoveryJob) {
           await cancelUnwrittenJob(job);job=null;
