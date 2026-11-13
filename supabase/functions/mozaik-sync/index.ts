@@ -41,6 +41,10 @@ function validateDestinationSwitch(choice:any,link:any,scope:any,owners:any[],as
 async function prepare(client:any,body:any){
   const teacher=await teacherFromToken(client,String(body.teacherToken||""));
   const assignmentId=String(body.assignmentId||"");const groupCode=cleanGroupCode(body.groupCode);
+  // Source explicite par lot et par groupe; jamais de bascule implicite entre les deux systèmes.
+  // "legacy" conserve le protocole des anciens clients sans choix explicite.
+  const weightSource=body.weightSource==null?"legacy":String(body.weightSource);
+  if(!["legacy","gestion","mozaik"].includes(weightSource))fail("Source de pondération invalide.",400);
   await ensureKnownGroup(client,groupCode);
   const[{data:a},{data:g},{data:link},{data:students},{data:results}]=await Promise.all([
     client.from("school_assignments").select("*").eq("id",assignmentId).maybeSingle(),
@@ -62,6 +66,7 @@ async function prepare(client:any,body:any){
    if(response.error)fail('Impossible de vérifier la destination Mozaïk.',503);
    switched=validateDestinationSwitch(body.destination,link,scope,response.data||[],assignmentId);
   }
+  if(weightSource==="mozaik"&&!(switched?switched.activityId:link?.activity_id))fail("Impossible de conserver une pondération Mozaïk sans activité existante identifiée pour ce groupe.",409);
   const enrolled=(await annualEnrollments(client,year.year,groupCode)).filter((s:any)=>s.active);
   const map=new Map(enrolled.map((s:any)=>[s.email,s]));
   if((results||[]).some((r:any)=>!map.has(r.student_email)))fail('Des notes historiques concernent des élèves qui ne sont plus inscrits dans ce groupe. Elles restent conservées dans Gestion; vérifie la liste avant un envoi Mozaïk.',409);
@@ -77,7 +82,7 @@ async function prepare(client:any,body:any){
   if((weight===null&&s.reportCardEnabled===true&&a.source_metadata?.mozaik?.weight!==null)||weight!==null&&(!Number.isFinite(weight)||weight<0||weight>100))fail("Entre une pondération entre 0 et 100.");
   const {competenceKind,competenceCode}=competenceForSync(a,switched?null:link);
   if(competenceKind&&!['lecture','ecriture','oral'].includes(competenceKind))fail("Compétence invalide.");
-  const payload:any={sourceRevision:a.revision,protocolVersion:2,scope,group:{code:groupCode,establishmentId:g.establishment_id,groupCourseId:g.group_course_id,groupMatterId:g.group_matter_id,subjectCode:g.subject_code},assignment:{id:a.id,title:a.title,competencies:a.competencies||[],term,activityDate:String(s.activityDate),period,homework:!!s.homework,showInSchedule:s.showInSchedule!==false,reportCardEnabled:!!s.reportCardEnabled,weight,maxScore,resultsVisible:!!s.resultsVisible,sourceMetadata:a.source_metadata?.mozaik||null,metadataOverrides:Array.isArray(a.source_metadata?.mozaikOverrides)?a.source_metadata.mozaikOverrides.filter((key:string)=>["reportCardEnabled","weight","resultsVisible","showInSchedule","homework"].includes(key)):[],competenceKind,competenceCode},results:rows,link:link?{activityId:link.activity_id||"",competenceCode:link.competence_code||""}:null};
+  const payload:any={sourceRevision:a.revision,protocolVersion:2,scope,group:{code:groupCode,establishmentId:g.establishment_id,groupCourseId:g.group_course_id,groupMatterId:g.group_matter_id,subjectCode:g.subject_code},assignment:{id:a.id,title:a.title,competencies:a.competencies||[],term,activityDate:String(s.activityDate),period,homework:!!s.homework,showInSchedule:s.showInSchedule!==false,reportCardEnabled:!!s.reportCardEnabled,weight,maxScore,weightSource,resultsVisible:!!s.resultsVisible,sourceMetadata:a.source_metadata?.mozaik||null,metadataOverrides:Array.isArray(a.source_metadata?.mozaikOverrides)?a.source_metadata.mozaikOverrides.filter((key:string)=>["reportCardEnabled","weight","resultsVisible","showInSchedule","homework"].includes(key)):[],competenceKind,competenceCode},results:rows,link:link?{activityId:link.activity_id||"",competenceCode:link.competence_code||""}:null};
   if(switched){payload.previousLink={activityId:switched.previousActivityId};payload.link=switched.activityId?{activityId:switched.activityId,competenceCode:''}:null;}
   const {data:active,error:activeError}=await client.from("school_mozaik_sync_jobs").select("id").eq("assignment_id",assignmentId).eq("group_code",groupCode).eq("status","claimed").maybeSingle();
   if(activeError)fail("Impossible de vérifier les lots en cours.",500);
