@@ -46,3 +46,10 @@ Le lot 32 identifié pendant le diagnostic reste `claimed`, `phase='planned'`, `
 - **Branche et PR en préparation uniquement.** Aucun merge, changement Supabase live, ni modification de notes réelles.
 - Vérification syntaxique des modules frontend; test modal avec faux DOM et tests locaux du moteur de pondération.
 - **À faire avant production :** exécuter le test du dépôt `node --test resultats/tests/mozaik-weight-choice.test.cjs` sur la branche, appliquer la migration sur un environnement de préproduction, déployer la fonction compatible, installer l'extension bêta dans un profil de test et valider de bout en bout avec une activité fictive. Ne pas promouvoir en stable avant réussite.
+
+## Revue supplémentaire — 13 novembre, correctifs de sûreté
+
+- **Validation du backend lorsque Mozaïk fait autorité :** une ancienne pondération Gestion invalide (`NULL` ou valeur hors limites) ne doit pas empêcher le choix d'une pondération Mozaïk valide. À l'inverse, le choix Gestion conserve sa validation et `0 %` est une valeur explicite admissible. Le cas a été observé en échec avant la modification puis vérifié sur 9 scénarios du garde réel.
+- **Portée au bulletin Mozaïk :** valeur `true` ou `false` requise; champ absent ou valeur de type inattendu entraîne un arrêt avant modification de l'activité. Les tests de la version Cardinal **1.3.52 BÊTA** couvrent ce refus, `0 %`, les activités hors bulletin, la description publique/privée HTML et le rejet des champs de lecture.
+- **Migration d'annulation :** prévenir l'ambiguïté SQL `NULL` dans le calcul `reviewed_planned`. Une valeur absente donne toujours `FALSE` par `COALESCE(...,FALSE)`; un état confirmé sans protocole ou activité liée exacts est préservé (annulation refusée). Scénarios `missing_protocol`, `missing_link`, `wrong_activity`, `grade_started`, `valid_linked` et `not_reviewed` vérifiés via requête `SELECT` sans aucune mutation.
+- Le backend, la migration et la page Gestion restent **en PR brouillon**, non déployés. Les notes élèves et journaux réels ne sont pas modifiés.
