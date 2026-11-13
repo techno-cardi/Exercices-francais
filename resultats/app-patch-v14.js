@@ -223,10 +223,21 @@
         const picker = window.CardinalAssignmentActions?.chooseMozaikWeightSource;
         if (typeof picker !== 'function') throw new Error('Le choix de pondération est indisponible. Actualise Gestion des notes avant un nouvel envoi.');
         const current = currentFormSnapshot();
+        const destinationInfo=window.CardinalGestionImports?.getLastDestinationWeightInfo?.();
+        if (!destinationInfo ||
+            String(destinationInfo.assignmentId)!==String(state.currentAssignment.id) ||
+            String(destinationInfo.groupCode)!==group ||
+            Date.now()-Number(destinationInfo.capturedAt)>120000) {
+          throw new Error('Le choix de destination Mozaïk n’est plus fiable. Actualise Gestion des notes et recommence.');
+        }
         weightSource = await picker({
           groupCode: group,
           title: state.currentAssignment?.title || '',
-          gestionWeight: current.weight
+          gestionWeight: current.weight,
+          gestionMaxScore: current.maxScore,
+          mozaikWeight: destinationInfo.weight,
+          mozaikMaxScore: destinationInfo.maxScore,
+          isNew: destinationInfo.isNew
         });
         if (!weightSource) {
           syncState('Envoi annulé. Aucun nouveau lot Mozaïk préparé.');
