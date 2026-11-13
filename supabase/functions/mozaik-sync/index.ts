@@ -41,6 +41,10 @@ function validateDestinationSwitch(choice:any,link:any,scope:any,owners:any[],as
 async function prepare(client:any,body:any){
   const teacher=await teacherFromToken(client,String(body.teacherToken||""));
   const assignmentId=String(body.assignmentId||"");const groupCode=cleanGroupCode(body.groupCode);
+  // Source explicite par lot et par groupe; jamais de bascule implicite entre les deux systèmes.
+  // "legacy" conserve le protocole des anciens clients sans choix explicite.
+  const weightSource=body.weightSource==null?"legacy":String(body.weightSource);
+  if(!["legacy","gestion","mozaik"].includes(weightSource))fail("Source de pondération invalide.",400);
   await ensureKnownGroup(client,groupCode);
   const[{data:a},{data:g},{data:link},{data:students},{data:results}]=await Promise.all([
     client.from("school_assignments").select("*").eq("id",assignmentId).maybeSingle(),
@@ -62,6 +66,7 @@ async function prepare(client:any,body:any){
    if(response.error)fail('Impossible de vérifier la destination Mozaïk.',503);
    switched=validateDestinationSwitch(body.destination,link,scope,response.data||[],assignmentId);
   }
+  if(weightSource==="mozaik"&&!(switched?switched.activityId:link?.activity_id))fail("Impossible de conserver une pondération Mozaïk sans activité existante identifiée pour ce groupe.",409);
   const enrolled=(await annualEnrollments(client,year.year,groupCode)).filter((s:any)=>s.active);
   const map=new Map(enrolled.map((s:any)=>[s.email,s]));
   if((results||[]).some((r:any)=>!map.has(r.student_email)))fail('Des notes historiques concernent des élèves qui ne sont plus inscrits dans ce groupe. Elles restent conservées dans Gestion; vérifie la liste avant un envoi Mozaïk.',409);
@@ -74,10 +79,12 @@ async function prepare(client:any,body:any){
   if(![1,2,3].includes(term))fail("Étape invalide.");
   if(!/^\d{4}-\d{2}-\d{2}$/.test(String(s.activityDate||"")))fail("Date invalide.");
   if(!Number.isFinite(period)||period<1||period>20)fail("Période invalide.");
-  if((weight===null&&s.reportCardEnabled===true&&a.source_metadata?.mozaik?.weight!==null)||weight!==null&&(!Number.isFinite(weight)||weight<0||weight>100))fail("Entre une pondération entre 0 et 100.");
+  // Ne pas valider la pondération de Gestion si la référence explicite est Mozaïk.
+  // Une valeur de Gestion absente ou héritée ne doit pas invalider la source choisie.
+  if(weightSource!=="mozaik"&&((weight===null&&s.reportCardEnabled===true&&(weightSource==="gestion"||a.source_metadata?.mozaik?.weight!==null))||weight!==null&&(!Number.isFinite(weight)||weight<0||weight>100)))fail("Entre une pondération entre 0 et 100.");
   const {competenceKind,competenceCode}=competenceForSync(a,switched?null:link);
   if(competenceKind&&!['lecture','ecriture','oral'].includes(competenceKind))fail("Compétence invalide.");
-  const payload:any={sourceRevision:a.revision,protocolVersion:2,scope,group:{code:groupCode,establishmentId:g.establishment_id,groupCourseId:g.group_course_id,groupMatterId:g.group_matter_id,subjectCode:g.subject_code},assignment:{id:a.id,title:a.title,competencies:a.competencies||[],term,activityDate:String(s.activityDate),period,homework:!!s.homework,showInSchedule:s.showInSchedule!==false,reportCardEnabled:!!s.reportCardEnabled,weight,maxScore,resultsVisible:!!s.resultsVisible,sourceMetadata:a.source_metadata?.mozaik||null,metadataOverrides:Array.isArray(a.source_metadata?.mozaikOverrides)?a.source_metadata.mozaikOverrides.filter((key:string)=>["reportCardEnabled","weight","resultsVisible","showInSchedule","homework"].includes(key)):[],competenceKind,competenceCode},results:rows,link:link?{activityId:link.activity_id||"",competenceCode:link.competence_code||""}:null};
+  const payload:any={sourceRevision:a.revision,protocolVersion:2,scope,group:{code:groupCode,establishmentId:g.establishment_id,groupCourseId:g.group_course_id,groupMatterId:g.group_matter_id,subjectCode:g.subject_code},assignment:{id:a.id,title:a.title,competencies:a.competencies||[],term,activityDate:String(s.activityDate),period,homework:!!s.homework,showInSchedule:s.showInSchedule!==false,reportCardEnabled:!!s.reportCardEnabled,weight,maxScore,weightSource,resultsVisible:!!s.resultsVisible,sourceMetadata:a.source_metadata?.mozaik||null,metadataOverrides:Array.isArray(a.source_metadata?.mozaikOverrides)?a.source_metadata.mozaikOverrides.filter((key:string)=>["reportCardEnabled","weight","resultsVisible","showInSchedule","homework"].includes(key)):[],competenceKind,competenceCode},results:rows,link:link?{activityId:link.activity_id||"",competenceCode:link.competence_code||""}:null};
   if(switched){payload.previousLink={activityId:switched.previousActivityId};payload.link=switched.activityId?{activityId:switched.activityId,competenceCode:''}:null;}
   const {data:active,error:activeError}=await client.from("school_mozaik_sync_jobs").select("id").eq("assignment_id",assignmentId).eq("group_code",groupCode).eq("status","claimed").maybeSingle();
   if(activeError)fail("Impossible de vérifier les lots en cours.",500);
@@ -86,7 +93,7 @@ async function prepare(client:any,body:any){
   const code=randomCode();const codeHash=await sha(code);const expiresAt=new Date(Date.now()+15*60*1000).toISOString();
   const{error}=await client.from("school_mozaik_sync_jobs").insert({code_hash:codeHash,assignment_id:assignmentId,group_code:groupCode,payload,status:"ready",expires_at:expiresAt,teacher_email:teacher.email});
   if(error)fail("Impossible de préparer la synchronisation.",500);
-  return{code,expiresAt,resultCount:rows.length,mode:payload.link?.activityId?"update":"create",...(switched?{destinationAccepted:switched}:{})}
+  return{code,expiresAt,resultCount:rows.length,weightSourceAccepted:weightSource,minimumExtensionVersion:"1.3.53",mode:payload.link?.activityId?"update":"create",...(switched?{destinationAccepted:switched}:{})}
 }
 async function claimJob(client:any,j:any){if(!j||j.status!=="ready"||new Date(j.expires_at).getTime()<=Date.now())fail("Aucune synchronisation prête ou le lot a expiré.",401);const claimToken=randomToken();const claimHash=await sha(claimToken);const{data,error}=await client.from("school_mozaik_sync_jobs").update({status:"claimed",claim_hash:claimHash,claimed_at:new Date().toISOString()}).eq("id",j.id).eq("status","ready").select("id").maybeSingle();if(error||!data)fail("Impossible de prendre en charge ce lot.",409);return{jobId:j.id,claimToken,payload:{...j.payload,checkpoint:j.checkpoint||null}}}
 async function claim(client:any,body:any){const code=String(body.code||"").trim().toUpperCase();if(!code)fail("Code manquant.");const h=await sha(code);const{data:j}=await client.from("school_mozaik_sync_jobs").select("id,payload,status,expires_at,checkpoint").eq("code_hash",h).maybeSingle();return await claimJob(client,j)}
@@ -126,3 +133,4 @@ async function complete(client:any,body:any){
  return data;
 }
 Deno.serve(async(req:Request)=>{const o=req.headers.get("origin");if(req.method==="OPTIONS")return new Response(null,{status:204,headers:cors(o)});try{if(req.method!=="POST")fail("Méthode non permise.",405);if(o&&![ORIGIN,"https://mozaikportail.ca"].includes(o))fail("Origine non autorisée.",403);requireKey(req);let body:any={};try{body=await req.json()}catch{fail("Requête invalide.");}if(o==="https://mozaikportail.ca"&&body.action!=="checkpoint")fail("Action non autorisée depuis Mozaïk.",403);const client=db();let out:any;switch(String(body.action||"")){case"status":out=await status(client,body);break;case"prepare":out=await prepare(client,body);break;case"claim":out=await claim(client,body);break;case"claimLatest":out=await claimLatest(client,body);break;case"cancelUnwritten":out=await cancelUnwritten(client,body);break;case"reconcileStale":out=await reconcileStale(client,body);break;case"resume":out=await resume(client,body);break;case"checkpoint":out=await checkpoint(client,body);break;case"complete":out=await complete(client,body);break;default:fail("Demande inconnue.");}return reply({ok:true,...out},200,o)}catch(error){const e=error as Error&{status?:number};console.error(e.message);return reply({ok:false,message:e.message||"Une erreur est survenue."},e.status||500,o)}});
+

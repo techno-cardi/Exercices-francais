@@ -10,7 +10,7 @@
 
   function timeoutError(label, ms) {
     const seconds = Math.max(1, Math.round(ms / 1000));
-    return new Error(`${label} n’a pas répondu après ${seconds} s. La synchronisation a été arrêtée au lieu d’attendre indéfiniment.`);
+    return new Error(`${label} n’a pas répondu après ${seconds} s. Une requête peut encore être en cours. Le journal sera conservé; ne relance pas un autre envoi avant vérification.`);
   }
 
   function withTimeout(promise, ms, label) {
@@ -56,7 +56,7 @@
       try { pingExtension(); } catch {}
       if (state.extensionReady) {
         const version=String(state.extensionVersion || '').split('.').map(Number);
-        if ((version[0] || 0) < 1 || version[0] === 1 && ((version[1] || 0) < 3 || version[1] === 3 && (version[2] || 0) < 24)) throw new Error('Cardinal 1.3.24 est requis pour l’aperçu et la reprise des envois Mozaïk. Recharge l’extension mise à jour.');
+        if ((version[0] || 0) < 1 || version[0] === 1 && ((version[1] || 0) < 3 || version[1] === 3 && (version[2] || 0) < 53)) throw new Error('Cardinal 1.3.53 est requis pour respecter le choix de pondération et reprendre les envois. Mets l’extension à jour, recharge-la puis actualise Gestion et Mozaïk.');
         return true;
       }
       await sleep(120);
@@ -105,7 +105,7 @@
     if(response?.mode!=='cancelled') throw new Error('Ce lot a peut-être commencé à écrire. Utilise « Résoudre l’envoi interrompu » avant un nouvel envoi.');
   }
 
-  async function prepareJob(group, expectedCount, form, destination = null) {
+  async function prepareJob(group, expectedCount, form, destination = null, weightSource = null) {
     const settings = {
       term: Number(form.term || 1),
       activityDate: form.activityDate || (typeof today === 'function' ? today() : new Date().toISOString().slice(0, 10)),
@@ -124,10 +124,12 @@
       assignmentId: state.currentAssignment.id,
       groupCode: group,
       settings,
+      weightSource,
       ...(destination ? {destination} : {})
     }), 10000, 'La préparation du lot Mozaïk');
 
     if (!prepared?.code) throw new Error('Le serveur n’a pas retourné le code du lot Mozaïk préparé.');
+    if (prepared.weightSourceAccepted !== weightSource) throw new Error('Le serveur ne confirme pas la source de pondération choisie. Aucun envoi ne sera lancé; actualise Gestion des notes.');
     if (destination && (prepared.destinationAccepted?.previousActivityId !== destination.previousActivityId || prepared.destinationAccepted?.activityId !== destination.activityId))
       throw new Error('Le serveur n’a pas confirmé la destination choisie. Actualise Gestion des notes avant de réessayer.');
 
@@ -141,6 +143,12 @@
       try { await cancelUnwrittenJob(claimed); }
       catch { throw new Error('La destination du lot diffère de ton choix. Aucune note envoyée; utilise « Résoudre l’envoi interrompu » pour libérer le lot.'); }
       throw new Error('La destination du lot diffère de ton choix. Aucune note n’a été envoyée et le lot a été annulé.');
+    }
+    if (claimed?.payload?.assignment?.weightSource !== weightSource ||
+        String(claimed?.payload?.assignment?.id) !== String(state.currentAssignment?.id) ||
+        String(claimed?.payload?.group?.code) !== String(group)) {
+      try { await cancelUnwrittenJob(claimed); } catch {}
+      throw new Error('Le lot retourné ne correspond pas au travail, au groupe ou à la source de pondération choisis. Aucune note envoyée.');
     }
     return claimed;
   }
@@ -167,6 +175,17 @@
   async function runSync(btn, resumeJobId = '', recoveryJob = null) {
     if (!state.currentAssignment?.id) return;
 
+    const context = {
+      assignmentId: String(state.currentAssignment.id), group: String(state.detailGroup || ''),
+      teacherToken: state.teacherToken, year: state.schoolYear, navigation: state.navigationRevision
+    };
+    const assertContext = () => {
+      if (String(state.currentAssignment?.id) !== context.assignmentId ||
+          String(state.detailGroup || '') !== context.group || state.teacherToken !== context.teacherToken ||
+          state.schoolYear !== context.year || state.navigationRevision !== context.navigation) {
+        throw new Error('Le travail, le groupe, l’année ou la session a changé. Aucun nouvel envoi ne sera lancé.');
+      }
+    };
     let job = null;
     let destination = null;
     let completed = false;
@@ -215,6 +234,41 @@
       const group = String(state.detailGroup || state.currentAssignment?.groups?.[0] || '');
       if (!group) throw new Error('Choisis un groupe.');
 
+      // Le choix n'est proposé que lors d'un NOUVEAU lot, jamais pour un lot
+      // interrompu dont l'identité, les notes et la cible ont déjà été figées.
+      let weightSource = null;
+      if (!resumeJobId && !recoveryJob) {
+        const picker = window.CardinalAssignmentActions?.chooseMozaikWeightSource;
+        if (typeof picker !== 'function') throw new Error('Le choix de pondération est indisponible. Actualise Gestion des notes avant un nouvel envoi.');
+        const current = currentFormSnapshot();
+        const destinationInfo=window.CardinalGestionImports?.getLastDestinationWeightInfo?.();
+        if (!destinationInfo ||
+            String(destinationInfo.assignmentId)!==String(state.currentAssignment.id) ||
+            String(destinationInfo.groupCode)!==group ||
+            Date.now()-Number(destinationInfo.capturedAt)>120000) {
+          throw new Error('Le choix de destination Mozaïk n’est plus fiable. Actualise Gestion des notes et recommence.');
+        }
+        weightSource = await picker({
+          groupCode: group,
+          title: state.currentAssignment?.title || '',
+          gestionWeight: current.weight,
+          gestionMaxScore: current.maxScore,
+          gestionReportCard: current.reportCardEnabled,
+          mozaikWeight: destinationInfo.weight,
+          mozaikMaxScore: destinationInfo.maxScore,
+          mozaikReportCard: destinationInfo.reportCardEnabled,
+          isNew: destinationInfo.isNew
+        });
+        assertContext();
+        if (!weightSource) {
+          syncState('Envoi annulé. Aucun nouveau lot Mozaïk préparé.');
+          pushMozaikStage('Envoi annulé avant la préparation.', 0, 'cancelled');
+          return;
+        }
+        if (!['gestion','mozaik'].includes(weightSource)) throw new Error('Choix de pondération invalide.');
+      }
+
+      assertContext();
       validateMozaikGrades();
       let expectedCount = expectedGradeCount(group);
       if (!expectedCount && !resumeJobId && !recoveryJob) throw new Error(`Aucune note à synchroniser pour le groupe ${group}.`);
@@ -226,7 +280,11 @@
       try {
         job = recoveryJob || (resumeJobId
           ? await withTimeout(api(SYNC_ENDPOINT,{action:'resume',teacherToken:state.teacherToken,jobId:resumeJobId}),10000,'La reprise du lot Mozaïk')
-          : await prepareJob(group, expectedCount, form, destination));
+          : await prepareJob(group, expectedCount, form, destination, weightSource));
+        if (String(job?.payload?.assignment?.id) !== context.assignmentId ||
+            String(job?.payload?.group?.code) !== context.group || !Array.isArray(job?.payload?.results)) {
+          throw new Error('Le journal repris ne correspond pas au travail ou au groupe affiché. Aucune note envoyée.');
+        }
         if (resumeJobId || recoveryJob) expectedCount = job.payload.results.length;
       } catch (error) {
         if (isMissingMapping(error)) {
@@ -235,6 +293,7 @@
         throw error;
       }
 
+      assertContext();
       btn.textContent = 'Synchronisation...';
       prewriteCheckpoint = isUnwritten(job.payload?.checkpoint);
       syncState('3/4 · Envoi dans Mozaïk...');
@@ -244,7 +303,12 @@
       const inspected = await withTimeout(sendToExtension({...job.payload,syncJob,reviewOnly:true}),35000,'La lecture de Mozaïk');
       if (inspected?.checkpoint) prewriteCheckpoint = prewriteCheckpoint && isUnwritten(inspected.checkpoint);
       if (!inspected?.success || !inspected.previewRequired || !inspected.preview) throw new Error(inspected?.message || 'L’aperçu Mozaïk n’a pas pu être préparé.');
-      const approved=await window.CardinalAssignmentActions.reviewMozaik(inspected.preview,{groupCode:job.payload.group.code,title:job.payload.assignment.title,reconcilingStale:job.payload.reconcilingStale===true});
+      assertContext();
+      const frozenSource = job.payload.assignment?.weightSource || 'legacy';
+      if (inspected.weightChoiceVersion !== 1 || inspected.weightSource !== frozenSource) {
+        throw new Error('L’extension ne confirme pas la source de pondération du lot. Recharge la version compatible de Cardinal. Aucune note envoyée.');
+      }
+      const approved=await window.CardinalAssignmentActions.reviewMozaik(inspected.preview,{groupCode:job.payload.group.code,title:job.payload.assignment.title,reconcilingStale:job.payload.reconcilingStale===true,weightSource:job.payload.assignment?.weightSource||weightSource});
       if (!approved) {
         if (prewriteCheckpoint && !recoveryJob) {
           await cancelUnwrittenJob(job);job=null;
@@ -254,6 +318,7 @@
         }
         throw new Error('Envoi annulé. Le lot interrompu est conservé pour une reprise sécurisée.');
       }
+      assertContext();
       confirmedSendAttempted = true;
       const result = await withTimeout(sendToExtension({...job.payload,syncJob,checkpoint:inspected.checkpoint,confirmedReview:true,reviewOnly:false}),35000,'L’envoi vers Mozaïk');
       const syncedCount = Number(result?.syncedCount || 0);
@@ -353,16 +418,57 @@
         try { await runSync(resume, resume.dataset.jobId); }
         finally { inFlight = false; }
       };
+      const cancel=document.getElementById('cancelMozaikBtn');
+      if(cancel) cancel.onclick=async()=>{
+        if(inFlight || !cancel.dataset.jobId || !state.currentAssignment?.id)return;
+        const originalId=String(cancel.dataset.jobId);
+        const assignmentId=String(state.currentAssignment.id);
+        const group=String(state.detailGroup || '');
+        const confirmed=window.confirm(
+          'Annuler l’envoi interrompu du groupe '+group+' ?\n\n'
+          +'Cardinal vérifiera le journal sur le serveur. L’annulation sera REFUSÉE si une écriture de notes a pu commencer. '
+          +'Les paramètres éventuellement déjà modifiés dans Mozaïk ne seront pas restaurés. '
+          +'Aucune note de Gestion ni de Mozaïk ne sera supprimée.\n\n'
+          +'Tu devras préparer ensuite un NOUVEL envoi avec un nouvel aperçu.'
+        );
+        if(!confirmed)return;
+        inFlight=true;window.cardinalActiveSync=true;cancel.disabled=true;
+        try{
+          const status=await withTimeout(api(SYNC_ENDPOINT,{action:'status',teacherToken:state.teacherToken,assignmentId}),10000,'La vérification de l’envoi interrompu');
+          if(String(state.currentAssignment?.id)!==assignmentId || String(state.detailGroup)!==group)
+            throw new Error('Tu as changé de travail ou de groupe. L’annulation est arrêtée.');
+          const pending=(status.pendingJobs||[]).filter(job=>String(job.groupCode)===group);
+          if(pending.length!==1 || String(pending[0].jobId)!==originalId)
+            throw new Error('Le journal a changé ou plusieurs envois sont présents. Actualise les données avant toute annulation.');
+          const phase=String(pending[0].phase||'');
+          if(!['planned','claimed'].includes(phase))
+            throw new Error('La synchronisation a dépassé la préparation. Annulation refusée pour protéger les notes; utilise la résolution.');
+          const result=await withTimeout(api(SYNC_ENDPOINT,{action:'cancelUnwritten',teacherToken:state.teacherToken,jobId:originalId}),10000,'L’annulation sécurisée');
+          if(result?.mode!=='cancelled')throw new Error('Le serveur ne garantit pas une annulation sans écriture de notes. Le journal est conservé.');
+          const mayHaveChanged=result?.activitySettingsMayHaveChanged===true;
+          notify(mayHaveChanged
+            ? 'Lot abandonné sans écriture de notes selon le journal. Les paramètres Mozaïk peuvent avoir changé : vérifie-les avant un nouvel envoi.'
+            : 'Ancien lot annulé avant l’écriture des notes. Prépare un nouvel envoi et vérifie son aperçu.');
+          syncState(mayHaveChanged
+            ? 'Lot abandonné avant l’envoi des notes. Vérifie les paramètres de l’activité Mozaïk.'
+            : 'Lot interrompu annulé. Aucun résultat de ce lot envoyé.');
+          await refreshSyncState();
+        }catch(error){notify(error?.message||String(error),'error');}
+        finally{cancel.disabled=false;inFlight=false;window.cardinalActiveSync=false;}
+      };
       const recover=document.getElementById('recoverMozaikBtn');
       if(recover) recover.onclick=async()=>{
         if(inFlight || !recover.dataset.jobId)return;
-        inFlight=true;
+        inFlight=true;window.cardinalActiveSync=true;
+        const assignmentId=state.currentAssignment?.id,group=state.detailGroup,token=state.teacherToken;
         try{
-          const recovered=await api(SYNC_ENDPOINT,{action:'reconcileStale',teacherToken:state.teacherToken,jobId:recover.dataset.jobId});
+          const recovered=await withTimeout(api(SYNC_ENDPOINT,{action:'reconcileStale',teacherToken:token,jobId:recover.dataset.jobId}),10000,'La résolution du journal');
+          if(state.currentAssignment?.id!==assignmentId || state.detailGroup!==group || state.teacherToken!==token)
+            throw new Error('Le travail, le groupe ou la session a changé. Le journal est conservé.');
           if(recovered.mode==='cancelled') {recover.classList.add('hidden');notify('L’ancien envoi n’avait rien écrit. Tu peux préparer le nouvel envoi.');await refreshSyncState();}
           else await runSync(recover,'',recovered);
         }catch(error){notify(error.message,'error');}
-        finally{inFlight=false;}
+        finally{inFlight=false;window.cardinalActiveSync=false;}
       };
       return true;
     } catch {

@@ -1,0 +1,52 @@
+name: Gestion Mozaik - validation sans écriture
+
+on:
+  pull_request:
+    paths:
+      - 'resultats/**'
+      - 'tests/resultats/**'
+      - 'supabase/functions/mozaik-sync/**'
+      - 'supabase/migrations/**'
+      - '.github/workflows/gestion-mozaik-checks.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  safe-regressions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntaxe des modules Gestion modifiés
+        run: |
+          node --check resultats/app.js
+          node --check resultats/assignment-actions.js
+          node --check resultats/gestion-imports.js
+          node --check resultats/app-patch-v05.js
+          node --check resultats/app-patch-v14.js
+      - name: Contrat coordonné de pondération et reprise
+        run: node --test resultats/tests/mozaik-weight-choice.test.cjs tests/resultats/mozaik-release-contract.test.cjs tests/resultats/mozaik-backend.test.cjs
+      - name: Installer PostgreSQL isolé vérifié par empreinte
+        run: node resultats/tests/sql-setup.mjs
+      - name: Régressions SQL autonomes hors production
+        shell: bash
+        run: |
+          # The destination-switch integration additionally needs the current unpacked
+          # Cardinal archive (not the historical repo extension); it is run in release validation.
+          mapfile -t tests < <(find resultats/tests -maxdepth 1 -name 'sql-*.test.mjs' ! -name 'sql-destination-switch.test.mjs' | sort)
+          node --experimental-strip-types --test --test-concurrency=2 "${tests[@]}"
+      - name: Archive des sources exactes testées
+        if: always()
+        run: git archive --format=zip --output=gestion-source.zip HEAD
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gestion-tested-source
+          path: |
+            gestion-source.zip
+            resultats/tests/sql-runtime/package.tgz
+          retention-days: 7
