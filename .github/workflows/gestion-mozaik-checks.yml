@@ -29,3 +29,10 @@ jobs:
           node --check resultats/app-patch-v14.js
       - name: Tests choix ponderation (aucun accès au réseau ni à la base)
         run: node --test resultats/tests/mozaik-weight-choice.test.cjs
+      - name: Archive des sources exactes testées
+        run: git archive --format=zip --output=gestion-source.zip HEAD
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gestion-tested-source
+          path: gestion-source.zip
+          retention-days: 7
