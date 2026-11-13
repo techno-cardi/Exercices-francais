@@ -65,6 +65,12 @@
         + ' points; Mozaïk '+(context.isNew ? 'nouvelle activité' : (context.mozaikMaxScore ?? 'à vérifier'))
         + '. Le maximum restera celui de Gestion : toute modification et toute remise à l’échelle hors lot seront montrées dans l’aperçu.';
       body.append(settings);
+      const bulletin=document.createElement('p');bulletin.className='hint';
+      const status=v=>v===true?'Oui':v===false?'Non':'à vérifier';
+      bulletin.textContent='Porté au bulletin : Gestion '+status(context.gestionReportCard)
+        +' · Mozaïk '+(context.isNew?'nouvelle activité':status(context.mozaikReportCard))
+        +'. Ce statut et la pondération suivent ensemble la source choisie.';
+      body.append(bulletin);
       const form = document.createElement('div');
       form.style.cssText = 'display:grid;gap:12px;margin:14px 0';
       const choices = [
