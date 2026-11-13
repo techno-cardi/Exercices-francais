@@ -82,7 +82,7 @@ test('Frontend rejects prior/stale destination metadata and uses exact group',()
 test('The backend validates the chosen authority, not a stale Gestion weight',()=>{
   const source=fs.readFileSync(path.join(__dirname,'../../supabase/functions/mozaik-sync/index.ts'),'utf8');
   // Evaluate the actual server-side guard with fixture values, not an independent rewrite.
-  const guard=source.split(/\\r?\\n/).find(line=>line.includes('fail("Entre une pondération entre 0 et 100.")'));
+  const guard=source.split(String.fromCharCode(10)).find(line=>line.includes('fail("Entre une pondération entre 0 et 100.")'));
   assert.equal(typeof guard,'string','Server weight guard must exist and be executable');
   const validate=new Function('weight','weightSource','s','a','fail',guard);
   const check=(weightSource,weight,reportCardEnabled)=>{
