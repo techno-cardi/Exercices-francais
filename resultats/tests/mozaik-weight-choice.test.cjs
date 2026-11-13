@@ -78,3 +78,25 @@ test('Frontend rejects prior/stale destination metadata and uses exact group',()
   assert.match(v14,/weightSource:job\.payload\.assignment\?\.weightSource/);
   assert.match(v14,/action:'cancelUnwritten'/);
 });
+
+test('The backend validates the chosen authority, not a stale Gestion weight',()=>{
+  const source=fs.readFileSync(path.join(__dirname,'../../supabase/functions/mozaik-sync/index.ts'),'utf8');
+  // Evaluate the actual server-side guard with fixture values, not an independent rewrite.
+  const guard=source.split(/\\r?\\n/).find(line=>line.includes('fail("Entre une pondération entre 0 et 100.")'));
+  assert.equal(typeof guard,'string','Server weight guard must exist and be executable');
+  const validate=new Function('weight','weightSource','s','a','fail',guard);
+  const check=(weightSource,weight,reportCardEnabled)=>{
+    try{
+      validate(weight,weightSource,{reportCardEnabled},{source_metadata:null},()=>{throw new Error('rejected')});
+      return true;
+    }catch{return false;}
+  };
+  assert.equal(check('mozaik',null,true),true,'Mozaik reference never depends on Gestion weight presence');
+  assert.equal(check('mozaik',-3,true),true,'Mozaik reference does not reuse invalid Gestion weight');
+  assert.equal(check('gestion',null,true),false,'Gestion report-card activity needs its own weight');
+  assert.equal(check('gestion',39,true),true,'Valid Gestion weight accepted');
+  assert.equal(check('gestion',0,true),true,'Zero is a valid explicit weight');
+  assert.equal(check('legacy',-3,true),false,'Prior legacy validation unchanged');
+  assert.equal(check('legacy',null,true),false,'Prior legacy missing-weight protection unchanged');
+  assert.equal(check('legacy',null,false),true,'Non-bulletin work stays supported');
+});
