@@ -249,3 +249,16 @@ Validation : tests du module avec DOM simulé, 177 scénarios de parcours et 498
 - Aucun changement des événements `blur`/`Enter`/`Tab`, de l'API `saveResult`, du statut d'enregistrement, de Formative, de Mozaïk ou des données existantes.
 - `resultats/index.html` charge `app.js?v=1003` pour éviter de conserver l'ancienne version en cache.
 - Validation de logique : 8 scénarios de saisie testés dans un DOM simulé (zéro, nombre, décimale, virgule, champ vide, hors barème et non numérique), sans déclencher l'enregistrement. Test complet en navigateur connecté restant à effectuer.
+
+
+## 13 novembre 2026 — candidat NON DÉPLOYÉ : source de pondération Mozaïk/Gestion
+
+Branche de travail : `fix/mozaik-ponderation-source-20261113`. Document de conception et matrice de risques : `resultats/docs/MOZAIK_WEIGHT_AUTHORITY_20261113.md`.
+
+Le 400 Mozaïk sur le travail « Le conte merveilleux (partie 2) », groupe 32, est lié au modèle PUT incorrect des descriptions HTML (le modèle lu `notePublique:{note:HTML}` était transmis tel quel). L'archive utilisateur Cardinal 1.3.50 corrige le modèle PUT; une archive expérimentale 1.3.51 BETA ajoute un choix explicite de source de pondération par **nouveau lot de groupe**. Le maximum des notes reste celui de Gestion, toujours montré dans l'aperçu.
+
+La branche Gestion ajoute la sélection de l'autorité `gestion` ou `mozaik`, la compare aux métadonnées de destination réellement découvertes, transmet le choix au backend et le fige dans `school_mozaik_sync_jobs.payload.assignment.weightSource`. Pas de propagation implicite de pondération à Gestion. Valeur `legacy` uniquement pour les anciens lots sans choix explicite. La portée au bulletin suit la source de pondération sélectionnée; non bulletin = `ponderation:null`.
+
+La branche ajoute également un bouton « Annuler l’envoi interrompu » visible seulement sur un unique journal en phase `claimed/planned`, avec vérification préalable, double consentement et action backend `cancelUnwritten`. Une migration non appliquée étend l'annulation aux lots `planned` confirmés **uniquement si activité liée exacte**; impossible de supprimer des notes car la phase `parameters_verified` doit être durablement enregistrée avant `PUT results`. Il n'y a pas de rollback des éventuels changements de paramètres Mozaïk; l'utilisateur est averti.
+
+État réel : **aucun merge vers main, aucun déploiement Supabase, aucune écriture Mozaïk/notes, aucune annulation réelle**. Ne pas indiquer que le problème en production est résolu. Valider syntaxe/tests, puis migration sur environnement sûr, fonction déployée, extension compatible et parcours complet avec notes fictives avant promotion.
