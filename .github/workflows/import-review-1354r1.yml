@@ -68,11 +68,14 @@ jobs:
           node --check resultats/mozaik-review.js
           node --check resultats/assignment-actions.js
           node --test resultats/tests/mozaik-review.test.cjs resultats/tests/mozaik-weight-choice.test.cjs tests/resultats/mozaik-release-contract.test.cjs tests/resultats/mozaik-backend.test.cjs
-      - name: Remove transport and publish feature branch only
+      - name: Publish code to feature branch only
         shell: bash
         run: |
           set -euo pipefail
-          git rm .github/review-import/part1.b64 .github/review-import/part2.b64 .github/review-import/part3.b64 .github/review-import/part4.b64 .github/workflows/import-review-1354r1.yml
+          # Actions token cannot update workflows. The connector will publish the
+          # already tested CI file and remove this temporary workflow separately.
+          git restore --source=HEAD --staged --worktree .github/workflows/gestion-mozaik-checks.yml
+          git rm .github/review-import/part1.b64 .github/review-import/part2.b64 .github/review-import/part3.b64 .github/review-import/part4.b64
           git diff --cached --check
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
