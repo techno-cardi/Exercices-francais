@@ -84,11 +84,11 @@ const context={console,setTimeout:f=>{f();return 1},globalThis:{CardinalMozaikMe
  if(url.includes('/competences'))return response([{code:'1',description:'lecture'}]);
  if(url.includes('/planifications/'))return response({activites:[{id:'destination2'},...(createdActivity?[{id:createdActivity.id}]:[])]});
  if(url.includes('/resultats/')){if(init.method==='PUT'){resultWrites++;nativeResults=body;}return response(nativeResults);}
- if(init.method==='PUT'){if(createdActivity&&url.endsWith(createdActivity.id))createdActivity={...body};else activity={...body};return response(body);}
+ if(init.method==='PUT'){if(createdActivity&&url.endsWith(createdActivity.id))createdActivity={...createdActivity,...body,parametresEvaluation:{...createdActivity.parametresEvaluation,...body.parametresEvaluation,evaluee:true}};else activity={...activity,...body,parametresEvaluation:{...activity.parametresEvaluation,...body.parametresEvaluation,evaluee:true}};return response(body);}
  if(init.method==='POST'){createCount++;createdActivity={...body,id:'12a5792a-a167-4032-8507-03bad69f4877',idGroupe:'s2026matter'};return response({id:createdActivity.id});}
  return response([activity,...(createdActivity?[createdActivity]:[])]);
 }};
-const worker=await readFile(new URL('../../../cardinal-v1332/legacy-service-worker.js',import.meta.url),'utf8');
+const worker=await readFile(process.env.CARDINAL_EXTENSION_DIR?process.env.CARDINAL_EXTENSION_DIR+'/legacy-service-worker.js':new URL('../../../cardinal-v1332/legacy-service-worker.js',import.meta.url),'utf8');
 vm.createContext(context);vm.runInContext(worker.slice(worker.indexOf('async function syncInsideMozaik('),worker.indexOf('// ===== background-v081.js'))+';globalThis.run=syncInsideMozaik',context);
 const runtime={...ip,syncJob:{jobId:iid,claimToken:'secret',endpoint:'https://test/checkpoint',apiKey:'public'}};
 const preview=await context.globalThis.run({...runtime,reviewOnly:true},'token');

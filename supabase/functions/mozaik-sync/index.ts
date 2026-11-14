@@ -44,6 +44,11 @@ async function prepare(client:any,body:any){
   // Source explicite par lot et par groupe; jamais de bascule implicite entre les deux systèmes.
   // "legacy" conserve le protocole des anciens clients sans choix explicite.
   const weightSource=body.weightSource==null?"legacy":String(body.weightSource);
+  const aligned=body.alignmentVersion===1;
+  if(body.alignmentVersion!=null&&!aligned)fail("Version d’alignement incompatible.",409);
+  const maximumSource=aligned?body.maximumSource:"gestion";
+  if(aligned&&(!["gestion","mozaik"].includes(maximumSource)||!["gestion","mozaik"].includes(weightSource)))fail("Choisis la source de pondération et du maximum.",400);
+
   if(!["legacy","gestion","mozaik"].includes(weightSource))fail("Source de pondération invalide.",400);
   await ensureKnownGroup(client,groupCode);
   const[{data:a},{data:g},{data:link},{data:students},{data:results}]=await Promise.all([
@@ -51,7 +56,7 @@ async function prepare(client:any,body:any){
     client.from("school_mozaik_groups").select("group_code,establishment_id,group_course_id,group_matter_id,subject_code").eq("group_code",groupCode).maybeSingle(),
     client.from("school_mozaik_links").select("activity_id,competence_code,sync_status,school_year,school_id,subject_id,mozaik_group_id").eq("assignment_id",assignmentId).eq("group_code",groupCode).maybeSingle(),
     client.from("school_students").select("email,name,group_code").eq("active",true).eq("group_code",groupCode),
-    client.from("school_results").select("student_email,grade").eq("assignment_id",assignmentId).not("grade","is",null)
+    client.from("school_results").select("student_email,grade,base_score,base_max,base_source").eq("assignment_id",assignmentId).not("grade","is",null)
   ]);
   if(!a||a.group_codes?.length!==1||!(a.group_codes||[]).includes(groupCode))fail("Ce travail n’est pas associé à ce groupe.");
   if(!g)fail("Configuration Mozaïk du groupe introuvable. Lance d’abord la détection automatique.",409);
@@ -66,11 +71,11 @@ async function prepare(client:any,body:any){
    if(response.error)fail('Impossible de vérifier la destination Mozaïk.',503);
    switched=validateDestinationSwitch(body.destination,link,scope,response.data||[],assignmentId);
   }
-  if(weightSource==="mozaik"&&!(switched?switched.activityId:link?.activity_id))fail("Impossible de conserver une pondération Mozaïk sans activité existante identifiée pour ce groupe.",409);
+  if((weightSource==="mozaik"||maximumSource==="mozaik")&&!(switched?switched.activityId:link?.activity_id))fail("Impossible de conserver le maximum ou la pondération Mozaïk sans activité existante identifiée pour ce groupe.",409);
   const enrolled=(await annualEnrollments(client,year.year,groupCode)).filter((s:any)=>s.active);
   const map=new Map(enrolled.map((s:any)=>[s.email,s]));
   if((results||[]).some((r:any)=>!map.has(r.student_email)))fail('Des notes historiques concernent des élèves qui ne sont plus inscrits dans ce groupe. Elles restent conservées dans Gestion; vérifie la liste avant un envoi Mozaïk.',409);
-  const rows=(results||[]).filter((r:any)=>map.has(r.student_email)).map((r:any)=>({email:r.student_email,name:map.get(r.student_email).name,grade:r.grade===null||String(r.grade).trim()===""?NaN:Number(r.grade)}));
+  const rows=(results||[]).filter((r:any)=>map.has(r.student_email)).map((r:any)=>({email:r.student_email,name:map.get(r.student_email).name,grade:r.grade===null||String(r.grade).trim()===""?NaN:Number(r.grade),...(aligned?{baseScore:r.base_score??null,baseMax:r.base_max??null,baseSource:r.base_source??null}:{})}));
   if(rows.some((r:any)=>!Number.isFinite(r.grade)))fail("Une note est illisible. Aucune valeur ne sera remplacée par zéro.");
   if(!rows.length)fail("Aucune note à synchroniser pour ce groupe.");
   const s={term:a.term,period:a.mozaik_period,activityDate:a.activity_date,weight:a.weight,competenceKind:a.mozaik_competence_kind,competenceCode:a.mozaik_competence_code,homework:a.mozaik_homework,showInSchedule:a.mozaik_show_in_schedule,reportCardEnabled:a.report_card_enabled,resultsVisible:a.mozaik_results_visible};const term=Number(s.term);const period=Number(s.period);const maxScore=Number(a.max_score);
@@ -84,7 +89,7 @@ async function prepare(client:any,body:any){
   if(weightSource!=="mozaik"&&((weight===null&&s.reportCardEnabled===true&&(weightSource==="gestion"||a.source_metadata?.mozaik?.weight!==null))||weight!==null&&(!Number.isFinite(weight)||weight<0||weight>100)))fail("Entre une pondération entre 0 et 100.");
   const {competenceKind,competenceCode}=competenceForSync(a,switched?null:link);
   if(competenceKind&&!['lecture','ecriture','oral'].includes(competenceKind))fail("Compétence invalide.");
-  const payload:any={sourceRevision:a.revision,protocolVersion:2,scope,group:{code:groupCode,establishmentId:g.establishment_id,groupCourseId:g.group_course_id,groupMatterId:g.group_matter_id,subjectCode:g.subject_code},assignment:{id:a.id,title:a.title,competencies:a.competencies||[],term,activityDate:String(s.activityDate),period,homework:!!s.homework,showInSchedule:s.showInSchedule!==false,reportCardEnabled:!!s.reportCardEnabled,weight,maxScore,weightSource,resultsVisible:!!s.resultsVisible,sourceMetadata:a.source_metadata?.mozaik||null,metadataOverrides:Array.isArray(a.source_metadata?.mozaikOverrides)?a.source_metadata.mozaikOverrides.filter((key:string)=>["reportCardEnabled","weight","resultsVisible","showInSchedule","homework"].includes(key)):[],competenceKind,competenceCode},results:rows,link:link?{activityId:link.activity_id||"",competenceCode:link.competence_code||""}:null};
+  const payload:any={sourceRevision:a.revision,protocolVersion:2,scope,group:{code:groupCode,establishmentId:g.establishment_id,groupCourseId:g.group_course_id,groupMatterId:g.group_matter_id,subjectCode:g.subject_code},assignment:{id:a.id,title:a.title,competencies:a.competencies||[],term,activityDate:String(s.activityDate),period,homework:!!s.homework,showInSchedule:s.showInSchedule!==false,reportCardEnabled:!!s.reportCardEnabled,weight,maxScore,weightSource,...(aligned?{alignmentVersion:1,maximumSource}:{}),resultsVisible:!!s.resultsVisible,sourceMetadata:a.source_metadata?.mozaik||null,metadataOverrides:Array.isArray(a.source_metadata?.mozaikOverrides)?a.source_metadata.mozaikOverrides.filter((key:string)=>["reportCardEnabled","weight","resultsVisible","showInSchedule","homework"].includes(key)):[],competenceKind,competenceCode},results:rows,link:link?{activityId:link.activity_id||"",competenceCode:link.competence_code||""}:null};
   if(switched){payload.previousLink={activityId:switched.previousActivityId};payload.link=switched.activityId?{activityId:switched.activityId,competenceCode:''}:null;}
   const {data:active,error:activeError}=await client.from("school_mozaik_sync_jobs").select("id").eq("assignment_id",assignmentId).eq("group_code",groupCode).eq("status","claimed").maybeSingle();
   if(activeError)fail("Impossible de vérifier les lots en cours.",500);
@@ -93,7 +98,7 @@ async function prepare(client:any,body:any){
   const code=randomCode();const codeHash=await sha(code);const expiresAt=new Date(Date.now()+15*60*1000).toISOString();
   const{error}=await client.from("school_mozaik_sync_jobs").insert({code_hash:codeHash,assignment_id:assignmentId,group_code:groupCode,payload,status:"ready",expires_at:expiresAt,teacher_email:teacher.email});
   if(error)fail("Impossible de préparer la synchronisation.",500);
-  return{code,expiresAt,resultCount:rows.length,weightSourceAccepted:weightSource,minimumExtensionVersion:"1.3.53",mode:payload.link?.activityId?"update":"create",...(switched?{destinationAccepted:switched}:{})}
+  return{code,expiresAt,resultCount:rows.length,weightSourceAccepted:weightSource,...(aligned?{alignmentVersionAccepted:1,maximumSourceAccepted:maximumSource}:{}),minimumExtensionVersion:aligned?"1.3.54":"1.3.53",mode:payload.link?.activityId?"update":"create",...(switched?{destinationAccepted:switched}:{})}
 }
 async function claimJob(client:any,j:any){if(!j||j.status!=="ready"||new Date(j.expires_at).getTime()<=Date.now())fail("Aucune synchronisation prête ou le lot a expiré.",401);const claimToken=randomToken();const claimHash=await sha(claimToken);const{data,error}=await client.from("school_mozaik_sync_jobs").update({status:"claimed",claim_hash:claimHash,claimed_at:new Date().toISOString()}).eq("id",j.id).eq("status","ready").select("id").maybeSingle();if(error||!data)fail("Impossible de prendre en charge ce lot.",409);return{jobId:j.id,claimToken,payload:{...j.payload,checkpoint:j.checkpoint||null}}}
 async function claim(client:any,body:any){const code=String(body.code||"").trim().toUpperCase();if(!code)fail("Code manquant.");const h=await sha(code);const{data:j}=await client.from("school_mozaik_sync_jobs").select("id,payload,status,expires_at,checkpoint").eq("code_hash",h).maybeSingle();return await claimJob(client,j)}
