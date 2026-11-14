@@ -22,9 +22,13 @@ SHA-256: 05577a5f2f9737526107dc5ac9bf62fa568767e3b09b461b4e738c1608a18309
 
 ## Validation and deployment boundary
 
-306 local Node tests passed (0 failed, 0 skipped), including four combinations with the actual extension engine plus isolated PostgreSQL; only Mozaïk HTTP is simulated. Nine focused extension tests passed and 84 JS files pass syntax checks. Browser tests exercised all combinations, cancellation and disabled Mozaïk choices on a new activity. No actual student results were sent or changed in testing.
+306 local Node tests passed again on the final source (0 failed, 0 skipped), including four combinations with the actual extension engine plus isolated PostgreSQL; only Mozaïk HTTP is simulated. Nine focused extension tests passed and 84 JS files pass syntax checks. Browser tests exercised all combinations, cancellation and disabled Mozaïk choices on a new activity. No actual student results were sent or changed in testing.
 
-Migration: 20261114001000_mozaik_parameter_alignment.sql. Edge Function preserves existing custom authentication and verify_jwt=false. Check the actual deployed version, merged PR and Pages deployment before stating that this release is live. The first real authenticated synchronization of 1.3.54 remains a user confirmation, not a test performed here.
+Migration 20261114001000_mozaik_parameter_alignment.sql is APPLIED. All four deployed function-body hashes match the tested migration. Direct execution by anon/authenticated is denied; service_role remains authorized. The pure validator was exercised in production with four synthetic JSON combinations using SELECT only, without reading or updating real grades.
+
+Supabase mozaik-sync v9 is ACTIVE, bundle SHA-256 7d67f0f577ad4ec77a7bc62ee9fedd0590c3cc566e46ce61d69fed855dd3b810. It preserves custom authentication and verify_jwt=false. The shared annual-context dependency has only an error-message wording alignment; authorization logic is unchanged.
+
+PR #2 contains the coordinated page changes. Check the merged state and successful Pages deployment before stating the page is live. GitHub Actions passed on feature commit a44099c817f05a8e557b2c64a0d4a428cd41c01b (run 43535047768); verify the latest HEAD after further commits. The first real authenticated synchronization of 1.3.54 remains a user confirmation, not a test performed here.
 
 ## Historical state
 
