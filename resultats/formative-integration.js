@@ -11,6 +11,7 @@
   let lastIncomingKey = '';
   let importRevision = 0;
   let preparedPreview = null;
+  let confirmedImport = null;
   let frozenGroup = '';
   let frozenYear = null;
   let importBusy = false;
@@ -68,6 +69,7 @@
         invalidatePreview();
         document.getElementById('formativeImportDialog').close();
       }
+      confirmedImport = null;
       currentImport = data.payload;
       pendingCatalogPayload = null;
       sessionStorage.setItem('pending_formative_import', JSON.stringify(data.payload));
@@ -253,6 +255,7 @@
     }
     ensureUi();
     invalidatePreview();
+    confirmedImport = null;
     currentImport = JSON.parse(JSON.stringify(snapshot));
     pendingCatalogPayload = currentImport;
     excludedEmails.clear();
@@ -266,6 +269,8 @@
     const suggestedDestinationId = linked.length === 1 ? String(linked[0].id) : '';
     const initialDestinationId = destinationId || suggestedDestinationId;
     const dialog = document.getElementById('formativeImportDialog');
+    const body = dialog.querySelector('.formative-dialog-body');
+    if (body) body.inert = false;
     dialog.dataset.cardinalNativeDestinationV2 = '1';
     document.getElementById('formativeDialogTitle').textContent = snapshot.title || 'Importer depuis Formative';
     document.getElementById('formativeSummary').innerHTML = `<strong>${escF(snapshot.sectionTitle || `Groupe ${sourceGroup}`)}</strong><span>Destination : groupe ${escF(sourceGroup)} · ${snapshot.students?.length || 0} élèves détectés</span>`;
@@ -389,9 +394,52 @@
       document.querySelectorAll('#formativePreview [data-preview-action]').forEach(row => { row.hidden = !!filter.dataset.previewFilter && row.dataset.previewAction !== filter.dataset.previewFilter; });
     };
   }
+  async function revealConfirmedImport(receipt) {
+    const isCurrent = () => confirmedImport === receipt && currentImport === receipt.payload &&
+      importRevision === receipt.revision && state.teacherToken === receipt.token &&
+      state.schoolYear === receipt.year && state.schoolYearRevision === receipt.yearRevision &&
+      state.navigationRevision === receipt.navigation;
+    if (!isCurrent()) return;
+    const btn = document.getElementById('confirmFormativeImport');
+    const stateEl = document.getElementById('formativeImportState');
+    const warning = document.getElementById('formativeImportWarning');
+    stateEl.textContent = 'Import enregistré. Actualisation de la liste…';
+    warning.classList.add('hidden');
+    const body = document.getElementById('formativeImportDialog').querySelector('.formative-dialog-body');
+    if (body) body.inert = true; // Confirmation is already committed; only refresh/cancel remain.
+    try {
+      const refreshed = await refreshTeacherData({renderViews:true});
+      if (!isCurrent()) return;
+      if (refreshed === false) throw new Error('Le chargement de la liste a été interrompu.');
+    } catch (error) {
+      if (!isCurrent()) return;
+      btn.textContent = 'Actualiser la liste';
+      warning.textContent = 'Import enregistré, mais la liste n’a pas pu être actualisée. ' + (error?.message || error);
+      warning.classList.remove('hidden');
+      stateEl.textContent = 'L’import est déjà enregistré. Réessayer actualise seulement la liste, sans renvoyer les notes.';
+      return;
+    }
+    // Clear the pending import only after the refreshed catalogue is displayed.
+    sessionStorage.removeItem('pending_formative_import'); currentImport = null; confirmedImport = null;
+    document.getElementById('formativeImportDialog').close();
+    try {
+      const opened = await openAssignment(receipt.result.assignmentId);
+      if (opened === false) {
+        notify('Import enregistré et liste actualisée. Le travail n’a pas été ouvert; retrouve-le dans la liste de son groupe.');
+      } else notify(`Formative : ${receipt.result.importedCount || 0} note(s) importée(s).`);
+    } catch (error) {
+      notify('Import enregistré et liste actualisée, mais le travail n’a pas pu être ouvert. ' + (error?.message || error), 'error');
+    }
+  }
   async function confirmImport() {
     if (!currentImport || importBusy) return;
     const btn = document.getElementById('confirmFormativeImport');
+    if (confirmedImport) {
+      importBusy = true; btn.disabled = true;
+      try { await revealConfirmedImport(confirmedImport); }
+      finally { importBusy = false; btn.disabled = false; }
+      return;
+    }
     const stateEl = document.getElementById('formativeImportState');
     const warning = document.getElementById('formativeImportWarning');
     const ids = selectedQuestionIds();
@@ -410,6 +458,7 @@
     };
     if (!settings.title) { warning.textContent = 'Entre un titre pour le travail.'; warning.classList.remove('hidden'); return; }
     const revision = importRevision;
+    const token = state.teacherToken, year = state.schoolYear, yearRevision = state.schoolYearRevision, navigation = state.navigationRevision;
     const confirming = !!preparedPreview;
     try {
       importBusy = true; btn.disabled = true; warning.classList.add('hidden');
@@ -436,7 +485,7 @@
       const result = await api(TEACHER_ENDPOINT, confirming
         ? {action:'formativeConfirm',token:state.teacherToken,schoolYear:frozenYear,previewId:preparedPreview.previewId}
         : {action:'formativePreview',token:state.teacherToken,schoolYear:frozenYear,formative:currentImport,selectedEmails:excludedEmails.size ? (currentImport.students || []).map(s => String(s.email || '').trim().toLowerCase()).filter(email => email && !excludedEmails.has(email)) : undefined,selectedQuestionIds:ids,destinationAssignmentId:dest,scaleMode:document.getElementById('formativeScaleMode').value || 'origin',settings});
-      if (revision !== importRevision || !currentImport) return;
+      if (revision !== importRevision || !currentImport || token !== state.teacherToken || year !== state.schoolYear || yearRevision !== state.schoolYearRevision || navigation !== state.navigationRevision) return;
       if (result?.ok === false) throw new Error(result.message || result.error || 'Import Formative impossible.');
       if (!confirming) {
         if (!result?.previewId || !result?.preview) throw new Error('Le serveur n’a pas fourni un aperçu valide.');
@@ -444,10 +493,8 @@
         renderPreview(result.preview); btn.textContent = 'Confirmer l’import'; stateEl.textContent = 'Vérifie les changements avant de confirmer.';
       } else {
         if (!result?.assignmentId) throw new Error('Le serveur n’a pas confirmé le travail importé.');
-        sessionStorage.removeItem('pending_formative_import'); currentImport = null;
-        document.getElementById('formativeImportDialog').close();
-        await openAssignment(result.assignmentId);
-        notify(`Formative : ${result.importedCount || 0} note(s) importée(s).`);
+        confirmedImport = {result, payload:currentImport, revision, token, year, yearRevision, navigation};
+        await revealConfirmedImport(confirmedImport);
       }
     } catch (error) {
       if (revision !== importRevision) return;

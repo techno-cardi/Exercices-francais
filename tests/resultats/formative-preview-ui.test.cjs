@@ -16,7 +16,7 @@ function harness() {
   const state={teacherToken:'token',extensionVersion:'1.3.24',teacherAssignments:[assignment],currentAssignment:assignment,dashboardGroup:'101',detailGroup:'101'};
   const document = {getElementById:element,querySelector(){return null;},querySelectorAll(){return selected;},addEventListener(t,f){listeners[t]=f;}};
   const window = {addEventListener(t,f){listeners[t]=f;},postMessage(message){this.lastRequest=message;}};
-  const context={window,document,state,console,location:{origin:'http://local'},crypto:require('node:crypto').webcrypto,sessionStorage:{getItem(){return null;},setItem(){},removeItem(){}},setTimeout(){},clearTimeout(){},setInterval(){},today:()=> '2026-10-26',formatNumber:String,competencyArray:()=>[1],TEACHER_ENDPOINT:'teacher',api:async(e,p)=>{calls.push(p);return context.response;},notify:(...a)=>notifications.push(a),openAssignment:async id=>opened.push(id),fillWorkPage(){},Option:function(text,value){this.text=text;this.value=value;}};
+  const context={window,document,state,console,location:{origin:'http://local'},crypto:require('node:crypto').webcrypto,sessionStorage:{getItem(){return null;},setItem(){},removeItem(){}},setTimeout(){},clearTimeout(){},setInterval(){},today:()=> '2026-10-26',formatNumber:String,competencyArray:()=>[1],TEACHER_ENDPOINT:'teacher',api:async(e,p)=>{calls.push(p);return context.response;},notify:(...a)=>notifications.push(a),openAssignment:async id=>opened.push(id),refreshTeacherData:async()=>true,fillWorkPage(){},Option:function(text,value){this.text=text;this.value=value;}};
   const source=fs.readFileSync(path.join(__dirname,'../../resultats/formative-integration.js'),'utf8').replace(/\}\)\(\);\s*$/, 'window.testUi = {showImportModal,tryShowPendingImport,confirmImport,fillSettingsFromDestination,updateSelectedTotal,pullCurrentAssignment,associateCurrentAssignment};})();');
   vm.runInNewContext(source,context);
   const snapshot={formativeId:'f1',groupCode:'101',title:'Formative source',sectionTitle:'Groupe 101',hierarchy:[{id:'q1',parentId:null,kind:'question'}],questions:[{id:'q1',possiblePoints:30,gradedCount:1,label:'Question'}],students:[]};
@@ -232,4 +232,33 @@ test('a newer import arriving during catalog refresh replaces the old request',a
  h.finish();await opening;assert.equal(h.element('formativeImportDialog').open,false);
  const next=h.ui.tryShowPendingImport();h.finish();await next;
  assert.match(h.element('formativeSummary').innerHTML,/Destination : groupe 32/);assert.equal(h.reads(),2);
+});
+
+
+test('Formative confirmation refreshes all work cards before opening its saved work',async()=>{
+ const h=harness();const events=[];h.context.refreshTeacherData=async o=>{events.push(['catalogue',o?.renderViews]);return true;};h.context.openAssignment=async id=>{events.push(['open',id]);};
+ h.ui.showImportModal(h.snapshot);await h.ui.confirmImport();h.context.response={ok:true,assignmentId:'new',importedCount:1};await h.ui.confirmImport();
+ assert.deepEqual(events,[['catalogue',true],['open','new']]);
+});
+test('Formative committed import retries only catalogue read if refresh fails',async()=>{
+ const h=harness();h.context.refreshTeacherData=async()=>{throw Error('network read failed')};h.ui.showImportModal(h.snapshot);await h.ui.confirmImport();h.context.response={ok:true,assignmentId:'new',importedCount:1};await h.ui.confirmImport();
+ assert.equal(h.element('formativeImportDialog').open,true);assert.match(h.element('confirmFormativeImport').textContent,/Actualiser/);assert.match(h.element('formativeImportState').textContent,/enregistr/);
+ h.context.refreshTeacherData=async()=>true;await h.ui.confirmImport();assert.deepEqual(h.calls.map(c=>c.action),['formativePreview','formativeConfirm']);assert.deepEqual(h.opened,['new']);assert.equal(h.element('formativeImportDialog').open,false);
+});
+test('Formative refresh response cannot reopen work after changing group',async()=>{
+ const h=harness();let finish;h.context.refreshTeacherData=()=>new Promise(r=>finish=r);h.ui.showImportModal(h.snapshot);await h.ui.confirmImport();h.context.response={ok:true,assignmentId:'new',importedCount:1};const work=h.ui.confirmImport();await new Promise(setImmediate);
+ h.context.state.dashboardGroup='102';h.listeners['cardinal-group-changed']();finish?.(true);await work;assert.deepEqual(h.opened,[]);
+});
+test('Formative committed import never confirms again on double click during reload',async()=>{
+ const h=harness();let finish;h.context.refreshTeacherData=()=>new Promise(r=>finish=r);h.ui.showImportModal(h.snapshot);await h.ui.confirmImport();h.context.response={ok:true,assignmentId:'new',importedCount:1};const work=h.ui.confirmImport();await new Promise(setImmediate);await h.ui.confirmImport();finish?.(true);await work;assert.equal(h.calls.filter(c=>c.action==='formativeConfirm').length,1);assert.deepEqual(h.opened,['new']);
+});
+
+test('late Formative confirmation never refreshes or opens in another login session',async()=>{
+ const h=harness();let finish,reads=0;h.context.refreshTeacherData=async()=>{reads++;return true};h.ui.showImportModal(h.snapshot);await h.ui.confirmImport();
+ h.context.api=async(e,p)=>{h.calls.push(p);return new Promise(r=>finish=r)};const work=h.ui.confirmImport();await new Promise(setImmediate);h.context.state.teacherToken='other-session';finish({ok:true,assignmentId:'new',importedCount:1});await work;
+ assert.equal(reads,0);assert.deepEqual(h.opened,[]);
+});
+test('a saved Formative work whose detail fails to open stays a successful import',async()=>{
+ const h=harness();h.context.openAssignment=async()=>{throw Error('detail failed')};h.ui.showImportModal(h.snapshot);await h.ui.confirmImport();h.context.response={ok:true,assignmentId:'new',importedCount:1};await h.ui.confirmImport();await h.ui.confirmImport();
+ assert.equal(h.calls.filter(c=>c.action==='formativeConfirm').length,1);assert.equal(h.element('formativeImportDialog').open,false);assert.match(h.notifications.flat().join(' '),/Import enregistré et liste actualisée/);
 });
