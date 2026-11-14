@@ -25,11 +25,12 @@ jobs:
         run: |
           node --check resultats/app.js
           node --check resultats/assignment-actions.js
+          node --check resultats/mozaik-review.js
           node --check resultats/gestion-imports.js
           node --check resultats/app-patch-v05.js
           node --check resultats/app-patch-v14.js
       - name: Contrat coordonné de pondération et reprise
-        run: node --test resultats/tests/mozaik-weight-choice.test.cjs tests/resultats/mozaik-release-contract.test.cjs tests/resultats/mozaik-backend.test.cjs
+        run: node --test resultats/tests/mozaik-review.test.cjs resultats/tests/mozaik-weight-choice.test.cjs tests/resultats/mozaik-release-contract.test.cjs tests/resultats/mozaik-backend.test.cjs
       - name: Installer PostgreSQL isolé vérifié par empreinte
         run: node resultats/tests/sql-setup.mjs
       - name: Régressions SQL autonomes hors production
