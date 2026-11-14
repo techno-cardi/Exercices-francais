@@ -50,7 +50,7 @@
   }
   function change(event) {
     const s = session, node = event.target;
-    if (!s || !valid(s) || s.busy) return;
+    if (!s || !valid(s) || s.busy || s.confirmedResult) return;
     if (s.kind === 'destination') {
       if (node.dataset.destination !== undefined) {
         s.destination = s.destinationOptions?.includes(node.value) ? node.value : '';
@@ -216,15 +216,25 @@
           el('gestionImportsSubmit').textContent = 'Confirmer l’import des travaux';
         }
       } else {
-        const result = await request(s, s.kind === 'split' ? 'splitConfirm' : 'mozaikConfirm', {previewId:s.previewId});
+        // Keep the successful receipt if only the subsequent catalogue read fails.
+        // Retrying then performs a read, never another metadata/grade confirmation.
+        const result = s.confirmedResult || await request(s, s.kind === 'split' ? 'splitConfirm' : 'mozaikConfirm', {previewId:s.previewId});
         if (!valid(s)) return;
-        await refreshTeacherData(); if (!valid(s)) return;
+        s.confirmedResult = result;
+        const refreshed = await refreshTeacherData({renderViews:true});
+        if (!valid(s)) return;
+        if (refreshed === false) throw new Error('Le chargement de la liste a été interrompu.');
         const copies = (result.assignments || []).map(copy => ({...copy, assignmentId:copy.assignmentId || copy.id}));
         close();
         if (s.kind === 'split' && copies.length) {const id = await resolveOldWork({copies}); if (id) await openAssignment(id);}
         else if (typeof notify === 'function') notify('Travaux Mozaïk importés.');
       }
-    } catch (e) {if (valid(s)) {error(s, e);}}
+    } catch (e) {if (valid(s)) {
+      if (s.confirmedResult) {
+        error(s, new Error('Import enregistré, mais la liste n’a pas pu être actualisée. Réessaie l’actualisation : aucun travail ne sera recréé. ' + (e?.message || e)));
+        el('gestionImportsSubmit').textContent = 'Actualiser la liste';
+      } else error(s, e);
+    }}
     finally {if (valid(s)) {s.busy = false; updateButton(s);}}
   }
   async function loadDestination(s) {

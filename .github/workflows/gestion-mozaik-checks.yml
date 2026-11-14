@@ -24,11 +24,14 @@ jobs:
       - name: Syntaxe des modules Gestion modifiés
         run: |
           node --check resultats/app.js
+          node --check resultats/formative-integration.js
           node --check resultats/assignment-actions.js
           node --check resultats/mozaik-review.js
           node --check resultats/gestion-imports.js
           node --check resultats/app-patch-v05.js
           node --check resultats/app-patch-v14.js
+      - name: Affichage immédiat des imports et relance de lecture sans doublon
+        run: node --test resultats/tests/import-refresh.test.cjs resultats/tests/student-grade-target.test.cjs tests/resultats/formative-preview-ui.test.cjs tests/resultats/gestion-imports-ui.test.cjs
       - name: Contrat coordonné de pondération et reprise
         run: node --test resultats/tests/mozaik-review.test.cjs resultats/tests/mozaik-weight-choice.test.cjs tests/resultats/mozaik-release-contract.test.cjs tests/resultats/mozaik-backend.test.cjs
       - name: Installer PostgreSQL isolé vérifié par empreinte

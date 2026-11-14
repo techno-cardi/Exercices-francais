@@ -469,10 +469,12 @@ async function openAssignmentStudent(assignmentId, email) {
   } catch (error) { notify(error.message, 'error'); return false; }
 }
 
-async function refreshTeacherData() {
+async function refreshTeacherData({ renderViews = false } = {}) {
+  // An older read (e.g. navigation before an import) must not restore an obsolete catalogue.
+  const requestId = state.teacherDataRequestId = (state.teacherDataRequestId || 0) + 1;
   const year = state.schoolYear, revision = state.schoolYearRevision, token = state.teacherToken;
   const d = await api(TEACHER_ENDPOINT, { action: "teacherDashboard", token, schoolYear: year });
-  if (revision !== state.schoolYearRevision || token !== state.teacherToken) return false;
+  if (requestId !== state.teacherDataRequestId || revision !== state.schoolYearRevision || year !== state.schoolYear || token !== state.teacherToken) return false;
   if (d.context) {
     state.schoolYear = d.context.year; state.yearContext = d.context; state.teacherDataYear = d.context.year;
     window.CardinalSchoolYears?.adopt(d.context);
@@ -484,6 +486,12 @@ async function refreshTeacherData() {
   const threshold = saved === null || saved === '' ? 60 : Number(saved);
   state.passingThreshold = Number.isFinite(threshold) && threshold >= 0 && threshold <= 100 ? threshold : 60;
   window.CardinalGroupUI?.refresh();
+  // Imports opt in: reading the catalogue alone does not repaint the cards.
+  // Keep the active group's term/search/competency filters; never touch the grade editor.
+  if (renderViews) {
+    renderDashboard();
+    renderAssignmentList();
+  }
   return true;
 }
 

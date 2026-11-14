@@ -1,6 +1,6 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
 function harness(){
- const source=fs.readFileSync(path.join(__dirname,'../app.js'),'utf8'),a=source.indexOf('let studentTargetRevision ='),b=source.indexOf('async function refreshTeacherData()',a);
+ const source=fs.readFileSync(path.join(__dirname,'../app.js'),'utf8'),a=source.indexOf('let studentTargetRevision ='),b=source.indexOf('async function refreshTeacherData(',a);
  assert.ok(a>=0&&b>a,'Targeted student navigation must exist');
  const state={teacherToken:'t',teacherSection:'overview',currentAssignment:null,currentStudents:[],detailGroup:'31'};
  const fields={studentSearch:{value:'Other student'},gradeFilter:{value:'failures'},detailGroupSelect:{value:'31'}};

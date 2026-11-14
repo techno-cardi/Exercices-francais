@@ -155,3 +155,13 @@ test('uncertain metadata confirmation retries the same stored operation',async()
  assert.equal(h.calls.at(-1).action,'mozaikConfirm');assert.equal(h.calls.at(-1).previewId,'stable');
  assert.equal(h.calls.at(-2).previewId,'stable');
 });
+
+
+async function readyMetadataImport(){
+ const h=harness();h.context.response={preview:{rows:[{activityId:'m',title:'Essai',status:'missing',selectable:true,metadata:{maxScore:10}}]}};
+ const work=h.window.CardinalGestionImports.openMozaik();deliver(h,snapshot());await work;
+ h.context.response={previewId:'prepared',preview:{}};await h.ui.submit();h.context.response={assignments:[{id:'new',groupCode:'101'}]};return h;
+}
+test('Mozaik metadata import refreshes the displayed cards after confirmation',async()=>{const h=await readyMetadataImport();const views=[];h.context.refreshTeacherData=async options=>{views.push(options?.renderViews);return true;};await h.ui.submit();assert.deepEqual(views,[true]);assert.equal(h.el('gestionImportsDialog').open,false);});
+test('Mozaik committed metadata import retries only the view refresh',async()=>{const h=await readyMetadataImport();h.context.refreshTeacherData=async()=>{throw Error('failed read')};await h.ui.submit();assert.equal(h.el('gestionImportsDialog').open,true);assert.match(h.el('gestionImportsSubmit').textContent,/Actualiser/);h.context.refreshTeacherData=async()=>true;await h.ui.submit();assert.equal(h.calls.filter(c=>c.action==='mozaikConfirm').length,1);assert.equal(h.el('gestionImportsDialog').open,false);});
+test('Mozaik abandoned refresh does not close a new group dialog',async()=>{const h=await readyMetadataImport();let finish;h.context.refreshTeacherData=()=>new Promise(r=>finish=r);const work=h.ui.submit();await new Promise(setImmediate);h.state.dashboardGroup='102';h.listeners['cardinal-group-changed']();finish(true);await work;assert.equal(h.opened.length,0);});
