@@ -1,21 +1,11 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-function harness(){
- const calls=[],sent=[],messages=[],nodes=new Map();let saves=0;
- const el=id=>{if(!nodes.has(id))nodes.set(id,{textContent:'Envoyer',disabled:false,dataset:{},classList:{remove(){},add(){}}});return nodes.get(id);};
- const payload={group:{code:'31'},assignment:{id:'a',title:'Examen',weightSource:'gestion'},results:[{email:'test@invalid',grade:5}]};
- const job={jobId:'job',claimToken:'secret',payload};
- const state={teacherToken:'t',extensionReady:true,extensionVersion:'1.3.53',detailGroup:'31',currentAssignment:{id:'a',groups:['31'],competenceKind:'lecture'},currentStudents:[{group:'31',grade:5}]};
- const window={postMessage(){},CardinalAssignmentActions:{reviewMozaik:async()=>true,chooseMozaikWeightSource:async()=> 'gestion'},CardinalGestionImports:{getLastDestinationWeightInfo:()=>({assignmentId:'a',groupCode:'31',capturedAt:Date.now(),weight:45,maxScore:70,isNew:false}),chooseMozaikDestination:async()=>true}};
- const ctx={state,window,HTMLInputElement:class{},document:{getElementById:el,querySelector:()=>null,activeElement:null},location:{origin:'https://local'},console,setTimeout,clearTimeout,setInterval:()=>1,clearInterval(){},SYNC_ENDPOINT:'sync',PUBLIC_KEY:'public',pingExtension(){},validateMozaikGrades(){},commitGrade(){},saveAssignmentSettings:async()=>{saves++},refreshSyncState:async()=>{},collectAssignment:()=>state.currentAssignment,today:()=> '2026-10-26',competenceLabel:()=> 'Lire',notify:m=>messages.push(m),api:async(e,p)=>{calls.push(p);if(p.action==='status')return{pendingJobs:ctx.pendingJobs||[]};if(p.action==='cancelUnwritten')return{mode:ctx.reconcileMode||'cancelled'};if(p.action==='prepare'){ctx.destination=p.destination;return{code:'code',resultCount:1,weightSourceAccepted:p.weightSource,...(p.destination&&!ctx.staleServer?{destinationAccepted:p.destination}:{})};}if(p.action==='claim'&&ctx.destination)return{...job,payload:{...payload,previousLink:{activityId:ctx.destination.previousActivityId},link:ctx.destination.activityId?{activityId:ctx.destination.activityId}:null}};if(['claim','resume'].includes(p.action))return job;return{success:true,staleSource:ctx.staleSource}},sendToExtension:async p=>{sent.push(p);return p.reviewOnly?{success:true,previewRequired:true,preview:{rows:[]},weightSource:p.assignment.weightSource||'legacy',weightChoiceVersion:1,checkpoint:{phase:'planned'}}:{success:true,verified:true,verifiedCount:1,syncedCount:1,activityId:'remote'}}};
- const source=fs.readFileSync('resultats/app-patch-v14.js','utf8').replace(/\}\)\(\);\s*$/,'window.testSync={runSync};})();');vm.runInNewContext(source,ctx);
- return{ctx,state,window,calls,sent,messages,el,job,saves:()=>saves};
-}
+const {harness}=require('./mozaik-frontend-harness.cjs');
 
 test('old extension cannot ignore explicit weight authority',async()=>{
  const h=harness();h.state.extensionVersion='1.3.52';
  await h.window.testSync.runSync(h.el('syncMozaikBtn'));
  assert.equal(h.sent.length,0);assert.equal(h.calls.some(c=>c.action==='prepare'),false);
- assert.match(h.messages.join(' '),/1\.3\.53/);
+ assert.match(h.messages.join(' '),/1\.3\.54/);
 });
 test('server missing weight acknowledgement stops before claim or extension',async()=>{
  const h=harness(),original=h.ctx.api;
@@ -37,7 +27,7 @@ test('legacy worker preview without authority receipt cannot be confirmed',async
  assert.match(h.messages.join(' '),/pondération|compatible/);
 });
 test('source choice does not follow teacher to a changed assignment',async()=>{
- const h=harness();h.window.CardinalAssignmentActions.chooseMozaikWeightSource=async()=>{h.state.currentAssignment={id:'different',groups:['31']};return 'gestion';};
+ const h=harness();h.window.CardinalAssignmentActions.chooseMozaikParameterSources=async()=>{h.state.currentAssignment={id:'different',groups:['31']};return {weightSource:'gestion',maximumSource:'gestion',alignmentVersion:1};};
  await h.window.testSync.runSync(h.el('syncMozaikBtn'));
  assert.equal(h.calls.some(c=>c.action==='prepare'),false);assert.equal(h.sent.length,0);
 });
@@ -59,4 +49,33 @@ test('recovery locks navigation before fetching old frozen job',async()=>{
  const h=harness();h.el('recoverMozaikBtn').dataset.jobId='job';let wasLocked=false;
  const original=h.ctx.api;h.ctx.api=async(e,p)=>{if(p.action==='reconcileStale'){wasLocked=h.window.cardinalActiveSync===true;return{...h.job,mode:'reconcile'};}return original(e,p);};
  await h.el('recoverMozaikBtn').onclick();assert.equal(wasLocked,true);assert.equal(h.window.cardinalActiveSync,false);
+});
+
+test('both maximum and weight acknowledgements are required before claiming',async()=>{
+ for(const key of ['maximumSourceAccepted','alignmentVersionAccepted']){
+  const h=harness(),api=h.ctx.api;h.ctx.api=async(e,p)=>{const out=await api(e,p);if(p.action==='prepare')delete out[key];return out;};
+  await h.window.testSync.runSync(h.el('syncMozaikBtn'));assert.equal(h.sent.length,0,key);assert.equal(h.calls.some(p=>p.action==='claim'),false);
+ }
+});
+test('a preview with another maximum source is never sent',async()=>{
+ const h=harness();h.ctx.sendToExtension=async p=>{h.sent.push(p);return{...h.inspection(p),maximumSource:'mozaik'};};
+ await h.window.testSync.runSync(h.el('syncMozaikBtn'));assert.equal(h.sent.length,1);assert.equal(h.sent.some(p=>p.confirmedReview),false);
+});
+test('successful completion refreshes the actual persisted Gestion state',async()=>{
+ const h=harness();await h.window.testSync.runSync(h.el('syncMozaikBtn'));
+ assert.equal(h.calls.filter(p=>p.action==='teacherAssignment').length,1);assert.equal(h.ctx.fills,1);assert.equal(h.state.currentAssignment.maxScore,70);
+});
+test('failed post-alignment refresh keeps old editor locked until reload',async()=>{
+ const h=harness(),api=h.ctx.api;h.ctx.api=async(e,p)=>{if(p.action==='teacherAssignment')throw Error('offline');return api(e,p);};
+ await h.window.testSync.runSync(h.el('syncMozaikBtn'));assert.equal(h.window.cardinalAlignmentReloadRequired,true);assert.equal(h.el('assignmentDetail').inert,true);
+ assert.equal(h.messages.some(m=>/Synchronisation réussie/.test(m)),false);
+});
+test('page editor is locked while native writes and finalization can change its scale',async()=>{
+ const h=harness(),send=h.ctx.sendToExtension;let locked;
+ h.ctx.sendToExtension=async p=>{if(!p.reviewOnly)locked=h.el('assignmentDetail').inert;return send(p);};
+ await h.window.testSync.runSync(h.el('syncMozaikBtn'));assert.equal(locked,true);assert.equal(h.el('assignmentDetail').inert,false);
+});
+test('lost completion acknowledgment does not unlock stale local scores',async()=>{
+ const h=harness(),api=h.ctx.api;h.ctx.api=async(e,p)=>{if(p.action==='complete')throw Error('response lost');return api(e,p);};
+ await h.window.testSync.runSync(h.el('syncMozaikBtn'));assert.equal(h.window.cardinalAlignmentReloadRequired,true);assert.equal(h.el('assignmentDetail').inert,true);
 });

@@ -67,8 +67,9 @@ test('Backend source is explicit and scoped to a newly prepared job',()=>{
   const content=fs.readFileSync(path.join(__dirname,'../../supabase/functions/mozaik-sync/index.ts'),'utf8');
   assert.match(content,/weightSource=body.weightSource==null/);
   assert.match(content,/\["legacy","gestion","mozaik"\]/);
-  assert.match(content,/maxScore,weightSource,resultsVisible/);
-  assert.match(content,/weightSource==="mozaik"&&!/);
+  assert.match(content,/maxScore,weightSource,/);
+  assert.match(content,/alignmentVersion:1,maximumSource/);
+  assert.match(content,/maximumSource==="mozaik"/);
 });
 test('Frontend rejects prior/stale destination metadata and uses exact group',()=>{
   const v14=fs.readFileSync(path.join(__dirname,'../app-patch-v14.js'),'utf8');

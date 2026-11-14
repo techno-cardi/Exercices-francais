@@ -104,6 +104,49 @@
       actions.append(cancel,next);dialog.append(head,body,actions);document.body.append(dialog);active=dialog;dialog.showModal();
     });
   }
+  // Independent choices. Nothing is saved locally or remotely by this dialog.
+  function chooseMozaikParameterSources(context = {}) {
+    if (active) return Promise.reject(new Error('Une fenêtre de confirmation est déjà ouverte.'));
+    return new Promise(resolve => {
+      const dialog=document.createElement('dialog');dialog.className='dialog formative-dialog';
+      const head=document.createElement('div');head.className='dialog-head';
+      const title=document.createElement('h2');title.textContent='Choisir les paramètres à harmoniser';head.append(title);
+      const body=document.createElement('div');body.className='formative-dialog-body';
+      const info=document.createElement('p');info.textContent=`Groupe ${context.groupCode||'—'} · ${context.title||'Travail'}`;body.append(info);
+      const explanation=document.createElement('p');explanation.textContent='Choisis séparément la référence pour la pondération et le maximum. Après confirmation et vérification de l’envoi, Gestion des notes et Mozaïk utiliseront les mêmes valeurs.';body.append(explanation);
+      const format=(v,suffix)=>v===null||v===undefined||v===''?'à vérifier':`${v}${suffix}`;
+      const weight=(value,bulletin)=>bulletin===false?'Non porté au bulletin':format(value,' %');
+      const groups=[
+        {key:'weight',label:'Pondération et portée au bulletin',gestion:weight(context.gestionWeight,context.gestionReportCard),mozaik:weight(context.mozaikWeight,context.mozaikReportCard)},
+        {key:'maximum',label:'Maximum de points',gestion:format(context.gestionMaxScore,' points'),mozaik:format(context.mozaikMaxScore,' points')}
+      ];
+      const form=document.createElement('div');form.style.cssText='display:grid;gap:16px';
+      for(const group of groups){
+        const fieldset=document.createElement('fieldset');fieldset.style.cssText='border:1px solid #ccd5e2;border-radius:10px;padding:14px';
+        const legend=document.createElement('legend');legend.textContent=group.label;legend.style.fontWeight='700';fieldset.append(legend);
+        for(const source of ['gestion','mozaik']){
+          const row=document.createElement('label');row.style.cssText='display:flex;align-items:center;gap:12px;padding:10px;cursor:pointer';
+          const input=document.createElement('input');input.type='radio';input.name=`cardinal-${group.key}-source`;input.value=source;
+          if(source==='mozaik'&&context.isNew){input.disabled=true;row.style.opacity='.55';}
+          const label=document.createElement('span');label.textContent=source==='gestion'?`Utiliser Gestion : ${group.gestion}`:`Utiliser Mozaïk : ${context.isNew?'nouveau travail, valeur indisponible':group.mozaik}`;
+          row.append(input,label);fieldset.append(row);
+        }
+        form.append(fieldset);
+      }
+      body.append(form);
+      const hint=document.createElement('p');hint.className='hint';hint.textContent='Si le maximum change, les notes de Gestion et les notes numériques conservées hors lot dans Mozaïk sont converties proportionnellement, avec arrondi au dixième. Une note absente reste absente. Les valeurs Mozaïk seront relues avant l’aperçu.';body.append(hint);
+      const summary=document.createElement('p');summary.className='hint';summary.setAttribute('aria-live','polite');body.append(summary);
+      const actions=document.createElement('div');actions.className='dialog-actions';
+      const cancel=document.createElement('button');cancel.type='button';cancel.className='btn';cancel.textContent='Annuler';
+      const next=document.createElement('button');next.type='button';next.className='btn btn-primary';next.textContent='Vérifier l’aperçu';next.disabled=true;
+      const selected=()=>({weightSource:form.querySelector('input[name="cardinal-weight-source"]:checked')?.value,maximumSource:form.querySelector('input[name="cardinal-maximum-source"]:checked')?.value});
+      form.addEventListener('change',()=>{const s=selected();next.disabled=!s.weightSource||!s.maximumSource;summary.textContent=next.disabled?'Choisis une référence pour chacun des deux paramètres.':`Après l’envoi : ${groups[0][s.weightSource]} · ${groups[1][s.maximumSource]} dans les deux systèmes.`;});
+      const finish=value=>{active=null;dialog.close();dialog.remove();resolve(value);};
+      cancel.onclick=()=>finish(null);next.onclick=()=>{const s=selected();if(s.weightSource&&s.maximumSource)finish({...s,alignmentVersion:1});};
+      dialog.addEventListener('cancel',e=>{e.preventDefault();finish(null);});
+      actions.append(cancel,next);dialog.append(head,body,actions);document.body.append(dialog);active=dialog;dialog.showModal();
+    });
+  }
   function reviewMozaik(preview, context = {}) {
     if (active) return Promise.reject(new Error('Un aperçu est déjà ouvert.'));
     return new Promise(resolve => {
@@ -114,14 +157,28 @@
       const note=document.createElement('p');note.textContent=`Groupe ${context.groupCode || ''} · ${context.title || ''}`;body.append(note);
       if(context.reconcilingStale){const warning=document.createElement('p');warning.className='alert';warning.textContent='Gestion a changé depuis cet envoi. Cette reprise termine le lot précédent pour rétablir un état cohérent dans Mozaïk. Les changements plus récents resteront à envoyer ensuite.';body.append(warning);}
       const before=preview.activityBefore || {},after=preview.activityAfter || {};
-      if(context.weightSource === 'mozaik') {
+      if(context.weightSource === 'mozaik' && !preview.gestionAfter) {
         const info=document.createElement('p');info.className='hint';
         info.textContent='Source de la pondération : Mozaïk. La pondération de Gestion n’est pas remplacée.';
         body.append(info);
-      } else if(context.weightSource === 'gestion') {
+      } else if(context.weightSource === 'gestion' && !preview.gestionAfter) {
         const info=document.createElement('p');info.className='hint';
         info.textContent='Source de la pondération : Gestion des notes. La valeur de Gestion sera appliquée à Mozaïk si nécessaire.';
         body.append(info);
+      }
+      if(preview.gestionAfter){
+        const old=preview.gestionBefore||{},aligned=preview.gestionAfter;
+        const label=v=>v===true?'Oui':v===false?'Non':v==null?'Sans pondération':String(v);
+        const heading=document.createElement('h3');heading.textContent='Paramètres après confirmation : identiques dans les deux systèmes';body.append(heading);
+        const table=document.createElement('table');table.className='grade-table';
+        const header=document.createElement('tr');for(const text of ['Paramètre','Gestion actuellement','Mozaïk actuellement','Valeur retenue']){const th=document.createElement('th');th.textContent=text;header.append(th);}table.append(header);
+        for(const values of [
+          ['Pondération',old.weight,before.parametresEvaluation?.ponderation,aligned.weight],
+          ['Maximum',old.maxScore,before.parametresEvaluation?.noteMaximale,aligned.maxScore],
+          ['Porté au bulletin',old.reportCardEnabled,before.parametresEvaluation?.porteeAuBulletin,aligned.reportCardEnabled]
+        ]){const row=document.createElement('tr');for(const value of values){const cell=document.createElement('td');cell.textContent=label(value);row.append(cell);}table.append(row);}
+        body.append(table);
+        const warning=document.createElement('p');warning.className='hint';warning.textContent='Les notes ci-dessous proviennent de Gestion. Leur conversion sera aussi enregistrée dans Gestion une seule fois, après vérification de Mozaïk. Un échec ou une modification concurrente ne sera pas annoncé comme un alignement réussi.';body.append(warning);
       }
       const destination=document.createElement('p');
       destination.textContent=preview.activityBefore
@@ -134,7 +191,12 @@
       const hint=document.createElement('p');hint.textContent='Les lignes conservées hors lot sont incluses ci-dessous. Si le maximum change, leurs notes sont recalculées proportionnellement et arrondies au dixième; les valeurs avant et après sont affichées.';body.append(hint);
       const scroll=document.createElement('div');scroll.style.cssText='max-height:42vh;overflow:auto';
       const table=document.createElement('table');table.className='grade-table';
-      for(const row of preview.rows||[]){const tr=document.createElement('tr');for(const value of [row.name || `Élève ${row.fiche}`,row.source==='gestion'?'Note de Gestion':'Conservée hors lot',`${show(row.beforeGrade)}/${show(row.beforeMax)} → ${show(row.afterGrade)}/${show(row.afterMax)}`]){const td=document.createElement('td');td.textContent=value;tr.append(td);}table.append(tr);}
+      if(preview.gestionAfter){const tr=document.createElement('tr');for(const text of ['Élève','Gestion avant','Mozaïk avant','Après confirmation']){const th=document.createElement('th');th.textContent=text;tr.append(th);}table.append(tr);}
+      for(const row of preview.rows||[]){
+        const values=preview.gestionAfter?[row.name||`Élève ${row.fiche}`,row.source==='gestion'?`${show(row.gestionBeforeGrade)}/${show(row.gestionBeforeMax)}`:'Hors lot de Gestion',`${show(row.beforeGrade)}/${show(row.beforeMax)}`,`${show(row.afterGrade)}/${show(row.afterMax)}${row.source==='gestion'?' · les deux systèmes':' · Mozaïk seulement'}`]
+          :[row.name||`Élève ${row.fiche}`,row.source==='gestion'?'Note de Gestion':'Conservée hors lot',`${show(row.beforeGrade)}/${show(row.beforeMax)} → ${show(row.afterGrade)}/${show(row.afterMax)}`];
+        const tr=document.createElement('tr');for(const value of values){const td=document.createElement('td');td.textContent=value;tr.append(td);}table.append(tr);
+      }
       scroll.append(table);body.append(scroll);
       const actions=document.createElement('div');actions.className='dialog-actions';
       const finish=ok=>{active=null;dialog.close();dialog.remove();resolve(ok);};
@@ -144,5 +206,5 @@
       actions.append(cancel,confirm);dialog.append(heading,body,actions);document.body.append(dialog);active=dialog;dialog.showModal();
     });
   }
-  window.CardinalAssignmentActions = {reviewPreview,reviewMozaik,chooseMozaikWeightSource};
+  window.CardinalAssignmentActions = {reviewPreview,reviewMozaik,chooseMozaikWeightSource,chooseMozaikParameterSources};
 })();

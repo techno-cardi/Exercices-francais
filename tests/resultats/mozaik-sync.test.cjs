@@ -1,7 +1,7 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
-const worker=fs.readFileSync(path.resolve(__dirname,'../../../cardinal-v1332/legacy-service-worker.js'),'utf8');
+const worker=fs.readFileSync(path.resolve(process.env.CARDINAL_EXTENSION_DIR||path.resolve(__dirname,'../../../cardinal-v1332'),'legacy-service-worker.js'),'utf8');
 const source=worker.slice(worker.indexOf('async function syncInsideMozaik('),worker.indexOf('// ===== background-v081.js'));
 function setup(options={}) {
  const g={code:'101',establishmentId:'school',groupCourseId:'course2026',groupMatterId:'matter2026',subjectCode:'FR'};
@@ -9,13 +9,13 @@ function setup(options={}) {
  let persistedPhase='';let rows={customEnvelope:'preserve',eleves:options.nativeRows??[{fiche:1,resultat:'5',commentaire:'retained'},{fiche:2,resultat:options.outsideGrade??'8',special:{code:'ABS'}},{fiche:3,resultat:'ABS',extra:'keep'}]};
  const phases=[];const writes=[];let updates=0,created=null;
  const payload={confirmedReview:true,group:g,assignment:{id:'a1',title:'Renamed',term:1,activityDate:'2026-10-26',period:1,maxScore:20,weight:15,reportCardEnabled:true,competenceKind:'lecture'},results:[{email:'a@educ.cscapitale.qc.ca',name:'A',grade:12}],link:{activityId:'activity-1'},syncJob:{jobId:'j1',claimToken:'secret',endpoint:'https://backend/checkpoint',apiKey:'public'}};
- const context={console,setTimeout:f=>{f();return 1},globalThis:{CardinalMozaikMembersV1312:{read:async()=>[{fiche:1,courriel:'a@educ.cscapitale.qc.ca'}]}},fetch:async(url,init)=>{
+ const context={console,setTimeout:f=>{f();return 1},globalThis:{CardinalMozaikMembersV1312:{read:async()=>options.members||[{fiche:1,courriel:'a@educ.cscapitale.qc.ca'}]}},fetch:async(url,init)=>{
  const body=init.body?JSON.parse(init.body):null;let out;
- if(url==='https://backend/checkpoint') {const rank=['creating','created','planned','parameters_verified','results_verified','verified'];if(persistedPhase&&rank.indexOf(body.checkpoint.phase)<rank.indexOf(persistedPhase)) return response({ok:false,message:'invalid_job_phase'},409);phases.push(body);out={ok:true,checkpoint:body.checkpoint};if(options.stopApproval&&body.checkpoint.reviewConfirmed===true)return response({ok:false,message:'approval unavailable'},409);if(options.stopPhase===body.checkpoint.phase) return response({ok:false,message:'interrupted'},409);persistedPhase=body.checkpoint.phase;}
+ if(url==='https://backend/checkpoint') {const rank=['creating','created','planned','parameters_verified','results_verified','verified'];if(persistedPhase&&rank.indexOf(body.checkpoint.phase)<rank.indexOf(persistedPhase)) return response({ok:false,message:'invalid_job_phase'},409);phases.push(body);out={ok:true,checkpoint:body.checkpoint};if(options.stopApproval&&body.checkpoint.reviewConfirmed===true)return response({ok:false,message:'approval unavailable'},409);if(options.stopPhase===body.checkpoint.phase) return response({ok:false,message:'interrupted'},409);persistedPhase=body.checkpoint.phase;if(options.checkpointHandler){try{out={ok:true,checkpoint:await options.checkpointHandler(body.checkpoint)};}catch(error){return response({ok:false,message:error.message},409);}}}
  else if(url.endsWith('/competences')) out=[{code:'1',description:'lecture'}];
- else if(url.includes('/planifications/')) out={activites:[{id:'activity-1'},...(created?[{id:created.id}]:[])]};
+ else if(url.includes('/planifications/')) out={activites:[{id:activity.id},...(created?[{id:created.id}]:[])]};
  else if(url.includes('/resultats/')) {if(init.method==='PUT'){writes.push(body);rows=body;if(options.enrichRows) rows={...body,eleves:body.eleves.map(row=>({...row,descriptionCote:null,estCote:false,noteEquivalente:null,reussite:null})).reverse()};}out=options.readRows||rows;}
- else if(init.method==='PUT') {updates++;Object.assign(activity,body);if(options.wrongWeight) activity.parametresEvaluation.ponderation=99;if(options.omitNullCategory)delete activity.parametresEvaluation.idCategoriePonderation;out=activity;}
+ else if(init.method==='PUT') {if(options.activityNetworkFailure)throw Error('network lost');if(options.activityRejected)return response({message:'invalid'},400);updates++;Object.assign(activity,{...body,parametresEvaluation:{...activity.parametresEvaluation,...body.parametresEvaluation,evaluee:true}});if(options.deriveLegend){if(activity.parametresEvaluation.porteeAuBulletin)delete activity.parametresEvaluation.legende;else activity.parametresEvaluation.legende='MEN';}if(options.wrongWeight) activity.parametresEvaluation.ponderation=99;if(options.omitNullCategory)delete activity.parametresEvaluation.idCategoriePonderation;out=activity;}
  else if(init.method==='POST') {if(!options.allowCreate)throw Error('unexpected create');created={...body,id:'12a5792a-a167-4032-8507-03bad69f4877',idGroupe:g.groupMatterId};out={id:created.id};}
  else out=options.missing?[]:[activity,...(created?[created]:[])];
  return response(out);
@@ -86,3 +86,65 @@ test('unevaluated planned activity with missing maximum and empty results previe
 test('missing native maximum preserves outside special states while publishing incoming graded rows',async()=>{const s=setup({nativeRows:[{fiche:2,resultat:'ABS',special:{code:'absent'}}]});s.activity.parametresEvaluation.noteMaximale=null;s.activity.parametresEvaluation.evaluee=false;s.payload.assignment.maxScore=40;const out=await s.run();assert.equal(out.success,true,out.message);assert.equal(s.writes[0].eleves.find(row=>row.fiche===2).resultat,'ABS');assert.equal(s.writes[0].eleves.find(row=>row.fiche===2).special.code,'absent')});
 test('an incoming numeric grade never silently overrides an existing absence or letter grade',async()=>{for(const row of [{fiche:1,resultat:'ABS'},{fiche:1,resultat:'A',estCote:true},{fiche:1,resultat:null,estCote:true},{fiche:1,resultat:null,special:{code:'ABS'}}]){const s=setup({nativeRows:[row]});const out=await s.run();assert.equal(out.success,false);assert.match(out.message,/état|cote|absence/i);assert.equal(s.writes.length,0);assert.equal(s.updates,0)}});
 test('unknown or zero native maximum blocks outside numeric grades including zero before any native writes',async()=>{for(const maximum of [null,0])for(const grade of ['0','8']){const s=setup({nativeRows:[{fiche:2,resultat:grade}]});s.activity.parametresEvaluation.noteMaximale=maximum;s.activity.parametresEvaluation.evaluee=false;s.payload.assignment.maxScore=40;const out=await s.run();assert.equal(out.success,false);assert.equal(s.updates,0);assert.equal(s.writes.length,0);assert.equal(s.phases.length,0)}});
+
+for(const source of ['gestion','mozaik']) test('explicit weight authority '+source+' is used by actual complete sync',async()=>{
+ const s=setup();s.payload.assignment.weightSource=source;s.payload.assignment.weight=39;s.activity.parametresEvaluation.ponderation=45;
+ s.payload.reviewOnly=true;const preview=await s.run();assert.equal(preview.weightChoiceVersion,1);assert.equal(preview.weightSource,source);
+ assert.equal(preview.preview.activityAfter.parametresEvaluation.ponderation,source==='gestion'?39:45);
+ s.payload.checkpoint=preview.checkpoint;s.payload.reviewOnly=false;
+ const out=await s.run();assert.equal(out.success,true,out.message);assert.equal(s.writes.length,1);
+ assert.equal(s.activity.parametresEvaluation.ponderation,source==='gestion'?39:45);
+});
+test('native activity HTTP 400 is durably rejected before any grade writes',async()=>{
+ const s=setup({activityRejected:true});const out=await s.run();assert.equal(out.success,false);assert.equal(s.writes.length,0);
+ assert.equal(s.phases.at(-1).checkpoint.activityWrite.state,'rejected');
+ assert.equal(s.phases.at(-1).checkpoint.activityWrite.httpStatus,400);
+});
+test('lost native activity response remains uncertain and never proceeds to grade writes',async()=>{
+ const s=setup({activityNetworkFailure:true});const out=await s.run();assert.equal(out.success,false);assert.equal(s.writes.length,0);
+ assert.equal(s.phases.at(-1).checkpoint.activityWrite.state,'inflight');
+});
+test('repeated verification of a completed send does not write notes twice',async()=>{
+ const s=setup();s.payload.assignment.weightSource='gestion';const first=await s.run();assert.equal(first.success,true,first.message);
+ s.payload.checkpoint=s.phases.at(-1).checkpoint;const retry=await s.run();assert.equal(retry.success,true,retry.message);assert.equal(s.writes.length,1);
+});
+
+test('switching from non-bulletin to Gestion bulletin ignores old native-only legend',async()=>{
+ const s=setup({deriveLegend:true});s.activity.parametresEvaluation.porteeAuBulletin=false;s.activity.parametresEvaluation.ponderation=null;s.activity.parametresEvaluation.legende='MEN';
+ s.payload.assignment.weightSource='gestion';s.payload.assignment.reportCardEnabled=true;s.payload.assignment.weight=39;
+ const out=await s.run();assert.equal(out.success,true,out.message);assert.equal(s.activity.parametresEvaluation.ponderation,39);assert.equal(s.writes.length,1);
+});
+test('choosing non-bulletin Mozaik never turns it into a bulletin work from Gestion',async()=>{
+ const s=setup({deriveLegend:true});s.activity.parametresEvaluation.porteeAuBulletin=false;s.activity.parametresEvaluation.ponderation=null;s.activity.parametresEvaluation.legende='MEN';
+ s.payload.assignment.weightSource='mozaik';s.payload.assignment.reportCardEnabled=true;s.payload.assignment.weight=39;
+ const out=await s.run();assert.equal(out.success,true,out.message);assert.equal(s.activity.parametresEvaluation.ponderation,null);assert.equal(s.activity.parametresEvaluation.porteeAuBulletin,false);
+});
+
+test('alignment accepts independent Mozaik maximum and Gestion weight without changing proportions',async()=>{
+ const s=setup({nativeRows:[]});s.activity.parametresEvaluation.noteMaximale=100;
+ Object.assign(s.payload.assignment,{maxScore:70,weight:39,weightSource:'gestion',maximumSource:'mozaik',alignmentVersion:1});
+ s.payload.results[0].grade=56;s.payload.reviewOnly=true;
+ const out=await s.run();assert.equal(out.previewRequired,true,out.message);
+ assert.equal(out.preview.activityAfter.parametresEvaluation.noteMaximale,100);
+ assert.equal(out.preview.activityAfter.parametresEvaluation.ponderation,39);
+ assert.equal(out.preview.rows[0].afterGrade,'80');
+ assert.equal(out.checkpoint.target.gestion.maxScore,100);
+ assert.equal(out.checkpoint.target.gestion.results[0].grade,80);
+ assert.equal(s.writes.length,0);
+});
+test('alignment preserves canonical base instead of repeatedly rounding converted points',async()=>{
+ const s=setup({nativeRows:[]});s.activity.parametresEvaluation.noteMaximale=3;
+ Object.assign(s.payload.assignment,{maxScore:100,weightSource:'mozaik',maximumSource:'mozaik',alignmentVersion:1});
+ Object.assign(s.payload.results[0],{grade:33.3,baseScore:1,baseMax:3,baseSource:'gestion'});
+ s.payload.reviewOnly=true;const out=await s.run();assert.equal(out.previewRequired,true,out.message);
+ assert.equal(out.preview.rows[0].afterGrade,'1');
+ assert.equal(out.checkpoint.target.gestion.results[0].grade,1);
+});
+test('alignment refuses invalid remote maximum rather than inventing a scale',async()=>{
+ for(const value of [null,0,-1,{},[],true,'', 'oops',1001]){
+  const s=setup({nativeRows:[]});s.activity.parametresEvaluation.noteMaximale=value;
+  Object.assign(s.payload.assignment,{weightSource:'gestion',maximumSource:'mozaik',alignmentVersion:1});
+  s.payload.reviewOnly=true;const out=await s.run();assert.equal(out.success,false,JSON.stringify(value));
+  assert.equal(s.updates,0);assert.equal(s.writes.length,0);
+ }
+});

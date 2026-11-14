@@ -72,3 +72,21 @@ test('replacement and creation freeze the previous link without updating it duri
   assert.equal(out.mode,activityId?'update':'create');assert.equal(h.writes.some(x=>x.table==='school_mozaik_links'),false);
  }
 });
+
+test('alignment prepare freezes both sources and canonical bases and acknowledges the new protocol',async()=>{
+ const h=annualPrepareHarness();
+ Object.assign(h.tables.school_assignments[0],{revision:4,term:1,mozaik_period:3,activity_date:'2026-11-13',mozaik_competence_kind:'lecture',weight:39,report_card_enabled:true});
+ Object.assign(h.tables.school_results[0],{base_score:6,base_max:10,base_source:'formative'});
+ h.tables.school_mozaik_links.push({assignment_id:'a',group_code:'31',activity_id:'remote'});
+ const out=await load().prepare(h.client,{...h.body,weightSource:'mozaik',maximumSource:'mozaik',alignmentVersion:1});
+ const p=h.writes.find(x=>x.insert)?.insert.payload;
+ assert.equal(out.alignmentVersionAccepted,1);assert.equal(out.maximumSourceAccepted,'mozaik');
+ assert.equal(p.assignment.alignmentVersion,1);assert.equal(p.assignment.maximumSource,'mozaik');
+ assert.equal(p.results[0].baseScore,6);assert.equal(p.results[0].baseMax,10);assert.equal(p.results[0].baseSource,'formative');
+});
+test('new alignment is explicit and cannot borrow a maximum from a nonexistent activity',async()=>{
+ for(const body of [{weightSource:'gestion',alignmentVersion:1},{weightSource:'gestion',maximumSource:'mozaik',alignmentVersion:1},{weightSource:'gestion',maximumSource:'gestion',alignmentVersion:2}]){
+  const h=annualPrepareHarness();Object.assign(h.tables.school_assignments[0],{revision:4,term:1,mozaik_period:3,activity_date:'2026-11-13',mozaik_competence_kind:'lecture',weight:39,report_card_enabled:true});
+  await assert.rejects(load().prepare(h.client,{...h.body,...body}),/maximum|alignement|activité/);assert.equal(h.writes.length,0);
+ }
+});
