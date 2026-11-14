@@ -1,0 +1,37 @@
+/* Scoped to the confirmation view, with labels as well as color. */
+.mozaik-review { min-width: 0; }
+.mozaik-review-summary { display:flex; flex-wrap:wrap; gap:8px; margin:16px 0 8px; }
+.mozaik-review-count, .mozaik-review-badge { display:inline-block; padding:6px 10px; border-radius:8px; font-size:0.88rem; font-weight:650; border:1px solid transparent; }
+.mozaik-review-added { background:#e9f5ef; color:#185b39; border-color:#c2e1ce; }
+.mozaik-review-modified { background:#fff2dc; color:#784700; border-color:#e7ce9f; }
+.mozaik-review-scaled { background:#edf3ff; color:#1e478f; border-color:#c9d8f1; }
+.mozaik-review-unchanged { background:#f1f3f6; color:#495565; border-color:#dfe3e9; }
+.mozaik-review-invalid { background:#fff0ee; color:#992d20; border-color:#e6bdb6; }
+.mozaik-review-warning { margin:12px 0; padding:12px 14px; border:1px solid #e4bc7c; border-left:4px solid #ab6500; background:#fff8ed; border-radius:9px; color:#4d3617; }
+.mozaik-review-warning p { margin:0 0 8px; }
+.mozaik-review-risk-names { overflow-wrap:anywhere; font-weight:600; }
+.mozaik-review-ack { display:flex; align-items:flex-start; gap:10px; font-weight:600; cursor:pointer; }
+.mozaik-review-ack input { flex:none; width:18px; height:18px; margin-top:2px; }
+.mozaik-review-tools { display:flex; flex-wrap:wrap; gap:12px; margin:14px 0 6px; }
+.mozaik-review-tools label { display:flex; flex:1 1 220px; flex-direction:column; gap:6px; font-weight:600; }
+.mozaik-review-tools .input, .mozaik-review-tools .select { width:100%; min-width:0; }
+.mozaik-review-scroll { max-height:42vh; overflow:auto; border:1px solid #dce3ec; border-radius:10px; }
+.mozaik-review-scroll .grade-table { margin:0; min-width:620px; }
+.mozaik-review-scroll th { position:sticky; top:0; z-index:1; background:#f4f7fb; }
+.mozaik-review-scroll td { vertical-align:top; }
+.mozaik-review-caption { text-align:left; padding:10px 12px; font-weight:600; }
+.mozaik-review-scope { display:block; margin-top:5px; color:#5d697a; font-size:0.8rem; }
+.mozaik-review-attention td:first-child { border-left:4px solid #ab6500; }
+.mozaik-review input:focus-visible, .mozaik-review select:focus-visible, .mozaik-review-scroll:focus-visible { outline:3px solid #2866bf; outline-offset:2px; }
+@media (max-width:600px) { .mozaik-review-tools label { flex-basis:100%; } .mozaik-review-count { font-size:.8rem; } }
+
+.mozaik-review-dialog { max-height:calc(100dvh - 32px); overflow:hidden; }
+.mozaik-review-dialog[open] { display:flex; flex-direction:column; }
+.mozaik-review-dialog .dialog-head, .mozaik-review-dialog .dialog-actions { flex-shrink:0; background:#fff; }
+.mozaik-review-dialog .formative-dialog-body { min-height:0; overflow:auto; display:block; padding:14px 22px; }
+.mozaik-review-dialog .formative-dialog-body > p { margin:0 0 12px; }
+.mozaik-review-dialog .formative-dialog-body h3 { margin:8px 0 12px; font-size:1rem; }
+.mozaik-review-dialog .dialog-actions { gap:10px; }
+.mozaik-review-dialog .dialog-actions button:disabled { cursor:not-allowed; }
+.mozaik-review-parameters { overflow:auto; margin-bottom:12px; }
+.mozaik-review-parameters .grade-table { min-width:560px; font-size:.88rem; }

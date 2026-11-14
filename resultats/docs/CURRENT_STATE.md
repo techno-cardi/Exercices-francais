@@ -33,3 +33,15 @@ PR #2 contains the coordinated page changes. Check the merged state and successf
 ## Historical state
 
 Complete previous state: archive/CURRENT_STATE_before_1354.md. Existing 1.3.53 fixes (native PUT descriptions, protected cancellation, explicit weighting) remain. Never publish HARs, tokens, fiches or real results. Read CHATGPT_PROJECT_INSTRUCTIONS.md and relevant protocol docs before changes.
+
+## Presentation-only review improvements (13 November 2026 Québec, revision 1354r1)
+
+The confirmation view now summarizes additions, actual result changes, proportional scale conversions and identical rows. Both Gestion and native values are considered when alignment is active. Search ignores accents and display filters never affect the original outgoing batch. No automatic exclusion of unchanged results is claimed.
+
+Explicit acknowledgement is required when a positive grade becomes zero, a native special code is replaced, or results become visible in Mozaïk. Missing/empty/malformed previews fail closed; the engine's existing confirmation, zero guard and re-read are unchanged. A missing cached review module also fails closed.
+
+Stale reconciliation correctly describes Mozaïk-only completion and never promises to overwrite newer Gestion data. The dialog has a scrollable body and permanently accessible footer, and labels missing values separately from zero and special codes.
+
+This is FRONTEND ONLY. Extension remains 1.3.54, unchanged byte for byte; no backend or migration change. Added files: mozaik-review.js/css, 21 pure Node tests and a no-network Chromium harness. Local full suite: 327 passed, 0 failed/skipped. Chromium: 9 scenarios, no network requests or page errors. New tests were observed failing against the unmodified UI before implementation. Earlier baseline ENOENT errors were test fixture path issues fixed by pointing the test workspace to the supplied exact extension, not by product changes.
+
+Release procedure: separate feature branch/PR, CI, merge and Pages deployment confirmation. Check actual PR/deploy status before asserting this UI revision is live. No actual student values were read, changed or submitted for these tests. There is no new extension ZIP to install. A refresh of Gestion loads the revised confirmation view.

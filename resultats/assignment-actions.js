@@ -149,13 +149,15 @@
   }
   function reviewMozaik(preview, context = {}) {
     if (active) return Promise.reject(new Error('Un aperçu est déjà ouvert.'));
+    if (!window.CardinalMozaikReview) return Promise.reject(new Error('Actualise Gestion des notes : le module de vérification de l’aperçu n’est pas chargé.'));
+    const stale=context.reconcilingStale===true || preview.reconcilingStale===true;
     return new Promise(resolve => {
-      const dialog=document.createElement('dialog');dialog.className='dialog formative-dialog';
+      const dialog=document.createElement('dialog');dialog.className='dialog formative-dialog mozaik-review-dialog';
       const heading=document.createElement('div');heading.className='dialog-head';
-      const title=document.createElement('h2');title.textContent='Vérifier l’envoi dans Mozaïk';heading.append(title);
+      const title=document.createElement('h2');title.textContent='Vérifier l’envoi dans Mozaïk';title.id='cardinal-review-title';dialog.setAttribute('aria-labelledby',title.id);heading.append(title);
       const body=document.createElement('div');body.className='formative-dialog-body';
       const note=document.createElement('p');note.textContent=`Groupe ${context.groupCode || ''} · ${context.title || ''}`;body.append(note);
-      if(context.reconcilingStale){const warning=document.createElement('p');warning.className='alert';warning.textContent='Gestion a changé depuis cet envoi. Cette reprise termine le lot précédent pour rétablir un état cohérent dans Mozaïk. Les changements plus récents resteront à envoyer ensuite.';body.append(warning);}
+      if(stale){const warning=document.createElement('p');warning.className='alert';warning.textContent='Gestion a changé depuis cet envoi. Cette reprise termine le lot précédent pour rétablir un état cohérent dans Mozaïk. Les changements plus récents resteront à envoyer ensuite.';body.append(warning);}
       const before=preview.activityBefore || {},after=preview.activityAfter || {};
       if(context.weightSource === 'mozaik' && !preview.gestionAfter) {
         const info=document.createElement('p');info.className='hint';
@@ -168,17 +170,17 @@
       }
       if(preview.gestionAfter){
         const old=preview.gestionBefore||{},aligned=preview.gestionAfter;
-        const label=v=>v===true?'Oui':v===false?'Non':v==null?'Sans pondération':String(v);
-        const heading=document.createElement('h3');heading.textContent='Paramètres après confirmation : identiques dans les deux systèmes';body.append(heading);
+        const label=(v,field)=>v===true?'Oui':v===false?'Non':v===null&&field==='Pondération'?'Sans pondération':v==null?'À vérifier':String(v)+(field==='Pondération'?' %':field==='Maximum'?' points':'');
+        const heading=document.createElement('h3');heading.textContent=stale?'Paramètres de l’ancien lot à terminer dans Mozaïk':'Paramètres après confirmation : identiques dans les deux systèmes';body.append(heading);
         const table=document.createElement('table');table.className='grade-table';
-        const header=document.createElement('tr');for(const text of ['Paramètre','Gestion actuellement','Mozaïk actuellement','Valeur retenue']){const th=document.createElement('th');th.textContent=text;header.append(th);}table.append(header);
+        const header=document.createElement('tr');for(const text of ['Paramètre',stale?'Gestion dans l’ancien lot':'Gestion actuellement','Mozaïk actuellement',stale?'Cible de l’ancien lot':'Valeur retenue']){const th=document.createElement('th');th.textContent=text;header.append(th);}table.append(header);
         for(const values of [
           ['Pondération',old.weight,before.parametresEvaluation?.ponderation,aligned.weight],
           ['Maximum',old.maxScore,before.parametresEvaluation?.noteMaximale,aligned.maxScore],
           ['Porté au bulletin',old.reportCardEnabled,before.parametresEvaluation?.porteeAuBulletin,aligned.reportCardEnabled]
-        ]){const row=document.createElement('tr');for(const value of values){const cell=document.createElement('td');cell.textContent=label(value);row.append(cell);}table.append(row);}
-        body.append(table);
-        const warning=document.createElement('p');warning.className='hint';warning.textContent='Les notes ci-dessous proviennent de Gestion. Leur conversion sera aussi enregistrée dans Gestion une seule fois, après vérification de Mozaïk. Un échec ou une modification concurrente ne sera pas annoncé comme un alignement réussi.';body.append(warning);
+        ]){const row=document.createElement('tr');for(const value of values){const cell=document.createElement('td');cell.textContent=label(value,typeof value==='string'&&value===values[0]?'':values[0]);row.append(cell);}table.append(row);}
+        const parameters=document.createElement('div');parameters.className='mozaik-review-parameters';parameters.append(table);body.append(parameters);
+        const warning=document.createElement('p');warning.className='hint';warning.textContent=stale?'Le contenu actuel de Gestion sera conservé. Seule la cible figée de cet ancien lot sera terminée dans Mozaïk; les changements récents resteront à synchroniser.':'Les notes ci-dessous proviennent de Gestion. Leur conversion sera aussi enregistrée dans Gestion une seule fois, après vérification de Mozaïk. Un échec ou une modification concurrente ne sera pas annoncé comme un alignement réussi.';body.append(warning);
       }
       const destination=document.createElement('p');
       destination.textContent=preview.activityBefore
@@ -188,21 +190,16 @@
       const fields=[['Titre',before.titre,after.titre],['Maximum',before.parametresEvaluation?.noteMaximale,after.parametresEvaluation?.noteMaximale],['Pondération',before.parametresEvaluation?.ponderation,after.parametresEvaluation?.ponderation],['Portée au bulletin',before.parametresEvaluation?.porteeAuBulletin,after.parametresEvaluation?.porteeAuBulletin],['Compétence',before.parametresEvaluation?.competence,after.parametresEvaluation?.competence],['Étape',before.codeEtape,after.codeEtape],['Période',before.periode,after.periode],['Devoir',before.faitALaMaison,after.faitALaMaison],['Évaluation notée',before.parametresEvaluation?.evaluee,after.parametresEvaluation?.evaluee],['Résultats visibles dans Mozaïk',before.parametresEvaluation?.resultatsDisponibles,after.parametresEvaluation?.resultatsDisponibles],['Date',before.dateActivite,after.dateActivite],['Présence dans l’horaire',before.afficheeDansHoraire,after.afficheeDansHoraire]];
       const show=value=>value===true?'Oui':value===false?'Non':value??'À compléter';
       for(const [label,oldValue,newValue]of fields){if(oldValue===newValue)continue;const p=document.createElement('p');p.textContent=`${label} : ${show(oldValue)} → ${show(newValue)}`;body.append(p);}
-      const hint=document.createElement('p');hint.textContent='Les lignes conservées hors lot sont incluses ci-dessous. Si le maximum change, leurs notes sont recalculées proportionnellement et arrondies au dixième; les valeurs avant et après sont affichées.';body.append(hint);
-      const scroll=document.createElement('div');scroll.style.cssText='max-height:42vh;overflow:auto';
-      const table=document.createElement('table');table.className='grade-table';
-      if(preview.gestionAfter){const tr=document.createElement('tr');for(const text of ['Élève','Gestion avant','Mozaïk avant','Après confirmation']){const th=document.createElement('th');th.textContent=text;tr.append(th);}table.append(tr);}
-      for(const row of preview.rows||[]){
-        const values=preview.gestionAfter?[row.name||`Élève ${row.fiche}`,row.source==='gestion'?`${show(row.gestionBeforeGrade)}/${show(row.gestionBeforeMax)}`:'Hors lot de Gestion',`${show(row.beforeGrade)}/${show(row.beforeMax)}`,`${show(row.afterGrade)}/${show(row.afterMax)}${row.source==='gestion'?' · les deux systèmes':' · Mozaïk seulement'}`]
-          :[row.name||`Élève ${row.fiche}`,row.source==='gestion'?'Note de Gestion':'Conservée hors lot',`${show(row.beforeGrade)}/${show(row.beforeMax)} → ${show(row.afterGrade)}/${show(row.afterMax)}`];
-        const tr=document.createElement('tr');for(const value of values){const td=document.createElement('td');td.textContent=value;tr.append(td);}table.append(tr);
-      }
-      scroll.append(table);body.append(scroll);
+      const reviewHost=document.createElement('section');body.append(reviewHost);
       const actions=document.createElement('div');actions.className='dialog-actions';
-      const finish=ok=>{active=null;dialog.close();dialog.remove();resolve(ok);};
-      const cancel=document.createElement('button');cancel.className='btn';cancel.textContent='Annuler';cancel.onclick=()=>finish(false);
-      const confirm=document.createElement('button');confirm.className='btn btn-primary';confirm.textContent=context.reconcilingStale?'Terminer l’ancien envoi':'Confirmer l’envoi';confirm.onclick=()=>finish(true);
+      let settled=false;
+      const finish=ok=>{if(settled)return;settled=true;active=null;dialog.close();dialog.remove();resolve(ok);};
+      const cancel=document.createElement('button');cancel.type='button';cancel.className='btn';cancel.textContent='Annuler';cancel.onclick=()=>finish(false);
+      const confirm=document.createElement('button');confirm.type='button';confirm.className='btn btn-primary';confirm.textContent=stale?'Terminer l’ancien envoi':'Confirmer l’envoi';confirm.disabled=true;
+      const review=window.CardinalMozaikReview.mount(reviewHost,preview,context,ready=>{confirm.disabled=!ready;});
+      confirm.onclick=()=>{if(review.canConfirm())finish(true);};
       dialog.addEventListener('cancel',event=>{event.preventDefault();finish(false);});
+      dialog.addEventListener('close',()=>finish(false));
       actions.append(cancel,confirm);dialog.append(heading,body,actions);document.body.append(dialog);active=dialog;dialog.showModal();
     });
   }
