@@ -11,7 +11,7 @@ export async function yearContext(db:any,requested:any,options:any={}) {
   if(!Number.isSafeInteger(year)||!selected)yearFailure('Cette année scolaire est introuvable. Actualise Gestion.');
   if(bound!==undefined&&Number(bound)!==year)yearFailure('Ce travail appartient à une autre année. Actualise la liste.');
   if(options.write){
-    if(catalog.enforced&&!supplied&&bound===undefined)yearFailure('Actualise Gestion pour confirmer l’année de cette opération.');
+    if(catalog.enforced&&!supplied&&bound===undefined)yearFailure('Actualise Gestion pour confirmer l’année scolaire.');
     if(selected.status!=='open')yearFailure('Cette année est archivée ou en préparation : consultation seulement.');
     if(options.external&&year!==catalog.activeYear)yearFailure('Les imports et envois sont réservés à l’année active.');
   }
